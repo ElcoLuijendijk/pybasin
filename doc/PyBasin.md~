@@ -1,0 +1,64 @@
+PyBasin
+=======
+
+
+## Decompaction
+
+Porosity is calculated assuming an exponential decay of porosity with depth [@Athy1930;Fowler2008]:
+
+\begin{equation}
+	n = n_0 e^{-c z}
+\end{equation}
+
+
+The thickness of the pore space $b_w$ is related to porosity $n$ by [@Allen2005]:
+
+\begin{equation}
+	b_w = \int _{z1}^{z2} n_0 e^{-c z}
+\end{equation}
+
+which after integration gives:
+
+\begin{equation}
+	b_w = \frac{n_0}{c} \left(e^{-cz_1} - e^{-cz_2} \right)
+\end{equation}
+
+
+The total thickness is the pore space and the matrix: $b_t = b_w + b_m$
+
+The initial, decompacted thickness can be calculated by setting $z_1 = 0$ and $z_2 = b_0$, where $b_0$ is the initial thickness:
+
+\begin{equation}
+	b_0 = b_m + \frac{n_0}{c} \left(1 - e^{-cb_0} \right)
+\end{equation}
+
+This equation cannot be solved analytically. We use iteration to find the value of $b_0$:
+
+\begin{equation}
+	b_0^{i+1} = b_m + \frac{n_0}{c} \left(1 - e^{-cb_0^{i}} \right)
+\end{equation}
+
+where $^i$ denotes a step in the iteration. In general 10 to 20 iterations are required to find a value within 0.01 m of the 'real' decompacted thickness.
+
+
+## Decompaction with exhumation phases
+
+Things get significantly more complicated if we included exhumation phases in the simulated burial history. 
+
+One solution is to first calculate the decompacted thickness assuming maximum present-day burial. Then go back to each of the exhuamtion phases and calculate the estimated burial depth of each unit. If the burial depth exceeds present-day burial depths then the thickness of the pore space $b_w$ and the matrix thickness $b_m$ need to be recalculated. To keep things simple we assume no thickness change during exhumation, only during burial.
+
+In this case the matrix thickness can be calculated as
+
+\begin{equation}
+	b_w = \frac{n_0}{c} \left(e^{-cz_{1,m}} - e^{-cz_{2,m}} \right)
+\end{equation}
+
+where $z_{1,m}$ and $z_{1,m}$ are the top and the base of the unit at maximum burial depth. Because we assume no thickness changes during uplift, the thickness at maximum burial is the same as the present-day thickness ($b_p$): 
+
+\begin{equation}
+	$z_{2,m} = z_{1,m} + b_p$.
+\end{equation}
+
+
+
+

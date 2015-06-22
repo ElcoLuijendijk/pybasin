@@ -1,0 +1,66 @@
+"""
+create a series of 2D contour plots of 2 parameter values vs goodness of
+fit statistic
+
+"""
+
+__author__ = 'elco'
+
+
+import os
+import numpy as np
+import pandas as pd
+
+
+min_T_gof = 0.5
+default_heat_flow = 0.065
+
+model_result_fn = 'model_output/MB/' \
+                  'model_results_all_wells_29-3-2015_ms0-9828.csv'
+
+df = pd.read_csv(model_result_fn)
+
+wells = np.unique(df['well'])
+
+# select cooling values and set NaN to 0 cooling:
+df['cooling'] = df['mean_cooling_exhumation_phase_0']
+df['cooling'][df['cooling'].isnull()] = 0.0
+
+df['present_max_T'] = np.nan
+df['estimated_present_day_heat_flow'] = np.nan
+df['max_cooling'] = np.nan
+df['max_T_gof'] = np.nan
+
+for well in wells:
+
+    print 'well ', well
+
+    well_ind = df['well'] == well
+
+    # find best fit present-day temperature
+    if True in df['T_gof'][well_ind].notnull().values and df['T_gof'][well_ind].max() > min_T_gof:
+        best_T_gof_ind = df['T_gof'][well_ind] == df['T_gof'][well_ind].max()
+
+        df['max_T_gof'] = df['T_gof'][well_ind].max()
+
+        print 'using T data, with max gof of ', df['T_gof'][well_ind].max()
+
+    else:
+        best_T_gof_ind = df['basal_heat_flow'][well_ind] == default_heat_flow
+        df['estimated_present_day_heat_flow'][well_ind] = default_heat_flow
+
+        print 'using default heat flow ', default_heat_flow
+
+    present_max_Ts = (df['max_temperature'][well_ind][best_T_gof_ind] -
+                      df['cooling'][well_ind][best_T_gof_ind])
+    present_max_T = present_max_Ts.mean()
+
+    df['present_max_T'][well_ind] = present_max_T
+
+    df['max_cooling'][well_ind] = df['max_temperature'][well_ind] - present_max_T
+
+
+# save results
+mod_fn = model_result_fn.split('.csv')[0] + '_mod.csv'
+print 'saving results to ', mod_fn
+df.to_csv(mod_fn, index=False)
