@@ -109,9 +109,8 @@ vr_data = pd.read_csv(os.path.join(input_dir, 'vitrinite_reflectance.csv'))
 aft_data_raw = pd.read_csv(os.path.join(input_dir, 'aft_data.csv'))
 
 # filter out samples with low grain count
-ind = (((aft_data_raw['population_grains'] > pybasin_params.min_grain_no)
-        | (aft_data_raw['population_grains'].isnull()))
-       & (aft_data_raw['n'] > pybasin_params.min_grain_no))
+ind = ((aft_data_raw['n_grains'] > pybasin_params.min_grain_no)
+        | (aft_data_raw['n_grains'].isnull()))
 aft_data = aft_data_raw[ind]
 
 
@@ -152,7 +151,7 @@ model_scenario_param_list = \
                            model_scenarios.exhumation_starts_and_durations,
                            model_scenarios.basal_heat_flow_scenarios))
 
-n_scenarios = len(pybasin_params.wells) * len(model_scenario_param_list)
+n_scenarios = len(model_scenarios.wells) * len(model_scenario_param_list)
 
 model_scenario_numbers = np.arange(n_scenarios)
 
@@ -177,11 +176,11 @@ start_time = time.time()
 #######################
 # go through all wells
 #######################
-for well_number, well in enumerate(pybasin_params.wells):
+for well_number, well in enumerate(model_scenarios.wells):
 
     print 'x' * 20
     print 'well %s, %i/%i' % (well, well_number + 1,
-                              len(pybasin_params.wells))
+                              len(model_scenarios.wells))
 
     if np.any(well_strats['well'] == well) is False:
         #print 'warning, well %s not in well strat file'
