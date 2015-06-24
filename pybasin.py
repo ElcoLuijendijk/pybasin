@@ -60,6 +60,9 @@ output_dir = pybasin_params.output_dir
 
 datafile_output_dir = pybasin_params.datafile_output_dir
 
+if os.path.exists(output_dir) is False:
+    os.mkdir(output_dir)
+
 #pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
 if pybasin_params.save_model_run_data is True and os.path.exists(datafile_output_dir) is False:
     print 'creating directory %s to store model result datafiles' \

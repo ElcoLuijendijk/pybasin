@@ -22,6 +22,8 @@ y_data = 'aft_age_gof'
 y_data2 = 'vr_gof'
 z_data = None
 
+s = 40
+
 gof_cutoff = 0.7
 
 default_heat_flow = 0.065
@@ -98,20 +100,20 @@ for well in wells:
                 c = df[z_data][ind]
                 edgecolor = 'None'
             else:
-                c = 'gray'
+                c = 'black'
                 edgecolor='black'
             sc = panel.scatter(df[x_data][ind], df[y_data][ind], c=c,
                                edgecolor=edgecolor,
-                               s=60,
+                               s=s,
                                vmin=vmin, vmax=vmax,
                                cmap=matplotlib.cm.jet_r,
                                zorder=10)
 
             if y_data2 is not None:
                 panelr = panel.twinx()
-                sc2 = panel.scatter(df[x_data][ind], df[y_data2][ind], c='brown',
+                sc2 = panel.scatter(df[x_data][ind].values, df[y_data2][ind].values, c='lightgrey',
                                      edgecolor=edgecolor,
-                                     s=40,
+                                     s=s * 2/3.,
                                      marker='s',
                                      vmin=vmin, vmax=vmax,
                                      cmap=matplotlib.cm.jet_r,
@@ -130,7 +132,7 @@ for well in wells:
                 panelr.set_ylabel(y_data2.replace('_', ' '), labelpad=12)
                 #panelr.spines["left"].label.set_color('brown')
                 panelr.set_ylim(0, 1.0)
-                panelr.yaxis.label.set_color('brown')
+                panelr.yaxis.label.set_color('gray')
 
                 #panelr.spines['left'].set_position(("axes", -0.4))
 
@@ -169,7 +171,9 @@ for well in wells:
         #cb.set_ticks(cax.get_xticks()[::2])
 
         fig.subplots_adjust(bottom=0.18)
-
+    
+    for panel in panels:
+        panel.set_xlim(df[x_data].min(), df[x_data].max())
 
     fig_dir = os.path.join(os.path.dirname(model_result_fn), 'model_data_fig')
     if not os.path.exists(fig_dir):

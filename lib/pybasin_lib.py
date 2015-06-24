@@ -278,6 +278,7 @@ def add_exhumation_phases(well_strat, exhumation_phase_ids,
 
             # list (partly) eroded units
             youngest_unit = df_ex[df_ex['preserved']].index[-1]
+
             eroded_units = exhumed_strat_unit[exhumed_strat_unit.index(youngest_unit):]
 
             # calculate eroded thicknesses
