@@ -23,7 +23,8 @@ def model_vs_data_figure(time_array_bp,
                          aft_length_mean, aft_length_std, aft_data_type,
                          T_GOF, vr_GOF, age_GOF,
                          show_provenance_hist=True,
-                         time_int_grid=10):
+                         time_int_grid=10,
+                         model_data_fig_bw=False):
 
     """
     create a figure comparing 1D burial and thermal model results
@@ -121,6 +122,15 @@ def model_vs_data_figure(time_array_bp,
                  'weight': 'bold',
                  'bbox': dict(facecolor="white", ec='white', alpha=0.7)}
 
+    if model_data_fig_bw is True:
+        provenance_color = 'black'
+        cmap = matplotlib.cm.get_cmap('Greys')
+
+    else:
+        provenance_color = 'darkgray'
+        cmap = matplotlib.cm.get_cmap('jet')
+
+
     # plot surface temperature
     axst.plot(time_array_bp / 1e6, surface_temp_array,
               **line_props)
@@ -172,7 +182,8 @@ def model_vs_data_figure(time_array_bp,
                      y[ind][::plot_int],
                      c=z[ind][::plot_int],
                      edgecolor="None",
-                     s=3)
+                     s=3,
+                     cmap=cmap)
 
     major_strat = [n[:4] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
@@ -193,7 +204,7 @@ def model_vs_data_figure(time_array_bp,
                 axb.fill(xf, yf, color='lightgrey', zorder=0)
 
                 for xbi, ybi in zip(xb, yb):
-                    axb.plot(xbi, ybi, color='darkgray', lw=0.5)
+                    axb.plot(xbi, ybi, color=provenance_color, lw=0.5)
 
     else:
         ind = np.array(strat_transition) == True
@@ -298,9 +309,23 @@ def model_vs_data_figure(time_array_bp,
     for ax in depth_panels:
         ax.set_ylim(max_depth, -20.0)
 
-    ax_temp.set_xlim(0, T_nodes.max() * 1.1)
-    ax_vr.set_xlim(0.1, vr_nodes.max() * 1.1)
-    ax_afta.set_xlim(aft_age_nodes[active_nodes[-1]].max() * 1.1, 0)
+
+    max_T = T_nodes[-1].max()
+    max_VR = vr_nodes.max()
+    afta_max = aft_age_nodes[active_nodes[-1]].max()
+
+    if T_data.max() > max_T:
+        max_T = T_data.max()
+
+    if vr_data.max() > max_VR:
+        max_VR = vr_data.max()
+
+    if aft_age[ind_ca].max() > afta_max:
+        afta_max = aft_age[ind_ca].max()
+
+    ax_temp.set_xlim(0, max_T * 1.1)
+    ax_vr.set_xlim(0.1, max_VR * 1.1)
+    ax_afta.set_xlim(afta_max * 1.1, 0)
     #ax_aftln.set_xlim(2, 17)
 
     print ax_temp.get_xticks()
@@ -311,8 +336,20 @@ def model_vs_data_figure(time_array_bp,
         else:
             ax.set_xticks(ax.get_xticks()[::2])
 
+    ax_vr.set_xticks(ax_vr.get_xticks()[:-1])
+
     t_ticks = np.arange(25, ax_temp.get_xticks()[-1], 50.0)
     ax_temp.set_xticks(t_ticks)
+
+    hf_min = int(np.floor(basal_hf_array.min() * 100.0)) * 10.0
+    hf_max = int(np.ceil(basal_hf_array.max() * 100.0)) * 10.0
+    hf_ticks = np.arange(hf_min, hf_max + 5.0, 5.0)
+    axhf.set_yticks(hf_ticks)
+
+    st_min = int(np.floor(surface_temp_array.min() / 10.0)) * 10.0
+    st_max = int(np.ceil(surface_temp_array.max() / 10.0)) * 10.0
+    st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
+    axst.set_yticks(st_ticks)
 
     print 'new ticks'
     print ax_temp.get_xticks()

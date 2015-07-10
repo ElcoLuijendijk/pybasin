@@ -597,15 +597,21 @@ for well_number, well in enumerate(model_scenarios.wells):
                 aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
                 aft_ln_mean_nodes, aft_ln_std_nodes,
                 vr_nodes,
-                T_data_well['depth'].values, T_data_well['temperature'].values,
+                T_data_well['depth'].values,
+                T_data_well['temperature'].values,
                 T_data_well['temperature_unc_1sigma'].values,
-                vr_data_well['depth'].values, vr_data_well['VR'].values,
+                vr_data_well['depth'].values,
+                vr_data_well['VR'].values,
                 vr_data_well['VR_unc_1sigma'].values,
-                aft_data_well['depth'], aft_data_well['aft_age'],
-                aft_data_well['95ci_minus'], aft_data_well['95ci_plus'],
-                aft_data_well['length_mean'], aft_data_well['length_std'],
+                aft_data_well['depth'],
+                aft_data_well['aft_age'],
+                aft_data_well['95ci_minus'],
+                aft_data_well['95ci_plus'],
+                aft_data_well['length_mean'],
+                aft_data_well['length_std'],
                 aft_data_well['data_type'].values,
-                T_gof, vr_gof, aft_age_gof)
+                T_gof, vr_gof, aft_age_gof,
+                model_data_fig_bw=pybasin_params.model_data_fig_bw)
         #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
             fn = os.path.join(fig_output_dir, 'model_data_fig_%s_%s_ms%i.%s'
