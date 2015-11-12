@@ -1,6 +1,9 @@
 """
-create a series of 2D contour plots of 2 parameter values vs goodness of
-fit statistic
+read pybasin model results and calculate cooling at latest exhumation phase
+from recorded max and present temperatures
+
+also records the most likely basal heat flow if temperature data are available
+and otherwise uses a best estimate heat flow
 
 """
 
@@ -15,8 +18,7 @@ import pandas as pd
 min_T_gof = 0.5
 default_heat_flow = 0.065
 
-model_result_fn = 'model_output/MB/' \
-                  'model_results_all_wells_29-3-2015_ms0-9828.csv'
+model_result_fn = "model_output/MB/final_results_10aug2015/model_results_boreholes_and_surface_10aug2015.csv"
 
 df = pd.read_csv(model_result_fn)
 
@@ -57,7 +59,7 @@ for well in wells:
 
     df['present_max_T'][well_ind] = present_max_T
 
-    df['max_cooling'][well_ind] = df['max_temperature'][well_ind] - present_max_T
+    df['cooling'][well_ind] = df['max_temperature'][well_ind] - present_max_T
 
 
 # save results

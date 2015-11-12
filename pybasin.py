@@ -373,6 +373,10 @@ for well_number, well in enumerate(model_scenarios.wells):
                 pybasin_params.annealing_kinetic_param,
                 Ts)
 
+        # store surface VR value
+        model_results.ix[model_scenario_number, 'vr_surface'] = \
+            vr_nodes[-1, active_nodes[-1]][0]
+
         ##################################
         # calculate model goodness of fit:
         ##################################

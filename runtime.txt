@@ -1,4 +1,4 @@
-model scenario 9000 / 9828
-time passed = 1 day, 18:33:45.271935
-time left = 3:54:56.725018
-time per scenario = 0:00:17.025030
+model scenario 19000 / 20640
+time passed = 2 days, 3:36:01.054465
+time left = 4:27:14.112070
+time per scenario = 0:00:09.776898

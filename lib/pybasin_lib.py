@@ -213,7 +213,8 @@ def subdivide_strat_units(input_df, max_thickness):
     return output_df
 
 
-def add_exhumation_phases(well_strat, exhumation_phase_ids,
+def add_exhumation_phases(well_strat,
+                          exhumation_phase_ids,
                           exhumation_period_starts,
                           exhumation_period_ends,
                           exhumed_strat_units,
@@ -1960,7 +1961,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         if np.any(np.isnan(T_init)):
             print 'error'
-            print bla
+            pdb.set_trace()
 
         # calculate temperature
         T_nodes[timestep, active_nodes_i], A = \
@@ -1985,7 +1986,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
                 print cs, ac, rho
 
-            print bla
+            pdb.set_trace()
 
         if timestep in cumulative_steps:
 

@@ -1,6 +1,6 @@
 """
-create a series of 2D contour plots of 2 parameter values vs goodness of
-fit statistic
+create a series of scatter plots of cooling vs goodness of fit, with one subplot for each combination and start
+and exhumation.
 
 """
 
@@ -17,7 +17,7 @@ import matplotlib.cm
 import matplotlib.pyplot as pl
 import useful_functions
 
-x_data = 'max_cooling'
+x_data = 'cooling'
 y_data = 'aft_age_gof'
 y_data2 = 'vr_gof'
 z_data = None
@@ -30,8 +30,8 @@ default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/' \
-                  'model_results_all_wells_29-3-2015_ms0-8316_mod.csv'
+model_result_fn = 'model_output/MB/final_results_10aug2015/' \
+                  'model_results_all_wells_16-7-2015_ms0-15360_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
 

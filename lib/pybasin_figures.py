@@ -309,16 +309,22 @@ def model_vs_data_figure(time_array_bp,
     for ax in depth_panels:
         ax.set_ylim(max_depth, -20.0)
 
-
     max_T = T_nodes[-1].max()
     max_VR = vr_nodes.max()
     afta_max = aft_age_nodes[active_nodes[-1]].max()
 
-    if T_data.max() > max_T:
-        max_T = T_data.max()
+    # TODO: this fails when no T data, fix this
+    try:
+        if T_data.max() > max_T:
+            max_T = T_data.max()
+    except ValueError:
+        print 'no T data, continuing'
 
-    if vr_data.max() > max_VR:
-        max_VR = vr_data.max()
+    try:
+        if vr_data.max() > max_VR:
+            max_VR = vr_data.max()
+    except ValueError:
+        print 'no VR data, continuing'
 
     if aft_age[ind_ca].max() > afta_max:
         afta_max = aft_age[ind_ca].max()
