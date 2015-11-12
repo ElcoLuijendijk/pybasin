@@ -6,7 +6,127 @@ import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 import matplotlib.mlab
 
-import useful_functions
+#import useful_functions
+
+def setup_figure( width = 125.0, height = 'g', fontsize = 'x-small',
+                  landscape = False,  fontsize_legend = 0, units= 'mm'):
+
+    '''
+    Set up a new Matplotlib figure
+
+    Default figure is 125 mm wide and 125 mm/ golden ratio high
+
+    figure size AGU: one column = 8.4 cm, 2 column = 16.98 cm, max height = 23.7
+
+    Parameters
+    ----------
+    width : float, optional
+        horizontal size of image, default is 125.0 (mm)
+        use '1col' and '2col' for default widths agu journal figs
+        (84.0 and 169.8 mm)
+    height : float, optional
+        vertical size of figure
+        if 'g' the height is equal to the width divided by the golden ration
+        if floating point number, height = width * number
+    fontsize : string, optional
+        'xxx-small', 'xx-small', 'x-small', 'small' or 'medium'
+        default is 'x-small'
+    landscape : boolean, optional
+        Landscape figure instead of portrait
+        default is False
+    fontsize_legend : float or string, optional
+        text size of the legend, use default matplotlib fontsize formatting
+        if fotsize is None the fontsize of legend items is determined by the
+        default settings of the fontsize parameter
+        default is None
+    units : string, optional
+        units used to determine figure size, choose either 'inch' or 'mm'
+        default = 'mm'
+
+    Returns
+    -------
+    fig : matplotlib figure instance
+
+    '''
+
+    if width == '1col':
+        width = 84.0
+    elif width == '2col':
+        width = 169.8
+
+    golden_ratio = (1.0 + np.sqrt(5))/2.0
+
+    if type(height) == str and height[-1] == 'g':
+        if len(height) > 1:
+            c = float(height[:-1])
+        else:
+            c = 1
+
+        height = width / (c * golden_ratio)
+    elif type(height) == float or type(height) == int:
+        height = width * height
+    elif height == 'max':
+        height = 170
+
+    if height > 215.0:
+        print 'figure exceeding b5 paper size'
+
+    # initialize figure
+    if landscape  ==  True:
+        print 'landscape figure'
+        xs = height ; ys = width
+    else:
+        print 'portrait figure'
+        xs = width ; ys = height
+
+    if units != 'inch':
+        xs = xs/25.4
+        ys = ys/25.4
+
+    print 'init fig,  size  =  %0.1f x %0.1f inch' %(xs, ys)
+
+    fig  =  pl.figure(figsize = (xs,ys))
+
+    # set default parameters for figure
+    if type(fontsize)  ==  str:
+        if fontsize  ==  'xxx-small':
+            fontsize_s  =  'xx-small'
+            fontsize_l  =  'xx-small'
+            fontsize_leg  =  'xx-small'
+        elif fontsize  ==  'xx-small':
+            fontsize_s  =  'xx-small'
+            fontsize_l  =  'x-small'
+            fontsize_leg  =  'xx-small'
+        elif fontsize  ==  'x-small':
+            fontsize_s  =  'x-small'
+            fontsize_l  =  'small'
+            fontsize_leg  =  'xx-small'
+        elif fontsize  ==  'small':
+            fontsize_s  =  'small'
+            fontsize_l  =  'medium'
+            fontsize_leg  =  'x-small'
+        elif fontsize  ==  'medium':
+            fontsize_s  =  'medium'
+            fontsize_l  =  'large'
+            fontsize_leg  =  'small'
+    else:
+        fontsize_s  =  fontsize
+        fontsize_l  =  'xx-small'
+        fontsize_leg  =  fontsize
+
+    if fontsize_legend != None:
+        fontsize_leg  =  fontsize_legend
+
+    params  =  {'axes.labelsize': fontsize_s,
+                'text.fontsize': fontsize_l,
+                'legend.fontsize': fontsize_leg,
+                'axes.titlesize' : fontsize_l,
+                'xtick.labelsize': fontsize_s,
+                'ytick.labelsize': fontsize_s}
+
+    pl.rcParams.update(params)
+
+    return fig
 
 
 def model_vs_data_figure(time_array_bp,
@@ -76,7 +196,7 @@ def model_vs_data_figure(time_array_bp,
     #n_nodes = T_nodes.shape[1]
     degree_symbol = unichr(176)
 
-    fig = useful_functions.setup_figure(width='2col', height=0.5, fontsize='xx-small')
+    fig = setup_figure(width='2col', height=0.5, fontsize='xx-small')
 
     gs = gridspec.GridSpec(3, 4,
                            wspace=0.0, hspace=0.0,
