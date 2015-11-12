@@ -133,9 +133,7 @@ def model_vs_data_figure(time_array_bp,
                          surface_temp_array, basal_hf_array,
                          z_nodes, active_nodes, T_nodes,
                          node_strat, node_age,
-                         aft_node_times_burial, aft_node_zs,
-                         aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                         aft_ln_mean_nodes, aft_ln_std_nodes,
+                         simulated_AFT_data,
                          vr_nodes,
                          T_depth, T_data, T_data_sigma,
                          vr_depth, vr_data, vr_data_sigma,
@@ -191,7 +189,12 @@ def model_vs_data_figure(time_array_bp,
 
     nt_total, n_nodes = T_nodes.shape
 
-    _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
+    if simulated_AFT_data is not None:
+        (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+         aft_ln_mean_nodes, aft_ln_std_nodes,
+         aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+
+        _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
 
     #n_nodes = T_nodes.shape[1]
     degree_symbol = unichr(176)
@@ -313,7 +316,7 @@ def model_vs_data_figure(time_array_bp,
     #figb = pl.figure()
     #axbt = figb.add_subplot(1, 1, 1)
 
-    if show_provenance_hist is True:
+    if show_provenance_hist is True and simulated_AFT_data is not None:
         for xb, yb, strat_trans in zip(aft_node_times_burial,
                                        aft_node_zs,
                                        strat_transition):
@@ -342,17 +345,19 @@ def model_vs_data_figure(time_array_bp,
     ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
 
     # plot vitrinite
-    ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
-               z_nodes[-1, active_nodes[-1]],
-               **line_props)
+    if vr_nodes is not None:
+        ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
+                   z_nodes[-1, active_nodes[-1]],
+                   **line_props)
 
     ax_vr.errorbar(vr_data, vr_depth, xerr=vr_data_sigma, **erb_props)
 
     # plot aft ages
-    ax_afta.fill_betweenx(z_nodes[-1, active_nodes[-1]],
-                          aft_age_nodes_min[active_nodes[-1]],
-                          aft_age_nodes_max[active_nodes[-1]],
-                          color='lightgrey')
+    if simulated_AFT_data is not None:
+        ax_afta.fill_betweenx(z_nodes[-1, active_nodes[-1]],
+                              aft_age_nodes_min[active_nodes[-1]],
+                              aft_age_nodes_max[active_nodes[-1]],
+                              color='lightgrey')
 
     ax_afta.plot(node_age[active_nodes[-1]], z_nodes[-1, active_nodes[-1]],
                  color='blue', lw=1.5, ls='---', zorder=101)
@@ -370,11 +375,12 @@ def model_vs_data_figure(time_array_bp,
                      xerr=[aft_age_plus_ci[ind_ca], aft_age_min_ci[ind_ca]],
                      **erb_props)
 
-    for n_prov in xrange(n_prov_scenarios):
-        for n_kin in xrange(n_kinetic_scenarios):
-            ax_afta.plot(aft_age_nodes[active_nodes[-1], n_prov, n_kin],
-                         z_nodes[-1, active_nodes[-1]],
-                         **line_props)
+    if simulated_AFT_data is not None:
+        for n_prov in xrange(n_prov_scenarios):
+            for n_kin in xrange(n_kinetic_scenarios):
+                ax_afta.plot(aft_age_nodes[active_nodes[-1], n_prov, n_kin],
+                             z_nodes[-1, active_nodes[-1]],
+                             **line_props)
 
     # plot track lengths
     #for n_prov in xrange(n_prov_scenarios):
@@ -417,7 +423,7 @@ def model_vs_data_figure(time_array_bp,
     max_depth = z_nodes.max() * 1.1
     max_time = time_array_bp.max() / 1e6 * 1.1
 
-    if show_provenance_hist is True:
+    if show_provenance_hist is True and simulated_AFT_data is True:
         start_times = np.array([ai[0]
                                 for a in aft_node_times_burial
                                 for ai in a])
@@ -430,8 +436,14 @@ def model_vs_data_figure(time_array_bp,
         ax.set_ylim(max_depth, -20.0)
 
     max_T = T_nodes[-1].max()
-    max_VR = vr_nodes.max()
-    afta_max = aft_age_nodes[active_nodes[-1]].max()
+    if vr_nodes is not None:
+        max_VR = vr_nodes.max()
+    else:
+        max_VR = 1.5
+    if simulated_AFT_data is not None:
+        afta_max = aft_age_nodes[active_nodes[-1]].max()
+    else:
+        afta_max = max_time
 
     # TODO: this fails when no T data, fix this
     try:

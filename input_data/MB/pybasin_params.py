@@ -19,16 +19,16 @@ output_dir = 'model_output/MB'
 datafile_output_dir = '../../heavy_data/pybasin_MB'
 
 # option to calculate apatite fission track data
-simulate_AFT = True
-simulate_AHe = True
-simulate_VR = True
+simulate_AFT = False
+simulate_AHe = False
+simulate_VR = False
 simulate_salinity = False
 
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = False
+make_model_data_fig = True
 
 # black and white figure
 model_data_fig_bw = False

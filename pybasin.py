@@ -349,33 +349,41 @@ for well_number, well in enumerate(model_scenarios.wells):
         model_results.ix[model_scenario_number,
                          'max_depth'] = z_nodes.max()
 
-        #def model_data_comparison(time_array, time_array_bp, z_nodes, T_nodes,
-        # active_nodes, n_nodes, pybasin_params):
-        # model VR for all formations
-        print 'calculating vitrinite reflectance for n=%i nodes' % n_nodes
+        if pybasin_params.simulate_VR is True:
+            #def model_data_comparison(time_array, time_array_bp, z_nodes, T_nodes,
+            # active_nodes, n_nodes, pybasin_params):
+            # model VR for all formations
+            print 'calculating vitrinite reflectance for n=%i nodes' % n_nodes
 
-        vr_nodes = pybasin_lib.calculate_vr(T_nodes,
-                                            active_nodes,
-                                            time_array,
-                                            n_nodes)
+            vr_nodes = pybasin_lib.calculate_vr(T_nodes,
+                                                active_nodes,
+                                                time_array,
+                                                n_nodes)
 
-        resample_t = pybasin_params.resample_AFT_timesteps
-        nt_prov = pybasin_params.provenance_time_nt
+            # store surface VR value
+            model_results.ix[model_scenario_number, 'vr_surface'] = \
+                vr_nodes[-1, active_nodes[-1]][0]
+        else:
+            vr_nodes = None
 
-        (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-         aft_ln_mean_nodes, aft_ln_std_nodes,
-         aft_node_times_burial, aft_node_zs) =\
-            pybasin_lib.simulate_aft(
-                resample_t, nt_prov, n_nodes, time_array_bp,
-                z_nodes, T_nodes, active_nodes,
-                prov_start_nodes, prov_end_nodes,
-                pybasin_params.annealing_kinetics_values,
-                pybasin_params.annealing_kinetic_param,
-                Ts)
+        if pybasin_params.simulate_AFT is True:
+            resample_t = pybasin_params.resample_AFT_timesteps
+            nt_prov = pybasin_params.provenance_time_nt
 
-        # store surface VR value
-        model_results.ix[model_scenario_number, 'vr_surface'] = \
-            vr_nodes[-1, active_nodes[-1]][0]
+            simulated_AFT_data =\
+                pybasin_lib.simulate_aft(
+                    resample_t, nt_prov, n_nodes, time_array_bp,
+                    z_nodes, T_nodes, active_nodes,
+                    prov_start_nodes, prov_end_nodes,
+                    pybasin_params.annealing_kinetics_values,
+                    pybasin_params.annealing_kinetic_param,
+                    Ts)
+
+            (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+             aft_ln_mean_nodes, aft_ln_std_nodes,
+             aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+        else:
+            simulated_AFT_data = None
 
         ##################################
         # calculate model goodness of fit:
@@ -415,95 +423,112 @@ for well_number, well in enumerate(model_scenarios.wells):
             T_rmse = np.nan
             T_gof = np.nan
 
-        # interpolate vitrinite reflectance data
         ind = ((vr_data['well'] == well)
-               & (vr_data['depth'] < z_nodes[-1].max()))
+                           & (vr_data['depth'] < z_nodes[-1].max()))
         vr_data_well = vr_data[ind]
-        if True in ind.values:
-            vr_data_well['simulated_vr'] = \
-                np.interp(vr_data_well['depth'],
-                          z_nodes[-1, active_nodes[-1]],
-                          vr_nodes[-1, active_nodes[-1]])
 
-            # calculate model error vitrinite data
-            #vr_data_well['VR_unc_1sigma'] = vr_data_well['VR_std']
-            ind = vr_data_well['VR_unc_1sigma'].isnull()
-            vr_data_well['VR_unc_1sigma'][ind] = pybasin_params.vr_unc_sigma
-            vr_data_well['residual'] = (vr_data_well['VR']
-                                        - vr_data_well['simulated_vr'])
-            vr_data_well['residual_norm'] = (vr_data_well['residual']
-                                             / vr_data_well['VR_unc_1sigma'])
-            vr_data_well['P_fit'] = \
-                (1.0
-                 - scipy.stats.norm.cdf(np.abs(vr_data_well['residual_norm'])))*2
+        if pybasin_params.simulate_VR is True:
+            # interpolate vitrinite reflectance data
+            if True in ind.values:
+                vr_data_well['simulated_vr'] = \
+                    np.interp(vr_data_well['depth'],
+                              z_nodes[-1, active_nodes[-1]],
+                              vr_nodes[-1, active_nodes[-1]])
 
-            vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
-            vr_gof = np.mean(vr_data_well['P_fit'])
+                # calculate model error vitrinite data
+                #vr_data_well['VR_unc_1sigma'] = vr_data_well['VR_std']
+                ind = vr_data_well['VR_unc_1sigma'].isnull()
+                vr_data_well['VR_unc_1sigma'][ind] = pybasin_params.vr_unc_sigma
+                vr_data_well['residual'] = (vr_data_well['VR']
+                                            - vr_data_well['simulated_vr'])
+                vr_data_well['residual_norm'] = (vr_data_well['residual']
+                                                 / vr_data_well['VR_unc_1sigma'])
+                vr_data_well['P_fit'] = \
+                    (1.0
+                     - scipy.stats.norm.cdf(np.abs(vr_data_well['residual_norm'])))*2
+
+                vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
+                vr_gof = np.mean(vr_data_well['P_fit'])
+            else:
+                vr_rmse = np.nan
+                vr_gof = np.nan
         else:
             vr_rmse = np.nan
             vr_gof = np.nan
 
-        # calculate model error fission track data
         ind = ((aft_data['well'] == well)
                & (aft_data['depth'] <= z_nodes[-1].max() + 1.0))
         aft_data_well = aft_data[ind]
-        if True in ind.values:
 
-            aft_data_well['simulated_AFT_min'] = \
-                np.interp(aft_data_well['depth'],
-                          z_nodes[-1, active_nodes[-1]],
-                          aft_age_nodes_min[active_nodes[-1]])
+        if pybasin_params.simulate_AFT is True:
+            # calculate model error fission track data
 
-            aft_data_well['simulated_AFT_max'] = \
-                np.interp(aft_data_well['depth'],
-                          z_nodes[-1, active_nodes[-1]],
-                          aft_age_nodes_max[active_nodes[-1]])
+            if True in ind.values:
 
-            # get pdf of ages
-            age_bins, age_pdfs = \
-                pybasin_lib.calculate_aft_ages_pdf(
-                    aft_data_well['aft_age'],
-                    aft_data_well['95ci_minus'] / 1.96,
-                    aft_data_well['95ci_plus'] / 1.96)
-            aft_data_well['age_peak_debug'] = \
-                age_bins[np.argmax(age_pdfs, axis=1)]
+                aft_data_well['simulated_AFT_min'] = \
+                    np.interp(aft_data_well['depth'],
+                              z_nodes[-1, active_nodes[-1]],
+                              aft_age_nodes_min[active_nodes[-1]])
 
-            # go through samples and find out how much of age pdf is covered by
-            #  min and max simulated age
-            for i, sample_ix in enumerate(aft_data_well.index):
+                aft_data_well['simulated_AFT_max'] = \
+                    np.interp(aft_data_well['depth'],
+                              z_nodes[-1, active_nodes[-1]],
+                              aft_age_nodes_max[active_nodes[-1]])
 
-                # TODO: find more elegant solution for 0.0 simulated AFT age
-                # and check if GOF for AFT ages of 0.0 Ma are correct
-                if aft_data_well.ix[sample_ix, 'simulated_AFT_min'] == 0:
-                    start_ind = 0
-                else:
-                    start_ind = np.where(
-                        aft_data_well.ix[sample_ix, 'simulated_AFT_min']
-                        >= age_bins)[0][-1]
+                # get pdf of ages
+                age_bins, age_pdfs = \
+                    pybasin_lib.calculate_aft_ages_pdf(
+                        aft_data_well['aft_age'],
+                        aft_data_well['95ci_minus'] / 1.96,
+                        aft_data_well['95ci_plus'] / 1.96)
+                aft_data_well['age_peak_debug'] = \
+                    age_bins[np.argmax(age_pdfs, axis=1)]
 
-                if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
-                    end_ind = 0
-                else:
-                    # np.where(0.0 >= age_bins)[0]
-                    end_ind = np.where(
-                        aft_data_well.ix[sample_ix, 'simulated_AFT_max']
-                        <= age_bins)[0][0]
+                # go through samples and find out how much of age pdf is covered by
+                #  min and max simulated age
+                for i, sample_ix in enumerate(aft_data_well.index):
 
-                pdf_fit_sum = np.sum(age_pdfs[i][start_ind:end_ind])
-                pdf_nofit_sum = np.sum(age_pdfs[i][:start_ind]) \
-                    + np.sum(age_pdfs[i][end_ind:])
-                aft_data_well.ix[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
+                    # TODO: find more elegant solution for 0.0 simulated AFT age
+                    # and check if GOF for AFT ages of 0.0 Ma are correct
+                    if aft_data_well.ix[sample_ix, 'simulated_AFT_min'] == 0:
+                        start_ind = 0
+                    else:
+                        start_ind = np.where(
+                            aft_data_well.ix[sample_ix, 'simulated_AFT_min']
+                            >= age_bins)[0][-1]
 
-            # make filters for central age and population data
-            ca_ind = aft_data_well['data_type'] == 'central_age'
-            pop_ind = aft_data_well['data_type'] == 'population_age'
+                    if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
+                        end_ind = 0
+                    else:
+                        # np.where(0.0 >= age_bins)[0]
+                        end_ind = np.where(
+                            aft_data_well.ix[sample_ix, 'simulated_AFT_max']
+                            <= age_bins)[0][0]
 
-            aft_age_gof = aft_data_well['GOF_aft_ages'][ca_ind].mean()
+                    pdf_fit_sum = np.sum(age_pdfs[i][start_ind:end_ind])
+                    pdf_nofit_sum = np.sum(age_pdfs[i][:start_ind]) \
+                        + np.sum(age_pdfs[i][end_ind:])
+                    aft_data_well.ix[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
+
+                # make filters for central age and population data
+                ca_ind = aft_data_well['data_type'] == 'central_age'
+                pop_ind = aft_data_well['data_type'] == 'population_age'
+
+                aft_age_gof = aft_data_well['GOF_aft_ages'][ca_ind].mean()
+            else:
+                aft_age_gof = np.nan
         else:
             aft_age_gof = np.nan
 
         # calculate mean gof temperature, vitrinite and aft age data
-        gofs = np.array([T_gof, vr_gof, aft_age_gof], dtype=float)
+        #gofs = np.array([T_gof, vr_gof, aft_age_gof], dtype=float)
+        gofs = np.array([T_gof])
+
+        if pybasin_params.simulate_VR is True:
+            gofs = np.append(gofs, [vr_gof])
+        if pybasin_params.simulate_AFT is True:
+            gofs = np.append(gofs, [aft_age_gof])
+
         ind = np.isnan(gofs) == False
         gof_weights = np.array(pybasin_params.gof_weights)[ind]
         # make sure weights add up to 1
@@ -512,47 +537,53 @@ for well_number, well in enumerate(model_scenarios.wells):
 
         # screen output GOF data
         print 'temperature GOF = %0.2f' % T_gof
-        print 'vitrinite reflectance GOF = %0.2f' % vr_gof
-        print 'AFT age GOF = %0.2f' % aft_age_gof
+        if pybasin_params.simulate_VR is True:
+            print 'vitrinite reflectance GOF = %0.2f' % vr_gof
+        if pybasin_params.simulate_AFT is True:
+            print 'AFT age GOF = %0.2f' % aft_age_gof
+
         print 'weighted mean GOF = %0.2f' % gof_mean
 
         # store gof in model results dataframe
         model_results.ix[model_scenario_number, 'well'] = well
         model_results.ix[model_scenario_number, 'T_gof'] = T_gof
-        model_results.ix[model_scenario_number, 'vr_gof'] = vr_gof
-        model_results.ix[model_scenario_number, 'aft_age_gof'] = aft_age_gof
+        if pybasin_params.simulate_VR is True:
+            model_results.ix[model_scenario_number, 'vr_gof'] = vr_gof
+        if pybasin_params.simulate_AFT is True:
+            model_results.ix[model_scenario_number, 'aft_age_gof'] = aft_age_gof
         model_results.ix[model_scenario_number, 'mean_gof'] = gof_mean
 
         ############################
         # calculate resetting depth
         ############################
 
-        # modeled resetting depth
-        ind_reset_min = aft_age_nodes_min <= node_age
-        ind_reset_max = aft_age_nodes_max <= node_age
-        if True in ind_reset_min:
-            model_results.ix[model_scenario_number,
-                             'resetting_depth_model_min'] = \
-                z_nodes[-1][ind_reset_min].min()
-        if True in ind_reset_max:
-            model_results.ix[model_scenario_number,
-                             'resetting_depth_model_max'] = \
-                z_nodes[-1][ind_reset_max].min()
+        if pybasin_params.simulate_AFT is True:
+            # modeled resetting depth
+            ind_reset_min = aft_age_nodes_min <= node_age
+            ind_reset_max = aft_age_nodes_max <= node_age
+            if True in ind_reset_min:
+                model_results.ix[model_scenario_number,
+                                 'resetting_depth_model_min'] = \
+                    z_nodes[-1][ind_reset_min].min()
+            if True in ind_reset_max:
+                model_results.ix[model_scenario_number,
+                                 'resetting_depth_model_max'] = \
+                    z_nodes[-1][ind_reset_max].min()
 
-        # aft data resetting depth:
-        aft_data_well['strat_age_interp'] = \
-            np.interp(aft_data_well['depth'], z_nodes[-1], node_age)
-        aft_data_well['reset'] = \
-            aft_data_well['aft_age'] < aft_data_well['strat_age_interp']
+            # aft data resetting depth:
+            aft_data_well['strat_age_interp'] = \
+                np.interp(aft_data_well['depth'], z_nodes[-1], node_age)
+            aft_data_well['reset'] = \
+                aft_data_well['aft_age'] < aft_data_well['strat_age_interp']
 
-        if True in aft_data_well['reset'].values:
-            model_results.ix[model_scenario_number,
-                             'resetting_depth_data_min'] = \
-                np.min(aft_data_well['depth'][aft_data_well['reset']])
-        if False in aft_data_well['reset'].values:
-            model_results.ix[model_scenario_number,
-                             'non-resetting_depth_data_max'] = \
-                np.max(aft_data_well['depth'][aft_data_well['reset']==False])
+            if True in aft_data_well['reset'].values:
+                model_results.ix[model_scenario_number,
+                                 'resetting_depth_data_min'] = \
+                    np.min(aft_data_well['depth'][aft_data_well['reset']])
+            if False in aft_data_well['reset'].values:
+                model_results.ix[model_scenario_number,
+                                 'non-resetting_depth_data_max'] = \
+                    np.max(aft_data_well['depth'][aft_data_well['reset']==False])
 
         # save model run data to .pck file
         model_run_data = [
@@ -560,9 +591,7 @@ for well_number, well in enumerate(model_scenarios.wells):
             surface_temp_array, basal_hf_array,
             z_nodes, active_nodes, T_nodes,
             node_strat, node_age,
-            aft_node_times_burial, aft_node_zs,
-            aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-            aft_ln_mean_nodes, aft_ln_std_nodes,
+            simulated_AFT_data,
             vr_nodes,
             T_data_well['depth'], T_data_well['temperature'],
             T_data_well['temperature_unc_1sigma'],
@@ -573,6 +602,11 @@ for well_number, well in enumerate(model_scenarios.wells):
             aft_data_well['length_mean'], aft_data_well['length_std'],
             aft_data_well['data_type'].values,
             T_gof, vr_gof, aft_age_gof]
+
+        #aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+        #aft_ln_mean_nodes, aft_ln_std_nodes,
+        #aft_node_times_burial, aft_node_zs
+
 
         today = datetime.datetime.now()
         today_str = '%i-%i-%i' % (today.day, today.month, today.year)
@@ -597,9 +631,7 @@ for well_number, well in enumerate(model_scenarios.wells):
                 surface_temp_array, basal_hf_array,
                 z_nodes, active_nodes, T_nodes,
                 node_strat, node_age,
-                aft_node_times_burial, aft_node_zs,
-                aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                aft_ln_mean_nodes, aft_ln_std_nodes,
+                simulated_AFT_data,
                 vr_nodes,
                 T_data_well['depth'].values,
                 T_data_well['temperature'].values,
