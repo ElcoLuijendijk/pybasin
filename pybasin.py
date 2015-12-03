@@ -281,7 +281,7 @@ for well_number, well in enumerate(model_scenarios.wells):
         # run burial history model
         (geohist_df, time_array, time_array_bp,
          surface_temp_array, basal_hf_array,
-         z_nodes, T_nodes, active_nodes,
+         z_nodes, T_nodes, C_nodes, active_nodes,
          n_nodes, n_cells,
          node_strat, node_age,
          prov_start_nodes, prov_end_nodes) = \
@@ -290,6 +290,11 @@ for well_number, well in enumerate(model_scenarios.wells):
                                               Ts, litho_props,
                                               csv_output_dir,
                                               model_scenario_number)
+
+        #
+        fig, ax = pl.subplots(1, 1)
+        ax.plot(C_nodes[-1], z_nodes[-1])
+        fig.savefig('salinity_final.png')
 
         # find out if exhumation end has changed
         exhumed_units = [unit[0] == '-' for unit in geohist_df.index]

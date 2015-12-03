@@ -992,6 +992,71 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
     return T_new, A
 
 
+def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
+                       upper_bnd_flux,
+                       lower_bnd_flux,
+                       fixed_upper_salinity,
+                       fixed_lower_salinity,
+                       A=None,
+                       verbose=False):
+
+    """
+    solve simple 1D heat flow equation, with variable K, rho, c and dx
+
+    specified flux lower bnd condition and specified T upper bnd
+
+    """
+
+    c = np.ones_like(phi)
+    Q = np.zeros_like(phi)
+
+    if A is None:
+
+        A = construct_heat_flow_matrix_variable_z(
+            C, z, dt, Ks, phi, c,
+            fixed_upper_salinity,
+            fixed_lower_salinity)
+
+    nz = len(C)
+
+    dz_top = z[1] - z[0]
+    dz_bottom = z[-1] - z[-2]
+
+    b = create_heat_flow_vector_variable_z(
+        nz, C, Q, dt, phi, c, dz_top, dz_bottom,
+        upper_bnd_flux,
+        lower_bnd_flux,
+        fixed_upper_salinity,
+        fixed_lower_salinity)
+
+    # use numpy linalg to solve system of eqs.:
+    # uses  LAPACK routine _gesv:
+    # https://software.intel.com/sites/products/documentation/hpc/mkl/mklman/\
+    # GUID-4CC4330E-D9A9-4923-A2CE-F60D69EDCAA8.htm
+    # uses LU decomposition and iterative solver
+    try:
+        C_new = np.linalg.solve(A, b)
+    except:
+        pdb.set_trace()
+
+    # TODO check other linear solvers, such as CG:
+    # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
+    # scipy.sparse.linalg.cg.html
+    # and use sparse matrices to conserve memory
+    # (not really necessary in 1D case)
+
+    # check that solution is correct:
+    check = np.allclose(np.dot(A, C_new), b)
+
+    if verbose is True:
+        print 'solution is correct = ', check
+
+    if check is False:
+        print 'warning, solution is ', check
+
+    return C_new, A
+
+
 def get_geo_history(well_strat, strat_info_mod,
                     max_decompaction_error,
                     exhumation_phase_ids,
@@ -1814,9 +1879,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     z_nodes = np.zeros((nt_total, n_nodes))
     node_age = np.zeros(n_nodes)
     k_nodes = np.zeros((nt_total, n_cells))
+    Ks_nodes = np.zeros((nt_total, n_cells))
     c_nodes = np.zeros((nt_total, n_nodes))
     rho_nodes = np.zeros((nt_total, n_nodes))
     hp_nodes = np.zeros((nt_total, n_nodes))
+    porosity_nodes = np.zeros((nt_total, n_nodes))
 
     start_ages = ages_ind[:-1]
     end_ages = ages_ind[1:]
@@ -1942,7 +2009,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         timestep += nt_heatflow
 
     # populate thermal parameter arrays:
-    print 'setting grid node thermal params (rho, c, HP)'
+    print 'setting grid node thermal params (rho, c, HP, phi)'
     timestep = 0
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
@@ -1971,6 +2038,14 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             nt_heatflow)
 
         hp_nodes[timestep:end_step, active_nodes[timestep]] = hp_active
+
+        # add porosity
+        phi_active = interpolate_node_variables(
+            porosity_df[start_age].values.astype(float)[active_fm_i],
+            porosity_df[end_age].values.astype(float)[active_fm_i],
+            nt_heatflow)
+
+        porosity_nodes[timestep:end_step, active_nodes[timestep]] = phi_active
 
         timestep += nt_heatflow
 
@@ -2011,6 +2086,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     T_nodes = np.zeros((nt_total, n_nodes))
     for ni in xrange(nt_total):
         T_nodes[ni, :] = surface_temp_array[ni]
+
+    # set initial salinity
+    C_nodes = np.zeros((nt_total, n_nodes))
+    for ni in xrange(nt_total):
+        C_nodes[ni, :] = 0.035
 
     #sal_nodes = np.zeros((nt_total, n_nodes))
     #for ni in xrange(nt_total):
@@ -2056,6 +2136,39 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 surface_temp_array[timestep],
                 None)
 
+        Q_solute = np.zeros_like(porosity_nodes[timestep, active_cells_i])
+
+        fixed_upper_salinity = 0.0001
+        fixed_lower_salinity = 0.30
+
+        if timestep == 0:
+            C_init = C_nodes[timestep, active_nodes_i]
+        else:
+            C_init = C_nodes[timestep-1, active_nodes_i]
+
+        Ks_nodes = np.zeros_like(porosity_nodes)
+
+        tortuosity_nodes = porosity_nodes**(-1/3.)
+        tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
+
+        Dw = 20.3e-10
+        Ks_nodes = porosity_nodes / tortuosity_nodes * Dw
+
+        Ks_cells = (Ks_nodes[:, 1:] + Ks_nodes[:, :-1]) / 2.0
+
+        C_nodes[timestep, active_nodes_i], A_s = \
+            solve_1D_diffusion(
+                C_init,
+                z_nodes[timestep, active_nodes_i],
+                dt_hf * year,
+                Ks_cells[timestep, active_cells_i],
+                porosity_nodes[timestep, active_nodes_i],
+                Q_solute,
+                None,
+                None,
+                fixed_upper_salinity,
+                fixed_lower_salinity)
+
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
             print 'error, nan values in T array'
 
@@ -2075,10 +2188,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
                      T_nodes[timestep, active_nodes_i].max())
-
+            print 'min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(),
+                                                  C_nodes[timestep, active_nodes_i].max())
     return (geohist_df, time_array, time_array_bp,
             surface_temp_array, basal_hf_array,
-            z_nodes, T_nodes, active_nodes,
+            z_nodes, T_nodes, C_nodes, active_nodes,
             n_nodes, n_cells,
             node_strat, node_age,
             prov_start_nodes, prov_end_nodes)
