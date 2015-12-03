@@ -19,9 +19,9 @@ output_dir = 'model_output/MB'
 datafile_output_dir = '../../heavy_data/pybasin_MB'
 
 # option to calculate apatite fission track data
-simulate_AFT = False
+simulate_AFT = True
 simulate_AHe = False
-simulate_VR = False
+simulate_VR = True
 simulate_salinity = False
 
 # option to save model run data (approx 10-20 MB per model run)
@@ -109,7 +109,7 @@ exhumed_strat_units = [['Kimm'],
 # USM
 original_thicknesses = [[3000.0],
                         [600.0, 2175.0, 1125.0,
-                        525.0, 5000.0, 5000.0, 5000.0]]
+                        525.0, 6000.0, 6000.0, 6000.0]]
 
 # or set pre-exhumation thickness of particular unit, if known
 # exhumation will then be calculated to match the present-day thickness
@@ -141,7 +141,8 @@ change_thickness_timing = [['ATWD', 'ATBR2', 'ATBRU', 'SL'],
 # 0 means that the unit is at the present-day thickness
 # positive numbers mean that the thickness of the unit increases over time
 # negative that the thickness decreases
-change_thickness_value = [[300, 600, 500, 0], [210, 210, 0]]
+change_thickness_value = [[300, 600, 500, 0],
+                          [210, 210, 0]]
 
 ############################################
 # Apatite fission track model params:

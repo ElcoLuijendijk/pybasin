@@ -141,8 +141,11 @@ And writing everything using x coordinates:
 therefore
 
 \begin{equation}
-    \nabla q_i =  \frac{2}{x_{i+1} - x_{i-1}} \left( K_{i+1/2} \frac{T_{i+1} - T_i}{x_{i+1} - x_i} - K_{i-1/2} \frac{T_{i} - T_{i-1}}{x_i - x_{i-1}} \right)
+    \nabla q_i =  \frac{1}{x_{i+1} - x_{i-1}} \left( K_{i+1/2} \frac{T_{i+1} - T_i}{x_{i+1} - x_i} - K_{i-1/2} \frac{T_{i} - T_{i-1}}{x_i - x_{i-1}} \right)
 \end{equation}
+
+.... check eq.....
+
 
 ## Boundaries
 

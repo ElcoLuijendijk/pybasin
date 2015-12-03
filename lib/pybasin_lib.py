@@ -1576,6 +1576,80 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
             aft_node_times_burial, aft_node_zs)
 
 
+def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
+                 prov_ages_start, prov_ages_end, Ts):
+
+    """
+    simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
+
+    :param resample_t:
+    :param nt_prov:
+    :param n_nodes:
+    :param time_array_bp:
+    :param z_nodes:
+    :param T_nodes:
+    :param active_nodes:
+    :param prov_ages_start:
+    :param prov_ages_end:
+    :param annealing_kinetics_values:
+    :param annealing_kinetic_param:
+    :param Ts:
+    :return:
+    """
+
+    radius = 60.0 * 1e-6
+    U238 = 8.98e-6
+    Th232 = 161.3e-6
+
+    Kelvin = 273.15
+
+    # combine burial and provenance history
+
+    ahe_node_times, ahe_node_temps = generate_thermal_histories(
+        resample_t, n_nodes,
+        time_array_bp, T_nodes, active_nodes,
+        prov_ages_start, prov_ages_end,
+        nt_prov, Ts)
+
+    ahe_node_times_burial, ahe_node_zs = generate_burial_histories(
+        n_nodes,
+        time_array_bp, z_nodes, active_nodes,
+        prov_ages_start, prov_ages_end,
+        nt_prov)
+
+    #figb = pl.figure()
+    #ax = figb.add_subplot(1, 1, 1)
+    #for x, y in zip(ahe_node_times_burial, ahe_node_zs):
+    #    for xi, yi in zip(x, y):
+    #        ax.plot(xi, yi)
+    #figb.savefig('burial_prov_test.png', dpi=300)
+
+    # calculate FT ages for all formations
+    print 'calculating FT ages and lengths for all nodes'
+    n_prov_scenarios = prov_ages_start.shape[1]
+    ahe_age_nodes = np.zeros((n_nodes, n_prov_scenarios))
+    ahe_ln_mean_nodes = np.zeros((n_nodes, n_prov_scenarios))
+    ahe_ln_std_nodes = np.zeros((n_nodes, n_prov_scenarios))
+
+    for nn in xrange(n_nodes):
+
+        for n_prov in xrange(n_prov_scenarios):
+            he_age_i = he.calculate_he_age_meesters_dunai_2002(t_he,
+                                                   T_he,
+                                                   radius, U238, Th232)
+
+            ahe_age_nodes[nn, n_prov] = AFTage
+            #ahe_ln_mean_nodes[nn, n_prov] = l_mean
+            ahe_ln_std_nodes[nn, n_prov] = l_mean_std
+
+    ahe_age_nodes_min = np.min(ahe_age_nodes, axis=(1, 2))
+    ahe_age_nodes_max = np.max(ahe_age_nodes, axis=(1, 2))
+
+    return (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+            ahe_ln_mean_nodes, ahe_ln_std_nodes,
+            ahe_node_times_burial, ahe_node_zs)
+
+
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
                           Ts, litho_props,
@@ -1937,6 +2011,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     T_nodes = np.zeros((nt_total, n_nodes))
     for ni in xrange(nt_total):
         T_nodes[ni, :] = surface_temp_array[ni]
+
+    #sal_nodes = np.zeros((nt_total, n_nodes))
+    #for ni in xrange(nt_total):
+    #    sal_nodes[ni, :] = surface_temp_array[ni]
 
     # interpolate basal heat flow
     basal_hf_array = np.interp(time_array_bp,

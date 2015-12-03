@@ -116,6 +116,10 @@ ind = ((aft_data_raw['n_grains'] > pybasin_params.min_grain_no)
         | (aft_data_raw['n_grains'].isnull()))
 aft_data = aft_data_raw[ind]
 
+# read apatite U-Th/He (AHe) data
+ahe_data = pd.read_csv(os.path.join(input_dir, 'AHe_data.csv'))
+
+#print bla
 
 ########
 # calculate porosity-depth and thermal parameters for each strat unit
@@ -384,6 +388,13 @@ for well_number, well in enumerate(model_scenarios.wells):
              aft_node_times_burial, aft_node_zs) = simulated_AFT_data
         else:
             simulated_AFT_data = None
+
+        if pybasin_params.simulate_AHe is True:
+
+            pass
+
+        else:
+            simulated_He_data = None
 
         ##################################
         # calculate model goodness of fit:
