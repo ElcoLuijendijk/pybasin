@@ -18,6 +18,12 @@ except ImportError:
     print 'using AFT modules from local lib folder'
     import lib.AFTannealingLib as AFTannealingLib
 
+try:
+    import lib.helium_diffusion_models as he
+except ImportError:
+    import lib.helium_diffusion_models as he
+    print 'using helium diffusion modules from local lib folder'
+
 
 def integrate_porosity(n0, c, z1, z2):
     
@@ -1586,7 +1592,6 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     """
 
     # combine burial and provenance history
-
     aft_node_times, aft_node_temps = generate_thermal_histories(
         resample_t, n_nodes,
         time_array_bp, T_nodes, active_nodes,
@@ -1690,7 +1695,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     #figb.savefig('burial_prov_test.png', dpi=300)
 
     # calculate FT ages for all formations
-    print 'calculating FT ages and lengths for all nodes'
+    print 'calculating AHe ages for all nodes'
     n_prov_scenarios = prov_ages_start.shape[1]
     ahe_age_nodes = np.zeros((n_nodes, n_prov_scenarios))
     ahe_ln_mean_nodes = np.zeros((n_nodes, n_prov_scenarios))
@@ -1699,19 +1704,23 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     for nn in xrange(n_nodes):
 
         for n_prov in xrange(n_prov_scenarios):
-            he_age_i = he.calculate_he_age_meesters_dunai_2002(t_he,
-                                                   T_he,
-                                                   radius, U238, Th232)
+            #pdb.set_trace()
+            sec_in_year = 365 * 24 * 60 * 60
+            he_age_i = he.calculate_he_age_meesters_dunai_2002(
+                ahe_node_times[nn][n_prov] * 1e6 * sec_in_year,
+                ahe_node_temps[nn][n_prov] + Kelvin,
+                radius, U238, Th232)
 
-            ahe_age_nodes[nn, n_prov] = AFTage
+            # store AHe age in Myr bp
+            ahe_age_nodes[nn, n_prov] = he_age_i[-1] / sec_in_year / 1e6
             #ahe_ln_mean_nodes[nn, n_prov] = l_mean
-            ahe_ln_std_nodes[nn, n_prov] = l_mean_std
+            #ahe_ln_std_nodes[nn, n_prov] = l_mean_std
 
-    ahe_age_nodes_min = np.min(ahe_age_nodes, axis=(1, 2))
-    ahe_age_nodes_max = np.max(ahe_age_nodes, axis=(1, 2))
+    # take min and max age for the difference prov scenarios
+    ahe_age_nodes_min = np.min(ahe_age_nodes, axis=1)
+    ahe_age_nodes_max = np.max(ahe_age_nodes, axis=1)
 
     return (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-            ahe_ln_mean_nodes, ahe_ln_std_nodes,
             ahe_node_times_burial, ahe_node_zs)
 
 

@@ -28,12 +28,12 @@ __email__ = "elco.luijendijk at gmail.com"
 __status__ = "Development"
 
 
-def calculate_AFT_age_fluence( Ns, Ni, neutron_fluence, neutron_fluence_std,
-                                lambda_d=1.551e-10, I=7.252e-3,
-                                sigma_f=584.25e-28, lambda_f=8.51e-17,
-                                g=0.5):
+def calculate_AFT_age_fluence(Ns, Ni, neutron_fluence, neutron_fluence_std,
+                              lambda_d=1.551e-10, I=7.252e-3,
+                              sigma_f=584.25e-28, lambda_f=8.51e-17,
+                              g=0.5):
     
-    '''
+    """
     Calculate apatite fission track age & error 
     
     Equation valid for data that were not calculated using the zeta calibration 
@@ -73,7 +73,7 @@ def calculate_AFT_age_fluence( Ns, Ni, neutron_fluence, neutron_fluence_std,
     FT_age_plus2SE : array
         calculated fission track age + 2*standard error of age
     
-    '''
+    """
     
     # sum the constants of the age equation 
     a = 1.0 / lambda_d

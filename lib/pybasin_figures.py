@@ -8,10 +8,10 @@ import matplotlib.mlab
 
 #import useful_functions
 
-def setup_figure( width = 125.0, height = 'g', fontsize = 'x-small',
-                  landscape = False,  fontsize_legend = 0, units= 'mm'):
+def setup_figure(width=125.0, height='g', fontsize='x-small',
+                 landscape=False, fontsize_legend=0, units='mm'):
 
-    '''
+    """
     Set up a new Matplotlib figure
 
     Default figure is 125 mm wide and 125 mm/ golden ratio high
@@ -46,8 +46,7 @@ def setup_figure( width = 125.0, height = 'g', fontsize = 'x-small',
     Returns
     -------
     fig : matplotlib figure instance
-
-    '''
+    """
 
     if width == '1col':
         width = 84.0
@@ -61,70 +60,70 @@ def setup_figure( width = 125.0, height = 'g', fontsize = 'x-small',
             c = float(height[:-1])
         else:
             c = 1
-
         height = width / (c * golden_ratio)
     elif type(height) == float or type(height) == int:
         height = width * height
     elif height == 'max':
         height = 170
-
     if height > 215.0:
         print 'figure exceeding b5 paper size'
 
     # initialize figure
-    if landscape  ==  True:
+    if landscape is True:
         print 'landscape figure'
-        xs = height ; ys = width
+        xs = height
+        ys = width
     else:
         print 'portrait figure'
-        xs = width ; ys = height
+        xs = width
+        ys = height
 
     if units != 'inch':
-        xs = xs/25.4
-        ys = ys/25.4
+        xs = xs / 25.4
+        ys = ys / 25.4
 
-    print 'init fig,  size  =  %0.1f x %0.1f inch' %(xs, ys)
+    print 'init fig,  size = %0.1f x %0.1f inch' %(xs, ys)
 
-    fig  =  pl.figure(figsize = (xs,ys))
+    fig = pl.figure(figsize=(xs,ys))
 
     # set default parameters for figure
-    if type(fontsize)  ==  str:
-        if fontsize  ==  'xxx-small':
-            fontsize_s  =  'xx-small'
-            fontsize_l  =  'xx-small'
-            fontsize_leg  =  'xx-small'
-        elif fontsize  ==  'xx-small':
-            fontsize_s  =  'xx-small'
-            fontsize_l  =  'x-small'
-            fontsize_leg  =  'xx-small'
-        elif fontsize  ==  'x-small':
-            fontsize_s  =  'x-small'
-            fontsize_l  =  'small'
-            fontsize_leg  =  'xx-small'
-        elif fontsize  ==  'small':
-            fontsize_s  =  'small'
-            fontsize_l  =  'medium'
-            fontsize_leg  =  'x-small'
-        elif fontsize  ==  'medium':
-            fontsize_s  =  'medium'
-            fontsize_l  =  'large'
-            fontsize_leg  =  'small'
+    if type(fontsize) == str:
+        if fontsize == 'xxx-small':
+            fontsize_s = 'xx-small'
+            fontsize_l = 'xx-small'
+            fontsize_leg = 'xx-small'
+        elif fontsize == 'xx-small':
+            fontsize_s = 'xx-small'
+            fontsize_l = 'x-small'
+            fontsize_leg = 'xx-small'
+        elif fontsize == 'x-small':
+            fontsize_s = 'x-small'
+            fontsize_l = 'small'
+            fontsize_leg = 'xx-small'
+        elif fontsize == 'small':
+            fontsize_s = 'small'
+            fontsize_l = 'medium'
+            fontsize_leg = 'x-small'
+        elif fontsize == 'medium':
+            fontsize_s = 'medium'
+            fontsize_l = 'large'
+            fontsize_leg = 'small'
     else:
-        fontsize_s  =  fontsize
-        fontsize_l  =  'xx-small'
-        fontsize_leg  =  fontsize
+        fontsize_s = fontsize
+        fontsize_l = 'xx-small'
+        fontsize_leg = fontsize
 
     if fontsize_legend != None:
-        fontsize_leg  =  fontsize_legend
+        fontsize_leg = fontsize_legend
 
-    params  =  {'axes.labelsize': fontsize_s,
-                'text.fontsize': fontsize_l,
-                'legend.fontsize': fontsize_leg,
-                'axes.titlesize' : fontsize_l,
-                'xtick.labelsize': fontsize_s,
-                'ytick.labelsize': fontsize_s}
+    params = {'axes.labelsize': fontsize_s,
+              'text.fontsize': fontsize_l,
+              'legend.fontsize': fontsize_leg,
+              'axes.titlesize': fontsize_l,
+              'xtick.labelsize': fontsize_s,
+              'ytick.labelsize': fontsize_s}
 
-    pl.rcParams.update(params)
+    #pl.rcParams.update(params)
 
     return fig
 
@@ -184,7 +183,6 @@ def model_vs_data_figure(time_array_bp,
     :param show_provenance_hist:
     :param time_int_grid:
     :return:
-
     """
 
     nt_total, n_nodes = T_nodes.shape
@@ -252,7 +250,6 @@ def model_vs_data_figure(time_array_bp,
     else:
         provenance_color = 'darkgray'
         cmap = matplotlib.cm.get_cmap('jet')
-
 
     # plot surface temperature
     axst.plot(time_array_bp / 1e6, surface_temp_array,
@@ -342,7 +339,8 @@ def model_vs_data_figure(time_array_bp,
                  z_nodes[-1, active_nodes[-1]],
                  **line_props)
 
-    ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
+    if T_data is not None and len(T_data) > 0:
+        ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
 
     # plot vitrinite
     if vr_nodes is not None:
@@ -350,7 +348,9 @@ def model_vs_data_figure(time_array_bp,
                    z_nodes[-1, active_nodes[-1]],
                    **line_props)
 
-    ax_vr.errorbar(vr_data, vr_depth, xerr=vr_data_sigma, **erb_props)
+    if vr_data is not None and len(vr_data) > 0:
+        pdb.set_trace()
+        ax_vr.errorbar(vr_data, vr_depth, xerr=vr_data_sigma, **erb_props)
 
     # plot aft ages
     if simulated_AFT_data is not None:
@@ -360,7 +360,7 @@ def model_vs_data_figure(time_array_bp,
                               color='lightgrey')
 
     ax_afta.plot(node_age[active_nodes[-1]], z_nodes[-1, active_nodes[-1]],
-                 color='blue', lw=1.5, ls='---', zorder=101)
+                 color='blue', lw=1.5, ls='--', zorder=101)
 
     ind_ca = aft_data_type == 'central_age'
     ind_pop = aft_data_type == 'age_population'

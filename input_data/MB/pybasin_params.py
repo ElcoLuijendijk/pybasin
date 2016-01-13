@@ -20,7 +20,7 @@ datafile_output_dir = '../../heavy_data/pybasin_MB'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
-simulate_AHe = False
+simulate_AHe = True
 simulate_VR = True
 simulate_salinity = False
 
@@ -39,11 +39,9 @@ fig_adj = 'png'
 #################
 # goodness of fit
 ################
-
 # weights for calculating overall goodness of fit from the gof statistic for
 # temperature, vitrinite reflectance and apatite fission track age data
 gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0]
-
 
 ##############################################
 # sediment provenance parameters, used for AFT
@@ -75,8 +73,7 @@ optimize_heatflow = False
 # max size of heatflow timestep (in yrs)
 max_hf_timestep = 10000.0
 
-# resample timesteps for AFT calculation
-#
+# resample timesteps for AFT calculation, number of timesteps that
 resample_AFT_timesteps = 10
 
 #############################
