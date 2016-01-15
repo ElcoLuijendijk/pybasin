@@ -5,31 +5,7 @@ or basal heat flow
 
 import numpy as np
 
-# list of wells to include in model runs
-#wells = ['Altishofen', 'Boswil', 'Chapelle', 'Entlebuch',
-#         'Huenenberg', 'Herdern', 'Lindau', 'Linden',
-#         'Rigi', 'Romanens', 'Savigny', 'Thun', 'Tuggen', 'Weggis']
-
-#wells = ['MRP025', 'MRP067', 'MRP087', 'MRP117',
-#         'MRP170', 'MRP172', 'MRP174', 'MRP179', 'MRP187', 'MRP198', 'MRT052',
-#         'E20', 'E30', 'E35', 'E40', 'E45', 'E50', 'E55',
-#         'E60', 'E65', 'E70b',
-#         'RH10', 'RH15', 'RH25', 'RH30a', 'RH30b', 'RH35', 'RH40',
-#         'RH45', 'RH50', 'RH60c', 'RH65', 'RH70', 'RV15', 'RV20', 'RV25',
-#         'RV30a', 'RV30b', 'RV30c',
-#         'B25', 'B30', 'B55', 'B60']
-
-# Rigi wells:
-wells = ['Huenenberg',
-         'MRP025', 'MRP170', 'MRP172', 'MRP174',
-         'RH10', 'RH15', 'RH25', 'RH30a', 'RH30b', 'RH35', 'RH40', 'RH45', 'RH50', 'RH60c',
-         'RH65', 'RH70', 'RV15', 'RV20', 'RV25', 'RV30a', 'RV30b', 'RV30c',
-         'S1', 'S2', 'S20', 'S3', 'S31', 'S64', 'S7',
-         'Weggis']
-
-
-#wells = ['B55', 'B60']
-wells = ['RH60c']
+wells = ['AST-02']
 
 # strat period for which to change the basal heat flow
 # must match a period of heatflow_periods in the param file
@@ -38,12 +14,11 @@ basal_heat_flow_scenario_period = 'all'
 # basal heat flow scenarios to try, heat flow in mW m^-2
 # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
 #basal_heat_flow_scenarios = [50e-3, 70e-3, 90e-3]
-#basal_heat_flow_scenarios = np.arange(50, 90, 5.0) * 1e-3
 basal_heat_flow_scenarios = [65.0 * 1e-3]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
-exhumation_scenarios_period = 'molasse_exhumation'
+exhumation_scenarios_period = 'late_cretaceous_exhumation'
 
 # exhumation (m) for each model scenario
 # example for testing exhumation of 500, 1000 and 1500 m:

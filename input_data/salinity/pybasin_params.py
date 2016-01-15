@@ -10,13 +10,13 @@ import numpy as np
 #######################################################################
 
 print '-' * 10
-print 'Molasse Basin input data'
+print 'Salinity diffusion input data'
 print '-' * 10
 
 # location of input data .csv files
-input_dir = 'input_data/MB'
-output_dir = 'model_output/MB'
-datafile_output_dir = '../../heavy_data/pybasin_MB'
+input_dir = 'input_data/salinity'
+output_dir = 'model_output/salinity'
+datafile_output_dir = '../../heavy_data/pybasin_salinity'
 
 # option to calculate apatite fission track data
 simulate_AFT = False
@@ -76,7 +76,7 @@ heatflow_history = np.array([65.0, 65.0]) * 1e-3
 optimize_heatflow = False
 
 # max size of heatflow timestep (in yrs)
-max_hf_timestep = 10000.0
+max_hf_timestep = 100000.0
 
 # resample timesteps for AFT calculation, number of timesteps that
 resample_AFT_timesteps = 10
@@ -85,33 +85,25 @@ resample_AFT_timesteps = 10
 # exhumation scenarios
 #############################
 # name of exhumation phase
-exhumation_phase_ids = ['pre-molasse_exhumation',
-                        'molasse_exhumation']
+exhumation_phase_ids = ['late_cretaceous_exhumation']
 # start (Ma)
-exhumation_period_starts = np.array([80, 12.0])
+exhumation_period_starts = np.array([85.8])
 # end of exhumation phase (Ma)
-exhumation_period_ends = np.array([40.0, 2.0])
+exhumation_period_ends = np.array([70.0])
 # exhumed thickness
-exhumed_thicknesses = np.array([3000.0, 1000.0])
+exhumed_thicknesses = np.array([500.0])
+
+# determine last deposited unit before unconformity:
+exhumed_strat_units = ['SLDNA']
 
 # determine last deposited unit before unfconformity:
 # list of 'normal' stratigrpahic thicknesses
 # exhumation will start at the lowest missing unit
 # Molasse strat units, following Kemp et al. (1999)
-exhumed_strat_units = [['Kimm'],
-                       ['UMM', 'USM-I', 'USM-II',
-                       'OMM', 'OSM', 'thrust_sheet_1',
-                       'thrust_sheet_2']]
-
-# ages Molasse units according to Kemp et al., (1999)
-#exhumed_units_duration = np.array([2, 7.25, 3.75, 1,
-#                                   1.75, 4.25])
+exhumed_strat_units = [['ATAL']]
 
 # thicknesses
-# USM
-original_thicknesses = [[3000.0],
-                        [600.0, 2175.0, 1125.0,
-                        525.0, 6000.0, 6000.0, 6000.0]]
+original_thicknesses = [[500.0]]
 
 # or set pre-exhumation thickness of particular unit, if known
 # exhumation will then be calculated to match the present-day thickness
@@ -184,8 +176,8 @@ max_decompaction_error = 0.01
 # sigma of uncertainty range for VR data, if not specified in input file
 vr_unc_sigma = 0.05
 
-####################
-# salinity diffusion
-####################
+###########################
+# salinity diffusion params
+###########################
 tortuosity_factor = -1/3.
 Dw = 20.3e-10

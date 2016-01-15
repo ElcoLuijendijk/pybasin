@@ -284,22 +284,33 @@ for well_number, well in enumerate(model_scenarios.wells):
         well_strat = well_strat_orig.copy()
 
         # run burial history model
-        (geohist_df, time_array, time_array_bp,
-         surface_temp_array, basal_hf_array,
-         z_nodes, T_nodes, C_nodes, active_nodes,
-         n_nodes, n_cells,
-         node_strat, node_age,
-         prov_start_nodes, prov_end_nodes) = \
+        model_result_vars = \
             pybasin_lib.run_burial_hist_model(well_number, well, well_strat,
                                               strat_info_mod, pybasin_params,
                                               Ts, litho_props,
                                               csv_output_dir,
                                               model_scenario_number)
 
-        #
-        fig, ax = pl.subplots(1, 1)
-        ax.plot(C_nodes[-1], z_nodes[-1])
-        fig.savefig('salinity_final.png')
+        if pybasin_params.simulate_salinity is False:
+            [geohist_df, time_array, time_array_bp,
+             surface_temp_array, basal_hf_array,
+             z_nodes, T_nodes, active_nodes,
+             n_nodes, n_cells,
+             node_strat, node_age,
+             prov_start_nodes, prov_end_nodes] = model_result_vars
+        else:
+            [geohist_df, time_array, time_array_bp,
+            surface_temp_array, basal_hf_array,
+            z_nodes, T_nodes, active_nodes,
+            n_nodes, n_cells,
+            node_strat, node_age,
+            prov_start_nodes, prov_end_nodes,
+            C_nodes] = model_result_vars
+
+            #
+            fig, ax = pl.subplots(1, 1)
+            ax.plot(C_nodes[-1], z_nodes[-1])
+            fig.savefig('salinity_final.png')
 
         # find out if exhumation end has changed
         exhumed_units = [unit[0] == '-' for unit in geohist_df.index]
@@ -524,11 +535,12 @@ for well_number, well in enumerate(model_scenarios.wells):
             T_rmse = np.nan
             T_gof = np.nan
 
-        ind = ((vr_data['well'] == well)
-                           & (vr_data['depth'] < z_nodes[-1].max()))
-        vr_data_well = vr_data[ind]
-
         if pybasin_params.simulate_VR is True:
+
+            ind = ((vr_data['well'] == well)
+                               & (vr_data['depth'] < z_nodes[-1].max()))
+            vr_data_well = vr_data[ind]
+
             # interpolate vitrinite reflectance data
             if True in ind.values:
                 vr_data_well['simulated_vr'] = \
@@ -695,22 +707,40 @@ for well_number, well in enumerate(model_scenarios.wells):
             surface_temp_array, basal_hf_array,
             z_nodes, active_nodes, T_nodes,
             node_strat, node_age,
-            simulated_AFT_data,
-            vr_nodes,
-            T_data_well['depth'], T_data_well['temperature'],
+            T_data_well['depth'],
+            T_data_well['temperature'],
             T_data_well['temperature_unc_1sigma'],
-            vr_data_well['depth'], vr_data_well['VR'],
-            vr_data_well['VR_unc_1sigma'],
-            aft_data_well['depth'], aft_data_well['aft_age'],
-            aft_data_well['95ci_minus'], aft_data_well['95ci_plus'],
-            aft_data_well['length_mean'], aft_data_well['length_std'],
-            aft_data_well['data_type'].values,
-            T_gof, vr_gof, aft_age_gof]
+            T_gof]
 
-        #aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-        #aft_ln_mean_nodes, aft_ln_std_nodes,
-        #aft_node_times_burial, aft_node_zs
+        if pybasin_params.simulate_AFT is True:
 
+            AFT_data = [simulated_AFT_data,
+                        aft_data_well['depth'],
+                        aft_data_well['aft_age'],
+                        aft_data_well['95ci_minus'],
+                        aft_data_well['95ci_plus'],
+                        aft_data_well['length_mean'],
+                        aft_data_well['length_std'],
+                        aft_data_well['data_type'].values,
+                        aft_age_gof]
+        else:
+            AFT_data = None
+
+        if pybasin_params.simulate_VR is True:
+            VR_data = [vr_nodes,
+                       vr_data_well['depth'],
+                       vr_data_well['VR'],
+                       vr_data_well['VR_unc_1sigma'],
+                       vr_gof]
+        else:
+            VR_data = None
+
+        if pybasin_params.simulate_salinity is True:
+            C_data = [C_nodes]
+
+        model_run_data.append(AFT_data)
+        model_run_data.append(VR_data)
+        model_run_data.append(C_data)
 
         today = datetime.datetime.now()
         today_str = '%i-%i-%i' % (today.day, today.month, today.year)
@@ -731,27 +761,9 @@ for well_number, well in enumerate(model_scenarios.wells):
         #############################
         if pybasin_params.make_model_data_fig is True:
             fig = pybasin_figures.model_vs_data_figure(
-                time_array_bp,
-                surface_temp_array, basal_hf_array,
-                z_nodes, active_nodes, T_nodes,
-                node_strat, node_age,
-                simulated_AFT_data,
-                vr_nodes,
-                T_data_well['depth'].values,
-                T_data_well['temperature'].values,
-                T_data_well['temperature_unc_1sigma'].values,
-                vr_data_well['depth'].values,
-                vr_data_well['VR'].values,
-                vr_data_well['VR_unc_1sigma'].values,
-                aft_data_well['depth'],
-                aft_data_well['aft_age'],
-                aft_data_well['95ci_minus'],
-                aft_data_well['95ci_plus'],
-                aft_data_well['length_mean'],
-                aft_data_well['length_std'],
-                aft_data_well['data_type'].values,
-                T_gof, vr_gof, aft_age_gof,
-                model_data_fig_bw=pybasin_params.model_data_fig_bw)
+                model_run_data,
+                model_data_fig_bw=pybasin_params.model_data_fig_bw,
+                contour_variable=pybasin_params.contour_variable)
         #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
             fn = os.path.join(fig_output_dir, 'model_data_fig_%s_%s_ms%i.%s'

@@ -2155,28 +2155,31 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         else:
             C_init = C_nodes[timestep-1, active_nodes_i]
 
-        Ks_nodes = np.zeros_like(porosity_nodes)
+        if pybasin_params.simulate_salinity is True:
 
-        tortuosity_nodes = porosity_nodes**(-1/3.)
-        tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
+            #Ks_nodes = np.zeros_like(porosity_nodes)
+            #tortuosity_factor = -1/3.
+            #Dw = 20.3e-10
 
-        Dw = 20.3e-10
-        Ks_nodes = porosity_nodes / tortuosity_nodes * Dw
+            tortuosity_nodes = porosity_nodes**pybasin_params.tortuosity_factor
+            tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
-        Ks_cells = (Ks_nodes[:, 1:] + Ks_nodes[:, :-1]) / 2.0
+            Ks_nodes = porosity_nodes / tortuosity_nodes * pybasin_params.Dw
 
-        C_nodes[timestep, active_nodes_i], A_s = \
-            solve_1D_diffusion(
-                C_init,
-                z_nodes[timestep, active_nodes_i],
-                dt_hf * year,
-                Ks_cells[timestep, active_cells_i],
-                porosity_nodes[timestep, active_nodes_i],
-                Q_solute,
-                None,
-                None,
-                fixed_upper_salinity,
-                fixed_lower_salinity)
+            Ks_cells = (Ks_nodes[:, 1:] + Ks_nodes[:, :-1]) / 2.0
+
+            C_nodes[timestep, active_nodes_i], A_s = \
+                solve_1D_diffusion(
+                    C_init,
+                    z_nodes[timestep, active_nodes_i],
+                    dt_hf * year,
+                    Ks_cells[timestep, active_cells_i],
+                    porosity_nodes[timestep, active_nodes_i],
+                    Q_solute,
+                    None,
+                    None,
+                    fixed_upper_salinity,
+                    fixed_lower_salinity)
 
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
             print 'error, nan values in T array'
@@ -2199,9 +2202,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      T_nodes[timestep, active_nodes_i].max())
             print 'min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(),
                                                   C_nodes[timestep, active_nodes_i].max())
-    return (geohist_df, time_array, time_array_bp,
-            surface_temp_array, basal_hf_array,
-            z_nodes, T_nodes, C_nodes, active_nodes,
-            n_nodes, n_cells,
-            node_strat, node_age,
-            prov_start_nodes, prov_end_nodes)
+
+    return_params = [geohist_df, time_array, time_array_bp,
+                     surface_temp_array, basal_hf_array,
+                     z_nodes, T_nodes, active_nodes,
+                     n_nodes, n_cells,
+                     node_strat, node_age,
+                     prov_start_nodes, prov_end_nodes]
+
+    if pybasin_params.simulate_salinity is True:
+        return_params.append(C_nodes)
+
+    return return_params
