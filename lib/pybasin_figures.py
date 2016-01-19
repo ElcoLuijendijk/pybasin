@@ -345,9 +345,13 @@ def model_vs_data_figure(model_run_data,
     # find max depth
     max_depth_time = np.max(z_nodes, axis=1)
 
+    max_depth_time2 = np.interp(xi, (time_array_bp/1.0e6)[::-1], max_depth_time[::-1])
+
     # filter interpolated values that are deeper than deepest fm.
-    #for nt in xrange(len(xi)):
-    #    zi.mask[yi > max_depth_time[nt], nt] = True
+    for nti in xrange(len(xi)):
+        zi.mask[yi > max_depth_time2[nti], nti] = True
+
+    pdb.set_trace()
 
     print 'color mesh:'
     #tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
