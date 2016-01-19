@@ -206,7 +206,9 @@ def model_vs_data_figure(model_run_data,
          vr_GOF] = VR_data
 
     if C_data is not None:
-        [C_nodes] = C_data
+        [C_nodes, surface_salinity_array, salinity_lwr_bnd,
+         salinity_depth, salinity_data, salinity_data_unc,
+         salinity_RMSE] = C_data
 
     #= VR_data
 
@@ -273,6 +275,12 @@ def model_vs_data_figure(model_run_data,
 
     line_props = {"color": "black", "lw": 1.0}
 
+    scatter_props = {"marker": "o",
+                     "s": 25,
+                     "color": 'gray',
+                     "edgecolor": 'black',
+                     "zorder": 10}
+
     erb_props = {"marker": "o",
                  "ms": 4,
                  "linestyle": "None",
@@ -306,8 +314,12 @@ def model_vs_data_figure(model_run_data,
         cb_label = 'T (%s C)' % degree_symbol
 
     # plot surface temperature
-    axst.plot(time_array_bp / 1e6, surface_temp_array,
-              **line_props)
+    if contour_variable == 'salinity':
+        axst.plot(time_array_bp / 1e6, surface_salinity_array,
+                  **line_props)
+    else:
+        axst.plot(time_array_bp / 1e6, surface_temp_array,
+                  **line_props)
 
     # burial history and temperature
     time_int_grid1 = 1
@@ -335,7 +347,7 @@ def model_vs_data_figure(model_run_data,
 
     plot_int = 1
 
-    print 'gridding T vs time data'
+    print 'gridding T or salinity data vs time'
 
     zi = matplotlib.mlab.griddata(x[ind][::plot_int],
                                   y[ind][::plot_int],
@@ -392,8 +404,11 @@ def model_vs_data_figure(model_run_data,
         axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5)
 
     # plot basal heat flow
-    axhf.plot(time_array_bp / 1e6, basal_hf_array * 1000.0,
-              **line_props)
+    if contour_variable == 'salinity':
+        axhf.axhline(y=salinity_lwr_bnd, **line_props)
+    else:
+        axhf.plot(time_array_bp / 1e6, basal_hf_array * 1000.0,
+                  **line_props)
 
     # plot temperature
     ax_temp.plot(T_nodes[-1, active_nodes[-1]],
@@ -409,6 +424,10 @@ def model_vs_data_figure(model_run_data,
                   z_nodes[-1, active_nodes[-1]],
                   **line_props)
 
+    if C_data is not None and len(salinity_data) > 0:
+        ax_c.scatter(salinity_data, salinity_depth,
+                     **scatter_props)
+
     # plot vitrinite
     if VR_data is not None and vr_nodes is not None:
         ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
@@ -416,8 +435,9 @@ def model_vs_data_figure(model_run_data,
                    **line_props)
 
     if VR_data is not None and len(vr_data) > 0:
-        pdb.set_trace()
-        ax_vr.errorbar(vr_data, vr_depth, xerr=vr_data_sigma, **erb_props)
+        ax_vr.errorbar(vr_data, vr_depth,
+                       xerr=vr_data_sigma,
+                       **erb_props)
 
     # plot aft ages
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -426,7 +446,8 @@ def model_vs_data_figure(model_run_data,
                               aft_age_nodes_max[active_nodes[-1]],
                               color='lightgrey')
 
-        ax_afta.plot(node_age[active_nodes[-1]], z_nodes[-1, active_nodes[-1]],
+        ax_afta.plot(node_age[active_nodes[-1]],
+                     z_nodes[-1, active_nodes[-1]],
                      color='blue', lw=1.5, ls='--', zorder=101)
 
     if AFT_data is not None:
@@ -463,9 +484,14 @@ def model_vs_data_figure(model_run_data,
     #                  xerr=aft_length_std, **erb_props)
 
     # add labels:
-    axst.set_ylabel('Surface T (%sC)' % degree_symbol)
     axb.set_ylabel('Burial depth (m)')
-    axhf.set_ylabel(r'HF (mW m$^{-2}$)')
+
+    if contour_variable == 'salinity':
+        axst.set_ylabel('Salinity\ntop bnd\n(kg/kg)')
+        axhf.set_ylabel('Salinity\nlower bnd\n(kg/kg)')
+    else:
+        axst.set_ylabel('Surface T (%sC)' % degree_symbol)
+        axhf.set_ylabel(r'HF (mW m$^{-2}$)')
 
     axhf.set_xlabel('Time (Ma)')
     ax_temp.set_xlabel('T (%sC)' % degree_symbol)
@@ -514,6 +540,18 @@ def model_vs_data_figure(model_run_data,
 
     ax_temp.set_xlim(0, max_T * 1.1)
 
+    max_C = C_nodes[-1].max()
+
+    # TODO: this fails when no T data, fix this
+    try:
+        if salinity_data.max() > max_C:
+            max_C = salinity_data.max()
+    except ValueError:
+        print 'no T data, continuing'
+
+    ax_c.set_xlim(0, max_C * 1.1)
+
+
     if VR_data is not None:
         if vr_nodes is not None:
             max_VR = vr_nodes.max()
@@ -543,20 +581,21 @@ def model_vs_data_figure(model_run_data,
         ax.set_xticks(ax.get_xticks()[:-1])
 
     t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
-    ax_temp.set_xticks(t_ticks)
+    ax_temp.set_xticks(t_ticks[:-1])
 
-    hf_min = int(np.floor(basal_hf_array.min() * 100.0)) * 10.0
-    hf_max = int(np.ceil(basal_hf_array.max() * 100.0)) * 10.0
-    hf_ticks = np.arange(hf_min, hf_max + 5.0, 5.0)
-    axhf.set_yticks(hf_ticks)
+    if contour_variable == 'salinity':
+        axst.set_yticks(axst.get_yticks()[1::2])
+        axhf.set_yticks(axhf.get_yticks()[::2])
+    else:
+        hf_min = int(np.floor(basal_hf_array.min() * 100.0)) * 10.0
+        hf_max = int(np.ceil(basal_hf_array.max() * 100.0)) * 10.0
+        hf_ticks = np.arange(hf_min, hf_max + 5.0, 5.0)
+        axhf.set_yticks(hf_ticks)
 
-    st_min = int(np.floor(surface_temp_array.min() / 10.0)) * 10.0
-    st_max = int(np.ceil(surface_temp_array.max() / 10.0)) * 10.0
-    st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
-    axst.set_yticks(st_ticks)
-
-    print 'new ticks'
-    print ax_temp.get_xticks()
+        st_min = int(np.floor(surface_temp_array.min() / 10.0)) * 10.0
+        st_max = int(np.ceil(surface_temp_array.max() / 10.0)) * 10.0
+        st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
+        axst.set_yticks(st_ticks)
 
     # add colorbar
     #cax = useful_functions.add_subplot_axes(axb, [0.01, 0.14, 0.5, 0.025])

@@ -180,4 +180,7 @@ vr_unc_sigma = 0.05
 # salinity diffusion params
 ###########################
 tortuosity_factor = -1/3.
+
 Dw = 20.3e-10
+
+fixed_lower_bnd_salinity = 0.30

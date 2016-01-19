@@ -126,6 +126,16 @@ if pybasin_params.simulate_AHe is True:
     # read apatite U-Th/He (AHe) data
     ahe_data = pd.read_csv(os.path.join(input_dir, 'AHe_data.csv'))
 
+if pybasin_params.simulate_salinity is True:
+    # read surface salinity bnd condditions
+    Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
+
+    # and read salinity data
+    salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'))
+
+else:
+    Cs = None
+
 ########
 # calculate porosity-depth and thermal parameters for each strat unit
 # find lithology columns in stratigraphy dataframe
@@ -287,7 +297,7 @@ for well_number, well in enumerate(model_scenarios.wells):
         model_result_vars = \
             pybasin_lib.run_burial_hist_model(well_number, well, well_strat,
                                               strat_info_mod, pybasin_params,
-                                              Ts, litho_props,
+                                              Ts, Cs, litho_props,
                                               csv_output_dir,
                                               model_scenario_number)
 
@@ -305,12 +315,8 @@ for well_number, well in enumerate(model_scenarios.wells):
             n_nodes, n_cells,
             node_strat, node_age,
             prov_start_nodes, prov_end_nodes,
-            C_nodes] = model_result_vars
-
-            #
-            fig, ax = pl.subplots(1, 1)
-            ax.plot(C_nodes[-1], z_nodes[-1])
-            fig.savefig('salinity_final.png')
+            C_nodes, surface_salinity_array,
+            salinity_lwr_bnd] = model_result_vars
 
         # find out if exhumation end has changed
         exhumed_units = [unit[0] == '-' for unit in geohist_df.index]
@@ -636,6 +642,32 @@ for well_number, well in enumerate(model_scenarios.wells):
         else:
             aft_age_gof = np.nan
 
+        if pybasin_params.simulate_salinity is True:
+            # calculate model error salinity data
+            ind = (salinity_data['well'] == well) & (salinity_data['depth'] < z_nodes[-1].max())
+            salinity_data_well = salinity_data[ind]
+
+            if True in ind.values:
+                salinity_data_well['simulated_salinity'] = \
+                    np.interp(salinity_data_well['depth'],
+                              z_nodes[-1, active_nodes[-1]],
+                              C_nodes[-1, active_nodes[-1]])
+
+                # calculate model error salinity data
+                salinity_data_well['residual'] = (salinity_data_well['salinity']
+                                           - salinity_data_well['simulated_salinity'])
+                salinity_data_well['residual_norm'] = (salinity_data_well['residual']
+                                                / salinity_data_well['salinity_unc_1sigma'])
+                salinity_data_well['P_fit'] = \
+                    (1.0
+                     - scipy.stats.norm.cdf(np.abs(salinity_data_well['residual_norm']))) * 2
+
+                salinity_rmse = np.sqrt(np.mean(salinity_data_well['residual']**2))
+                salinity_gof = np.mean(salinity_data_well['P_fit'])
+            else:
+                salinity_rmse = np.nan
+                salinity_gof = np.nan
+
         # calculate mean goodness of fit of temperature, vitrinite and aft age data
         # TODO: add salinity data...
         gofs = np.array([T_gof])
@@ -736,7 +768,13 @@ for well_number, well in enumerate(model_scenarios.wells):
             VR_data = None
 
         if pybasin_params.simulate_salinity is True:
-            C_data = [C_nodes]
+            C_data = [C_nodes, surface_salinity_array, salinity_lwr_bnd,
+                      salinity_data_well['depth'],
+                      salinity_data_well['salinity'],
+                      salinity_data_well['salinity_unc_1sigma'],
+                      salinity_rmse]
+        else:
+            C_data = None
 
         model_run_data.append(AFT_data)
         model_run_data.append(VR_data)

@@ -1726,7 +1726,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
-                          Ts, litho_props,
+                          Ts, Cs, litho_props,
                           output_dir, model_scenario_number):
     """
     run burial and thermal history model
@@ -2096,23 +2096,32 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     for ni in xrange(nt_total):
         T_nodes[ni, :] = surface_temp_array[ni]
 
-    # set initial salinity
-    C_nodes = np.zeros((nt_total, n_nodes))
-    for ni in xrange(nt_total):
-        C_nodes[ni, :] = 0.035
-
-    #sal_nodes = np.zeros((nt_total, n_nodes))
-    #for ni in xrange(nt_total):
-    #    sal_nodes[ni, :] = surface_temp_array[ni]
-
     # interpolate basal heat flow
     basal_hf_array = np.interp(time_array_bp,
                                pybasin_params.heatflow_ages * 1.0e6,
                                pybasin_params.heatflow_history)
 
+    if pybasin_params.simulate_salinity is True:
+        # interpolate surface salinity
+        surface_salinity_array = np.interp(time_array_bp,
+                                           Cs['age'].values * 1.0e6,
+                                           Cs['surface_salinity'])
+
+        # set initial salinity
+        C_nodes = np.zeros((nt_total, n_nodes))
+        for ni in xrange(nt_total):
+            C_nodes[ni, :] = surface_salinity_array[ni]
+
+        #sal_nodes = np.zeros((nt_total, n_nodes))
+        #for ni in xrange(nt_total):
+        #    sal_nodes[ni, :] = surface_temp_array[ni]
+
     # go through all geological timesteps and model heat flow:
     print '-' * 10
-    print 'modeling heatflow'
+    if pybasin_params.simulate_salinity is True:
+        print 'modeling heatflow and solute diffusion'
+    else:
+        print 'modeling heatflow'
 
     cumulative_steps = np.cumsum(nt_heatflows)
 
@@ -2145,17 +2154,17 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 surface_temp_array[timestep],
                 None)
 
-        Q_solute = np.zeros_like(porosity_nodes[timestep, active_cells_i])
-
-        fixed_upper_salinity = 0.0001
-        fixed_lower_salinity = 0.30
-
-        if timestep == 0:
-            C_init = C_nodes[timestep, active_nodes_i]
-        else:
-            C_init = C_nodes[timestep-1, active_nodes_i]
 
         if pybasin_params.simulate_salinity is True:
+
+            Q_solute = np.zeros_like(porosity_nodes[timestep, active_cells_i])
+
+            fixed_lower_salinity = pybasin_params.fixed_lower_bnd_salinity
+
+            if timestep == 0:
+                C_init = C_nodes[timestep, active_nodes_i]
+            else:
+                C_init = C_nodes[timestep-1, active_nodes_i]
 
             #Ks_nodes = np.zeros_like(porosity_nodes)
             #tortuosity_factor = -1/3.
@@ -2178,7 +2187,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     Q_solute,
                     None,
                     None,
-                    fixed_upper_salinity,
+                    surface_salinity_array[timestep],
                     fixed_lower_salinity)
 
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
@@ -2211,6 +2220,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      prov_start_nodes, prov_end_nodes]
 
     if pybasin_params.simulate_salinity is True:
-        return_params.append(C_nodes)
+        return_params += [C_nodes,
+                          surface_salinity_array,
+                          pybasin_params.fixed_lower_bnd_salinity]
 
     return return_params
