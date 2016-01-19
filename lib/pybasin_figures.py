@@ -342,22 +342,21 @@ def model_vs_data_figure(model_run_data,
                                   z[ind][::plot_int],
                                   xi, yi, interp='linear')
 
-    # find max depth
+    # find max depth at each timestep
     max_depth_time = np.max(z_nodes, axis=1)
-
-    max_depth_time2 = np.interp(xi, (time_array_bp/1.0e6)[::-1], max_depth_time[::-1])
+    max_depth_time2 = np.interp(xi,
+                                (time_array_bp/1.0e6)[::-1],
+                                max_depth_time[::-1])
 
     # filter interpolated values that are deeper than deepest fm.
     for nti in xrange(len(xi)):
         zi.mask[yi > max_depth_time2[nti], nti] = True
 
-    pdb.set_trace()
-
     print 'color mesh:'
-    #tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
+    tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
 
-    c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
-    tc = axb.contourf(xi, yi, zi, c_int, cmap='jet')
+    #c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
+    #tc = axb.contourf(xi, yi, zi, c_int, cmap='jet')
 
     #plot_int = 1
     #tc = axb.scatter(x[ind][::plot_int],
