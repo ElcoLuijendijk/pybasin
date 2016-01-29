@@ -348,35 +348,41 @@ def model_vs_data_figure(model_run_data,
     plot_int = 1
 
     print 'gridding T or salinity data vs time'
+    gridding_ok = True
+    try:
+        zi = matplotlib.mlab.griddata(x[ind][::plot_int],
+                                      y[ind][::plot_int],
+                                      z[ind][::plot_int],
+                                      xi, yi, interp='linear')
+    except:
+        print 'gridding failed, using scatter plot only'
+        gridding_ok = False
 
-    zi = matplotlib.mlab.griddata(x[ind][::plot_int],
-                                  y[ind][::plot_int],
-                                  z[ind][::plot_int],
-                                  xi, yi, interp='linear')
+    if gridding_ok is True:
+        # find max depth at each timestep
+        max_depth_time = np.max(z_nodes, axis=1)
+        max_depth_time2 = np.interp(xi,
+                                    (time_array_bp/1.0e6)[::-1],
+                                    max_depth_time[::-1])
 
-    # find max depth at each timestep
-    max_depth_time = np.max(z_nodes, axis=1)
-    max_depth_time2 = np.interp(xi,
-                                (time_array_bp/1.0e6)[::-1],
-                                max_depth_time[::-1])
+        # filter interpolated values that are deeper than deepest fm.
+        for nti in xrange(len(xi)):
+            zi.mask[yi > max_depth_time2[nti], nti] = True
 
-    # filter interpolated values that are deeper than deepest fm.
-    for nti in xrange(len(xi)):
-        zi.mask[yi > max_depth_time2[nti], nti] = True
+        print 'color mesh:'
+        tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
+    else:
 
-    print 'color mesh:'
-    tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
+        #c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
+        #tc = axb.contourf(xi, yi, zi, c_int, cmap='jet')
 
-    #c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
-    #tc = axb.contourf(xi, yi, zi, c_int, cmap='jet')
-
-    #plot_int = 1
-    #tc = axb.scatter(x[ind][::plot_int],
-    #                 y[ind][::plot_int],
-    #                 c=z[ind][::plot_int],
-    #                 edgecolor="None",
-    #                 s=3,
-    #                 cmap=cmap)
+        plot_int = 1
+        tc = axb.scatter(x[ind][::plot_int],
+                         y[ind][::plot_int],
+                         c=z[ind][::plot_int],
+                         edgecolor="None",
+                         s=3,
+                         cmap=cmap)
 
     major_strat = [n[:4] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
