@@ -19,10 +19,10 @@ output_dir = 'model_output/MB'
 datafile_output_dir = '../../heavy_data/pybasin_MB'
 
 # option to calculate apatite fission track data
-simulate_AFT = False
+simulate_AFT = True
 simulate_AHe = False
-simulate_VR = False
-simulate_salinity = True
+simulate_VR = True
+simulate_salinity = False
 
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
@@ -36,7 +36,7 @@ model_data_fig_bw = False
 # varaible to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
 # to show evolution of temperature or salinity over time
-contour_variable = 'salinity'
+contour_variable = 'temperature'
 
 # type of figure file to save (pdf, png or jpg):
 fig_adj = 'png'

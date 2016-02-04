@@ -226,7 +226,7 @@ def model_vs_data_figure(model_run_data,
 
     fig = setup_figure(width='2col', height=0.75, fontsize='xx-small')
 
-    width_ratios = [8, 2]
+    width_ratios = [8, 3]
 
     nrows = 3
     ncols = 2
@@ -247,7 +247,7 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(4)
 
     gs = gridspec.GridSpec(nrows, ncols,
-                           wspace=0.0, hspace=0.0,
+                           wspace=0.03, hspace=0.03,
                            width_ratios=width_ratios,
                            height_ratios=[1, 5, 1])
 
@@ -325,9 +325,13 @@ def model_vs_data_figure(model_run_data,
     time_int_grid1 = 1
 
     #xi = (time_array_bp / 1e6)[::time_int_grid1]
-    ts = 1.0e6
+    ts = 1.0e5
     xi = np.arange(np.min(time_array_bp), np.max(time_array_bp) + ts, ts) / 1.0e6
-    ys = 10.0
+
+    if z_nodes.max() < 1000:
+        ys = 1.0
+    else:
+        ys = 10.0
     yi = np.arange(z_nodes.min(), z_nodes.max() + ys, ys)
 
     cnt_var_mask = cnt_var.copy()
@@ -353,7 +357,7 @@ def model_vs_data_figure(model_run_data,
         zi = matplotlib.mlab.griddata(x[ind][::plot_int],
                                       y[ind][::plot_int],
                                       z[ind][::plot_int],
-                                      xi, yi, interp='linear')
+                                      xi, yi, interp='nn')
     except:
         print 'gridding failed, using scatter plot only'
         gridding_ok = False
@@ -546,16 +550,17 @@ def model_vs_data_figure(model_run_data,
 
     ax_temp.set_xlim(0, max_T * 1.1)
 
-    max_C = C_nodes[-1].max()
+    if contour_variable == 'salinity':
+        max_C = C_nodes[-1].max()
 
     # TODO: this fails when no T data, fix this
-    try:
-        if salinity_data.max() > max_C:
-            max_C = salinity_data.max()
-    except ValueError:
-        print 'no T data, continuing'
+        try:
+            if salinity_data.max() > max_C:
+                max_C = salinity_data.max()
+        except ValueError:
+            print 'no salinity data, continuing'
 
-    ax_c.set_xlim(0, max_C * 1.1)
+        ax_c.set_xlim(0, max_C * 1.1)
 
 
     if VR_data is not None:
@@ -577,17 +582,18 @@ def model_vs_data_figure(model_run_data,
         ax_afta.set_xlim(afta_max * 1.1, 0)
 
     #ax_aftln.set_xlim(2, 17)
+    #if max_T > 75.0:
+    #    t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
+    #    ax_temp.set_xticks(t_ticks)
 
-    for ax in all_panels[4:]:
+    for ax in all_panels[3:]:
         # reduce number of tick labels
+        print ax.get_xticks()
         ax.set_xticks(ax.get_xticks()[::2])
 
-    for ax in all_panels[4:-1]:
+    for ax in all_panels[3:-1]:
         # remove last tick label to avoid overlap
         ax.set_xticks(ax.get_xticks()[:-1])
-
-    t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
-    ax_temp.set_xticks(t_ticks[:-1])
 
     if contour_variable == 'salinity':
         axst.set_yticks(axst.get_yticks()[1::2])
@@ -633,6 +639,6 @@ def model_vs_data_figure(model_run_data,
                      transform=ax_afta.transAxes,
                      **textprops)
 
-    fig.tight_layout()
+    #fig.tight_layout()
 
     return fig

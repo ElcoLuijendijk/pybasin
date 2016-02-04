@@ -2202,15 +2202,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         if timestep in cumulative_steps:
 
-            age_ind = np.where(cumulative_steps==timestep)[0][0]
-
             print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f' \
                   % (timestep, time_array_bp[timestep] / 1e6,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
                      T_nodes[timestep, active_nodes_i].max())
-            print 'min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(),
-                                                  C_nodes[timestep, active_nodes_i].max())
+            if pybasin_params.simulate_salinity is True:
+                print 'min, max C = %0.4f - %0.4f' \
+                      % (C_nodes[timestep, active_nodes_i].min(),
+                         C_nodes[timestep, active_nodes_i].max())
 
     return_params = [geohist_df, time_array, time_array_bp,
                      surface_temp_array, basal_hf_array,
