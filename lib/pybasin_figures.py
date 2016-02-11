@@ -138,42 +138,6 @@ def model_vs_data_figure(model_run_data,
     create a figure comparing 1D burial and thermal model results
     with vitrinite reflectance, apatite fission track and present-day
     temperature data
-
-    :param time_array_bp:
-    :param surface_temp_array:
-    :param basal_hf_array:
-    :param z_nodes:
-    :param active_nodes:
-    :param T_nodes:
-    :param node_strat:
-    :param node_age:
-    :param aft_node_times_burial:
-    :param aft_node_zs:
-    :param aft_age_nodes:
-    :param aft_age_nodes_min:
-    :param aft_age_nodes_max:
-    :param aft_ln_mean_nodes:
-    :param aft_ln_std_nodes:
-    :param vr_nodes:
-    :param T_depth:
-    :param T_data:
-    :param T_data_sigma:
-    :param vr_depth:
-    :param vr_data:
-    :param vr_data_sigma:
-    :param aft_age_depth:
-    :param aft_age:
-    :param aft_age_min_ci:
-    :param aft_age_plus_ci:
-    :param aft_length_mean:
-    :param aft_length_std:
-    :param aft_data_type:
-    :param T_GOF:
-    :param vr_GOF:
-    :param age_GOF:
-    :param show_provenance_hist:
-    :param time_int_grid:
-    :return:
     """
 
 
@@ -191,11 +155,13 @@ def model_vs_data_figure(model_run_data,
         [simulated_AFT_data,
          aft_age_depth,
          aft_age,
-         aft_age_plus_ci,
-         aft_age_min_ci,
+         aft_age_stderr_min,
+         aft_age_stderr_plus,
          aft_length_mean,
          aft_length_std,
          aft_data_type,
+         aft_age_bins,
+         aft_age_pfds,
          aft_age_GOF] = AFT_data
 
     if VR_data is not None:
@@ -466,7 +432,8 @@ def model_vs_data_figure(model_run_data,
         #                 **erb_props2)
 
         ax_afta.errorbar(aft_age, aft_age_depth,
-                         xerr=[aft_age_plus_ci, aft_age_min_ci],
+                         xerr=[aft_age_stderr_min * 1.96,
+                               aft_age_stderr_plus * 1.96],
                          **erb_props)
 
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -527,7 +494,7 @@ def model_vs_data_figure(model_run_data,
     max_depth = z_nodes.max() * 1.1
     max_time = time_array_bp.max() / 1e6 * 1.1
 
-    if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is True:
+    if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
         start_times = np.array([ai[0]
                                 for a in aft_node_times_burial
                                 for ai in a])

@@ -67,7 +67,7 @@ output_dir = pybasin_params.output_dir
 datafile_output_dir = pybasin_params.datafile_output_dir
 
 if os.path.exists(output_dir) is False:
-    os.makedirs(output_dir)
+    os.mkdir(output_dir)
 
 #pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
 if pybasin_params.save_model_run_data is True and os.path.exists(datafile_output_dir) is False:
@@ -400,6 +400,7 @@ for well_number, well in enumerate(model_scenarios.wells):
         if pybasin_params.simulate_AFT is True:
 
             # TODO calculate AFT for samples only... not for all nodes
+            # = done already?
 
             resample_t = pybasin_params.resample_AFT_timesteps
             nt_prov = pybasin_params.provenance_time_nt
@@ -419,7 +420,7 @@ for well_number, well in enumerate(model_scenarios.wells):
 
             # find if there is any aft data for this well:
             ind = ((aft_samples['well'] == well)
-                    & (aft_samples['depth'] <= z_nodes[-1].max() + 1.0))
+                   & (aft_samples['depth'] <= z_nodes[-1].max() + 1.0))
             aft_data_well = aft_samples[ind]
 
             if True in ind:
@@ -476,6 +477,8 @@ for well_number, well in enumerate(model_scenarios.wells):
                 (aft_age_samples, aft_age_samples_min, aft_age_samples_max,
                  aft_ln_mean_samples, aft_ln_std_samples,
                  aft_sample_times_burial, aft_sample_zs) = simulated_AFT_data_samples
+
+                # add AFT sample data to AFT well dataframe?
         else:
             simulated_AFT_data = None
 
@@ -584,31 +587,62 @@ for well_number, well in enumerate(model_scenarios.wells):
 
             if True in ind.values:
 
-                aft_data_well['simulated_AFT_min'] = \
-                    np.interp(aft_data_well['depth'],
-                              z_nodes[-1, active_nodes[-1]],
-                              aft_age_nodes_min[active_nodes[-1]])
+                #aft_data_well['simulated_AFT_min'] = \
+                #    np.interp(aft_data_well['depth'],
+                #              z_nodes[-1, active_nodes[-1]],
+                #              aft_age_nodes_min[active_nodes[-1]])
 
-                aft_data_well['simulated_AFT_max'] = \
-                    np.interp(aft_data_well['depth'],
-                              z_nodes[-1, active_nodes[-1]],
-                              aft_age_nodes_max[active_nodes[-1]])
+                #aft_data_well['simulated_AFT_max'] = \
+                #    np.interp(aft_data_well['depth'],
+                #              z_nodes[-1, active_nodes[-1]],
+                #              aft_age_nodes_max[active_nodes[-1]])
 
                 # find the AFT single grain ages in the sample:
                 # TODO:...
 
-                # get pdf of ages
-                age_bins, age_pdfs = \
-                    pybasin_lib.calculate_aft_ages_pdf(
-                        aft_data_well['aft_age'],
-                        aft_data_well['95ci_minus'] / 1.96,
-                        aft_data_well['95ci_plus'] / 1.96)
-                aft_data_well['age_peak_debug'] = \
-                    age_bins[np.argmax(age_pdfs, axis=1)]
+                age_bins = []
+                age_pdfs = []
+
+                for sample in aft_data_well['sample']:
+
+                    if sample in aft_ages['sample'].values:
+                        ind_sample = aft_ages['sample'].values == sample
+
+                        # get pdf of observed AFT ages from single grain ages
+                        age_bin, age_pdf = \
+                            pybasin_lib.calculate_aft_ages_pdf(
+                                aft_ages['AFT_age'][ind_sample].values,
+                                aft_ages['AFT_age_stderr_min'][ind_sample].values,
+                                aft_ages['AFT_age_stderr_plus'][ind_sample].values)
+                        #aft_data_well['age_peak_debug'] = \
+                        #    age_bins[np.argmax(age_pdfs, axis=1)]
+                    else:
+
+                        # get pdf of observed age from central age instead
+                        ind_sample = aft_data_well['sample'].values == sample
+
+                        # get pdf of observed AFT ages
+                        age_bin, age_pdf = \
+                            pybasin_lib.calculate_aft_ages_pdf(
+                                aft_data_well['AFT_age'][ind_sample].values,
+                                aft_data_well['AFT_age_stderr_min'][ind_sample].values,
+                                aft_data_well['AFT_age_stderr_plus'][ind_sample].values)
+
+                        #pdb.set_trace()
+
+                    age_bins.append(age_bin)
+                    age_pdfs.append(age_pdf)
 
                 # go through samples and find out how much of age pdf is covered by
                 #  min and max simulated age
-                for i, sample_ix in enumerate(aft_data_well.index):
+                for i, sample_ix, age_bin, age_pdf in zip(itertools.count(),
+                                                          aft_data_well.index,
+                                                          age_bins,
+                                                          age_pdfs):
+
+                    #
+                    aft_data_well['simulated_AFT_min'] = aft_age_samples_min[i]
+                    aft_data_well['simulated_AFT_max'] = aft_age_samples_max[i]
 
                     # TODO: find more elegant solution for 0.0 simulated AFT age
                     # and check if GOF for AFT ages of 0.0 Ma are correct
@@ -617,7 +651,7 @@ for well_number, well in enumerate(model_scenarios.wells):
                     else:
                         start_ind = np.where(
                             aft_data_well.ix[sample_ix, 'simulated_AFT_min']
-                            >= age_bins)[0][-1]
+                            >= age_bin)[0][-1]
 
                     if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
                         end_ind = 0
@@ -625,18 +659,15 @@ for well_number, well in enumerate(model_scenarios.wells):
                         # np.where(0.0 >= age_bins)[0]
                         end_ind = np.where(
                             aft_data_well.ix[sample_ix, 'simulated_AFT_max']
-                            <= age_bins)[0][0]
+                            <= age_bin)[0][0]
 
-                    pdf_fit_sum = np.sum(age_pdfs[i][start_ind:end_ind])
-                    pdf_nofit_sum = np.sum(age_pdfs[i][:start_ind]) \
-                        + np.sum(age_pdfs[i][end_ind:])
+                    pdf_fit_sum = np.sum(age_pdf[start_ind:end_ind])
+                    pdf_nofit_sum = np.sum(age_pdf[:start_ind]) \
+                        + np.sum(age_pdf[end_ind:])
                     aft_data_well.ix[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
 
-                # make filters for central age and population data
-                ca_ind = aft_data_well['data_type'] == 'central_age'
-                pop_ind = aft_data_well['data_type'] == 'population_age'
-
-                aft_age_gof = aft_data_well['GOF_aft_ages'][ca_ind].mean()
+                # calculate mean GOF from single grain GOFs for each sample
+                aft_age_gof = aft_data_well['GOF_aft_ages'].mean()
             else:
                 aft_age_gof = np.nan
         else:
@@ -722,7 +753,7 @@ for well_number, well in enumerate(model_scenarios.wells):
             aft_data_well['strat_age_interp'] = \
                 np.interp(aft_data_well['depth'], z_nodes[-1], node_age)
             aft_data_well['reset'] = \
-                aft_data_well['aft_age'] < aft_data_well['strat_age_interp']
+                aft_data_well['AFT_age'] < aft_data_well['strat_age_interp']
 
             if True in aft_data_well['reset'].values:
                 model_results.ix[model_scenario_number,
@@ -748,12 +779,14 @@ for well_number, well in enumerate(model_scenarios.wells):
 
             AFT_data = [simulated_AFT_data,
                         aft_data_well['depth'],
-                        aft_data_well['aft_age'],
-                        aft_data_well['95ci_minus'],
-                        aft_data_well['95ci_plus'],
+                        aft_data_well['AFT_age'],
+                        aft_data_well['AFT_age_stderr_min'],
+                        aft_data_well['AFT_age_stderr_plus'],
                         aft_data_well['length_mean'],
                         aft_data_well['length_std'],
                         aft_data_well['data_type'].values,
+                        age_bins,
+                        age_pdfs,
                         aft_age_gof]
         else:
             AFT_data = None

@@ -1513,11 +1513,15 @@ def generate_burial_histories(n_nodes,
     return aft_node_times, aft_node_zs
 
 
-def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std):
+def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
+                           sum_single_grain_age_pdfs=True):
     """
     calculate pdf of fission track ages
     convert age to gamma (Galbraith ....), assume normal distribution of gamma
     and use this to calculate aft age distribution pdf
+
+    inputs: arrays of single grain ages and age standard errors,
+    plus and minus SE.
 
     :param aft_ages:
     :param aft_ages_min_std:
@@ -1534,7 +1538,7 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std):
     aft_ages_max = aft_ages + aft_ages_plus_std
 
     # calculate gamma value (i.e. normally distributed transform of AFT age equation)
-    gamma = AFTlib.calculate_gamma_from_AFT_age(aft_ages.values)
+    gamma = AFTlib.calculate_gamma_from_AFT_age(aft_ages)
     #print 'gamma :', gamma
 
     # correct zero ages:
@@ -1542,7 +1546,7 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std):
     gamma[zero_index] = 1e-10
 
     # calculate standard error of gamma:
-    gamma_max = AFTlib.calculate_gamma_from_AFT_age(aft_ages_max.values)
+    gamma_max = AFTlib.calculate_gamma_from_AFT_age(aft_ages_max)
     gamma_std = (gamma_max - gamma)/2.0
 
     gamma_pdf = np.zeros((len(aft_ages), len(bins)))
@@ -1553,10 +1557,16 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std):
         # normalize pdf to a value of 1:
         gamma_pdf[i] = gamma_pdf[i]/(gamma_pdf[i].sum())
 
-    #return gamma_pdf
     aft_age_bins = AFTlib.calculate_AFT_age_from_gamma(bins)
 
-    return aft_age_bins, gamma_pdf
+    # sum all single grain pdf to one sample pdf
+    if sum_single_grain_age_pdfs is True:
+        age_pdf_final = np.sum(gamma_pdf, axis=0) / len(gamma_pdf)
+        #pdb.set_trace()
+    else:
+        age_pdf_final = gamma_pdf
+
+    return aft_age_bins, age_pdf_final
 
 
 def calculate_vr(T_nodes, active_nodes, time_array, n_nodes):
