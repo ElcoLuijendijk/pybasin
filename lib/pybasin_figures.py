@@ -161,7 +161,7 @@ def model_vs_data_figure(model_run_data,
          aft_length_std,
          aft_data_type,
          aft_age_bins,
-         aft_age_pfds,
+         aft_age_pdfs,
          aft_age_GOF] = AFT_data
 
     if VR_data is not None:
@@ -435,6 +435,17 @@ def model_vs_data_figure(model_run_data,
                          xerr=[aft_age_stderr_min * 1.96,
                                aft_age_stderr_plus * 1.96],
                          **erb_props)
+
+        # violin plots
+        for sample_no in xrange(len(aft_age)):
+            vd = dict(coords=aft_age_bins[sample_no],
+                      vals=aft_age_pdfs[sample_no],
+                      mean=1.0, min=1.0, max=1.0, median=1.0)
+            #fig, ax = pl.subplots(1, 1)
+            vp = ax_afta.violin([vd],
+                                vert=False,
+                                widths=20.0,
+                                showextrema=False)
 
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):

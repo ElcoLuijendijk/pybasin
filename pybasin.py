@@ -788,6 +788,7 @@ for well_number, well in enumerate(model_scenarios.wells):
                         age_bins,
                         age_pdfs,
                         aft_age_gof]
+
         else:
             AFT_data = None
 
