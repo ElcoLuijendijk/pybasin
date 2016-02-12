@@ -978,6 +978,7 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
     try:
         T_new = np.linalg.solve(A, b)
     except:
+        print 'error, solving matrix for temperature diffusion eq. failed'
         pdb.set_trace()
 
     # TODO check other linear solvers, such as CG:
@@ -1043,6 +1044,7 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
     try:
         C_new = np.linalg.solve(A, b)
     except:
+        print 'error, solving matrix for salinity diffusion eq. failed'
         pdb.set_trace()
 
     # TODO check other linear solvers, such as CG:
@@ -1772,7 +1774,7 @@ def calculate_diffusion_coeff(T_cal, C):
 
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
-                          Ts, Cs, litho_props,
+                          Ts, litho_props,
                           output_dir, model_scenario_number):
     """
     run burial and thermal history model
@@ -2148,10 +2150,45 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                pybasin_params.heatflow_history)
 
     if pybasin_params.simulate_salinity is True:
-        # interpolate surface salinity
-        surface_salinity_array = np.interp(time_array_bp,
-                                           Cs['age'].values * 1.0e6,
-                                           Cs['surface_salinity'])
+        # construct surface salinity curve from stratigraphy and
+        # unconformities specified in input data
+
+        # generate time array
+        surface_salinity_array = np.zeros(nt_total)
+        marine_stages = geohist_df['marine'].values[1:][::-1]
+
+        timestep = 0
+        time_all = 0
+
+        for stage, marine_stage, nt_heatflow, dt_hf in zip(geohist_df.index,
+                                                           marine_stages,
+                                                           nt_heatflows,
+                                                           dt_hfs):
+
+            if marine_stage is True:
+                salinity_stage = pybasin_params.salinity_seawater
+            elif marine_stage is False:
+                salinity_stage = pybasin_params.salinity_freshwater
+            else:
+                #hiatus or unconformity
+                if stage[0] == '~':
+                    # hiatus, use marine salinity for now
+                    salinity_stage = pybasin_params.salinity_seawater
+                elif stage[0] == '-':
+                    # exhumation, assume basin was exposed
+                    salinity_stage = pybasin_params.salinity_freshwater
+                else:
+                    # exhumation, assume basin was exposed
+                    salinity_stage = pybasin_params.salinity_freshwater
+
+            surface_salinity_array[timestep:(timestep + nt_heatflow)] = salinity_stage
+            time_all += nt_heatflow * dt_hf
+            timestep += nt_heatflow
+
+       # interpolate surface salinity
+        #surface_salinity_array = np.interp(time_array_bp,
+        #                                   Cs['age'].values * 1.0e6,
+        #                                   Cs['surface_salinity'])
 
         # set initial salinity
         C_nodes = np.zeros((nt_total, n_nodes))

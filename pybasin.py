@@ -28,7 +28,7 @@ import lib.pybasin_figures as pybasin_figures
 # helium diffusion algortihm by Meesters and Dunai (2003)
 try:
     import helium_diffusion_models as he
-except:
+except ImportError:
     print 'warning, failed to import AHe module'
 
 # check if script dir in python path
@@ -128,7 +128,7 @@ if pybasin_params.simulate_AHe is True:
 
 if pybasin_params.simulate_salinity is True:
     # read surface salinity bnd condditions
-    Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
+    #Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
 
     # and read salinity data
     salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'))
@@ -141,13 +141,21 @@ else:
 # find lithology columns in stratigraphy dataframe
 cols_temp = strat_info.columns[2:].tolist()
 prov_cols = [col for col in cols_temp if 'provenance' in col]
-litho_cols = [col for col in cols_temp if 'provenance' not in col]
+litho_cols = [col for col in cols_temp if 'provenance' not in col
+              and 'marine' not in col]
 
 litho_cols.sort()
 litho_props = litho_props.sort_index()
 
 # check if lithology data is given for each lithology
-assert litho_props.index[:-1].tolist() == litho_cols
+try:
+    assert litho_props.index[:-1].tolist() == litho_cols
+except AssertionError, msg:
+    print '\nerror, something wrong with input data'
+    print 'not all lithology units found in strat info file are also in the ' \
+          'lothology_properties file'
+    print msg
+    raise
 
 # create new copy of dataframe to store results
 strat_info_mod = strat_info.copy()
@@ -297,7 +305,7 @@ for well_number, well in enumerate(model_scenarios.wells):
         model_result_vars = \
             pybasin_lib.run_burial_hist_model(well_number, well, well_strat,
                                               strat_info_mod, pybasin_params,
-                                              Ts, Cs, litho_props,
+                                              Ts, litho_props,
                                               csv_output_dir,
                                               model_scenario_number)
 

@@ -91,7 +91,7 @@ exhumation_period_starts = np.array([85.8])
 # end of exhumation phase (Ma)
 exhumation_period_ends = np.array([70.0])
 # exhumed thickness
-exhumed_thicknesses = np.array([500.0])
+exhumed_thicknesses = np.array([1.0])
 
 # determine last deposited unit before unconformity:
 exhumed_strat_units = ['SLDNA']
@@ -99,11 +99,10 @@ exhumed_strat_units = ['SLDNA']
 # determine last deposited unit before unfconformity:
 # list of 'normal' stratigrpahic thicknesses
 # exhumation will start at the lowest missing unit
-# Molasse strat units, following Kemp et al. (1999)
 exhumed_strat_units = [['ATAL']]
 
 # thicknesses
-original_thicknesses = [[500.0]]
+original_thicknesses = [[0.0]]
 
 # or set pre-exhumation thickness of particular unit, if known
 # exhumation will then be calculated to match the present-day thickness
@@ -186,3 +185,6 @@ Dw = 20.3e-10
 fixed_lower_bnd_salinity = 0.30
 
 constant_diffusivity = True
+
+salinity_seawater = 0.035
+salinity_freshwater = 0.0001
