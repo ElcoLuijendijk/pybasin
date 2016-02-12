@@ -316,7 +316,7 @@ for well_number, well in enumerate(model_scenarios.wells):
             node_strat, node_age,
             prov_start_nodes, prov_end_nodes,
             C_nodes, surface_salinity_array,
-            salinity_lwr_bnd] = model_result_vars
+            salinity_lwr_bnd, Dw] = model_result_vars
 
         # find out if exhumation end has changed
         exhumed_units = [unit[0] == '-' for unit in geohist_df.index]
@@ -816,6 +816,19 @@ for well_number, well in enumerate(model_scenarios.wells):
 
         today = datetime.datetime.now()
         today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+
+        # save salinity and T data
+        if pybasin_params.simulate_salinity is True:
+            dfc = pd.DataFrame(columns=['depth', 'salinity', 'T'],
+                               index=np.arange(T_nodes[-1].shape[0]))
+            dfc['depth'] = z_nodes[-1]
+            dfc['salinity'] = C_nodes[-1]
+            dfc['T'] = T_nodes[-1]
+
+            fn = os.path.join(fig_output_dir, 'salinity_data_%s_%s_ms%i.csv'
+                  % (well, today_str, model_scenario_number))
+
+            dfc.to_csv(fn, index=False)
 
         if pybasin_params.save_model_run_data is True:
 

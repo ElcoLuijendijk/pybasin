@@ -1734,6 +1734,42 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
             ahe_node_times_burial, ahe_node_zs)
 
 
+def calculate_viscosity_np(C, T):
+    """
+    taken from Batzle_Wang paper
+    :param C:salinity in ppm
+    :param T:Temperature in degree celsius
+    :return:viscosity in cP
+    """
+
+    viscosity = 0.1 + (0.333 * C) + (1.65 + 91.9 * C ** 3) * np.exp(-(0.42 * (C ** 0.8 - 0.17) ** 2 + 0.045) * T ** 0.8)
+
+    return viscosity
+
+
+def calculate_diffusion_coeff(T_cal, C):
+    """
+     taken from paper written by (Simpson and Carr, 1958)
+    :param T_cal:Temperature in degree
+    :param D_ref :diffusion coefficient in m^2/s at 25 degrees celsius
+    :param viscosity_ref: viscosity of water at 25 degrees celsius in cP
+    :param T_ref:temperature of reference in kelvin
+    :param viscosity_cal:calculated viscosity in cp using Batzle_wang
+    :return:D_cal:calculated diffusion coefficient in the new temperature
+    """
+
+    C_ppm = C / 1.0e6
+
+    T_cal += 273.15
+    D_ref = 2.03 * 10 ** -9
+    T_ref = 298.15
+    viscosity_ref = 0.890
+    viscosity_cal = calculate_viscosity_np(C_ppm, T_cal)
+    D_cal = ((D_ref * viscosity_ref) / T_ref) * (T_cal / viscosity_cal)
+
+    return D_cal
+
+
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
                           Ts, Cs, litho_props,
@@ -2183,22 +2219,29 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             tortuosity_nodes = porosity_nodes**pybasin_params.tortuosity_factor
             tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
-            Ks_nodes = porosity_nodes / tortuosity_nodes * pybasin_params.Dw
+            if pybasin_params.constant_diffusivity is False:
+                Dw = calculate_diffusion_coeff(T_nodes[timestep, active_nodes_i], C_init)
+            else:
+                Dw = pybasin_params.Dw
 
-            Ks_cells = (Ks_nodes[:, 1:] + Ks_nodes[:, :-1]) / 2.0
+            Ks_nodes = porosity_nodes[timestep, active_nodes_i] / tortuosity_nodes[timestep, active_nodes_i] * Dw
+
+            Ks_cells = (Ks_nodes[1:] + Ks_nodes[:-1]) / 2.0
 
             C_nodes[timestep, active_nodes_i], A_s = \
                 solve_1D_diffusion(
                     C_init,
                     z_nodes[timestep, active_nodes_i],
                     dt_hf * year,
-                    Ks_cells[timestep, active_cells_i],
+                    Ks_cells,
                     porosity_nodes[timestep, active_nodes_i],
                     Q_solute,
                     None,
                     None,
                     surface_salinity_array[timestep],
                     fixed_lower_salinity)
+
+            #pdb.set_trace()
 
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
             print 'error, nan values in T array'
@@ -2232,6 +2275,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     if pybasin_params.simulate_salinity is True:
         return_params += [C_nodes,
                           surface_salinity_array,
-                          pybasin_params.fixed_lower_bnd_salinity]
+                          pybasin_params.fixed_lower_bnd_salinity,
+                          Dw]
 
     return return_params

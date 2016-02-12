@@ -184,3 +184,5 @@ tortuosity_factor = -1/3.
 Dw = 20.3e-10
 
 fixed_lower_bnd_salinity = 0.30
+
+constant_diffusivity = True
