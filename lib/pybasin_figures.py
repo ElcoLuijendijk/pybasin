@@ -2,6 +2,7 @@ __author__ = 'elcopone'
 
 import pdb
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 import matplotlib.mlab
@@ -132,7 +133,8 @@ def model_vs_data_figure(model_run_data,
                          show_provenance_hist=True,
                          time_int_grid=1,
                          model_data_fig_bw=False,
-                         contour_variable='temperature'):
+                         contour_variable='temperature',
+                         debug=False):
 
     """
     create a figure comparing 1D burial and thermal model results
@@ -190,7 +192,10 @@ def model_vs_data_figure(model_run_data,
     #n_nodes = T_nodes.shape[1]
     degree_symbol = unichr(176)
 
-    fig = setup_figure(width='2col', height=0.75, fontsize='xx-small')
+    xsize = 170.0 / 25.4
+    golden_ratio = (1.0 + np.sqrt(5))/2.0
+
+    fig = pl.figure(figsize=(xsize, xsize / golden_ratio))
 
     width_ratios = [8, 3]
 
@@ -276,7 +281,12 @@ def model_vs_data_figure(model_run_data,
         cb_label = 'salinity (kg/kg)'
     else:
         cnt_var = T_nodes
-        cnt_step = 5.0
+        if T_nodes.max() < 50:
+            cnt_step = 2.5
+        elif T_nodes.max() < 100:
+            cnt_step = 5.0
+        else:
+            cnt_step = 10.0
         cb_label = 'T (%s C)' % degree_symbol
 
     # plot surface temperature
@@ -287,10 +297,6 @@ def model_vs_data_figure(model_run_data,
         axst.plot(time_array_bp / 1e6, surface_temp_array,
                   **line_props)
 
-    # burial history and temperature
-    time_int_grid1 = 1
-
-    #xi = (time_array_bp / 1e6)[::time_int_grid1]
     ts = 1.0e5
     xi = np.arange(np.min(time_array_bp), np.max(time_array_bp) + ts, ts) / 1.0e6
 
@@ -298,6 +304,7 @@ def model_vs_data_figure(model_run_data,
         ys = 1.0
     else:
         ys = 10.0
+
     yi = np.arange(z_nodes.min(), z_nodes.max() + ys, ys)
 
     cnt_var_mask = cnt_var.copy()
@@ -308,25 +315,29 @@ def model_vs_data_figure(model_run_data,
     for nn in xrange(n_nodes):
         time_2d[:, nn] = time_array_bp / 1.0e6
 
+    #
+    mean_timestep = np.mean(-np.diff(time_array_bp))
+    time_int_grid = int(np.round(ts / mean_timestep))
+
     x = time_2d[::time_int_grid].ravel()
     y = z_nodes[::time_int_grid].ravel()
     z = cnt_var_mask[::time_int_grid].ravel()
     act = active_nodes[::time_int_grid].ravel()
-
     ind = act == True
-
-    plot_int = 1
 
     print 'gridding T or salinity data vs time'
     gridding_ok = True
-    try:
-        zi = matplotlib.mlab.griddata(x[ind][::plot_int],
-                                      y[ind][::plot_int],
-                                      z[ind][::plot_int],
-                                      xi, yi, interp='nn')
-    except:
-        print 'gridding failed, using scatter plot only'
-        gridding_ok = False
+    # serial 1D interpolation, failproof method, 2D interpolation fails or
+    # inaccurate with strongly different x,y scales
+    zi_data = np.zeros((len(yi), len(xi)))
+    zi = np.ma.masked_array(zi_data, mask=np.isnan(zi_data))
+    nts = len(time_2d[::time_int_grid])
+    for tsi in range(nts):
+        y_1d = z_nodes[tsi * time_int_grid]
+        z_1d = cnt_var_mask[tsi * time_int_grid]
+        ind_nan = np.isnan(z_1d) == False
+        z_interpolated = np.interp(yi, y_1d[ind_nan], z_1d[ind_nan])
+        zi[:, -tsi] = z_interpolated
 
     if gridding_ok is True:
         # find max depth at each timestep
@@ -340,19 +351,29 @@ def model_vs_data_figure(model_run_data,
             zi.mask[yi > max_depth_time2[nti], nti] = True
 
         print 'color mesh:'
-        tc = axb.pcolormesh(xi, yi, zi, cmap='jet')
+        #tc = axb.pcolormesh(xg, yg, zi2, cmap='jet')
+        c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
+        tc = axb.contourf(xi, yi, zi, c_int, cmap='jet', zorder=1.0)
+
     else:
-
-        #c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
-        #tc = axb.contourf(xi, yi, zi, c_int, cmap='jet')
-
         plot_int = 1
         tc = axb.scatter(x[ind][::plot_int],
                          y[ind][::plot_int],
                          c=z[ind][::plot_int],
-                         edgecolor="None",
-                         s=3,
+                         edgecolor="black", lw=0.1,
+                         s=10,
                          cmap=cmap)
+
+    if debug is True:
+        df = pd.DataFrame(columns=['x', 'y', 'z'],
+                          index=np.arange(len(x[ind][::plot_int])))
+        df['x'] = x[ind][::plot_int]
+        df['y'] = y[ind][::plot_int]
+        df['z'] = z[ind][::plot_int]
+        df.to_csv('debug_T_interpolation.csv')
+
+    #fig.savefig('test.png')
+    pdb.set_trace()
 
     major_strat = [n[:4] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
@@ -377,7 +398,7 @@ def model_vs_data_figure(model_run_data,
 
     else:
         ind = np.array(strat_transition) == True
-        axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5)
+        axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5, zorder=100)
 
     # plot basal heat flow
     if contour_variable == 'salinity':
@@ -436,12 +457,11 @@ def model_vs_data_figure(model_run_data,
                                aft_age_stderr_plus * 1.96],
                          **erb_props)
 
-        # violin plots
+        # violin plots of single grain age pdf
         for sample_no in xrange(len(aft_age)):
             vd = dict(coords=aft_age_bins[sample_no],
                       vals=aft_age_pdfs[sample_no],
                       mean=1.0, min=1.0, max=1.0, median=1.0)
-            #fig, ax = pl.subplots(1, 1)
             vp = ax_afta.violin([vd],
                                 vert=False,
                                 widths=20.0,
@@ -540,7 +560,6 @@ def model_vs_data_figure(model_run_data,
 
         ax_c.set_xlim(0, max_C * 1.1)
 
-
     if VR_data is not None:
         if vr_nodes is not None:
             max_VR = vr_nodes.max()
@@ -591,13 +610,13 @@ def model_vs_data_figure(model_run_data,
     #cax = useful_functions.add_subplot_axes(axb, [0.01, 0.14, 0.5, 0.025])
     cax = fig.add_axes([0.7, 0.1, 0.25, 0.015])
     cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
-    cb.set_label(cb_label, fontsize='xx-small')
+    cb.set_label(cb_label, fontsize='small')
 
     if contour_variable is 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
-    else:
-        cb_ticks = np.arange(0, np.round(max_T / 25.0) * 25.0 + 25.0, 25.0)
-    cb.set_ticks(cb_ticks)
+        cb.set_ticks(cb_ticks)
+    #else:
+    #    cb_ticks = np.arange(0, np.round(max_T / 25.0) * 25.0 + 25.0, 25.0)
 
     if np.isnan(T_GOF) == False:
         ax_temp.text(0.5, 1.03,
