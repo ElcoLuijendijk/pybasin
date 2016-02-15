@@ -142,7 +142,6 @@ def model_vs_data_figure(model_run_data,
     temperature data
     """
 
-
     [time_array_bp,
      surface_temp_array, basal_hf_array,
      z_nodes, active_nodes, T_nodes,
@@ -178,8 +177,6 @@ def model_vs_data_figure(model_run_data,
          salinity_depth, salinity_data, salinity_data_unc,
          salinity_RMSE] = C_data
 
-    #= VR_data
-
     nt_total, n_nodes = T_nodes.shape
 
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -189,7 +186,6 @@ def model_vs_data_figure(model_run_data,
 
         _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
 
-    #n_nodes = T_nodes.shape[1]
     degree_symbol = unichr(176)
 
     xsize = 170.0 / 25.4
@@ -219,6 +215,7 @@ def model_vs_data_figure(model_run_data,
 
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.03, hspace=0.03,
+                           bottom=0.10, top=0.98, left=0.12, right=0.97,
                            width_ratios=width_ratios,
                            height_ratios=[1, 5, 1])
 
@@ -261,7 +258,7 @@ def model_vs_data_figure(model_run_data,
                  "zorder": 10}
 
 
-    textprops = {"fontsize": 'xx-small',
+    textprops = {"fontsize": 'small',
                  'ha': 'center',
                  'va': 'bottom',
                  'weight': 'bold',
@@ -298,7 +295,8 @@ def model_vs_data_figure(model_run_data,
                   **line_props)
 
     ts = 1.0e5
-    xi = np.arange(np.min(time_array_bp), np.max(time_array_bp) + ts, ts) / 1.0e6
+    xi = np.arange(np.min(time_array_bp), np.max(time_array_bp) + ts, ts) \
+        / 1.0e6
 
     if z_nodes.max() < 1000:
         ys = 1.0
@@ -364,24 +362,10 @@ def model_vs_data_figure(model_run_data,
                          s=10,
                          cmap=cmap)
 
-    if debug is True:
-        df = pd.DataFrame(columns=['x', 'y', 'z'],
-                          index=np.arange(len(x[ind][::plot_int])))
-        df['x'] = x[ind][::plot_int]
-        df['y'] = y[ind][::plot_int]
-        df['z'] = z[ind][::plot_int]
-        df.to_csv('debug_T_interpolation.csv')
-
-    #fig.savefig('test.png')
-    pdb.set_trace()
-
     major_strat = [n[:4] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
                                                major_strat[1:])]
     strat_transition.append(True)
-
-    #figb = pl.figure()
-    #axbt = figb.add_subplot(1, 1, 1)
 
     if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
         for xb, yb, strat_trans in zip(aft_node_times_burial,
@@ -448,10 +432,7 @@ def model_vs_data_figure(model_run_data,
                      color='blue', lw=1.5, ls='--', zorder=101)
 
     if AFT_data is not None:
-        #ax_afta.errorbar(aft_age[ind_pop], aft_age_depth[ind_pop],
-        #                 xerr=[aft_age_plus_ci[ind_pop], aft_age_min_ci[ind_pop]],
-        #                 **erb_props2)
-
+        # show central ages
         ax_afta.errorbar(aft_age, aft_age_depth,
                          xerr=[aft_age_stderr_min * 1.96,
                                aft_age_stderr_plus * 1.96],
@@ -498,7 +479,7 @@ def model_vs_data_figure(model_run_data,
         axst.set_ylabel('Salinity\ntop bnd\n(kg/kg)')
         axhf.set_ylabel('Salinity\nlower bnd\n(kg/kg)')
     else:
-        axst.set_ylabel('Surface T (%sC)' % degree_symbol)
+        axst.set_ylabel('Surface\nT (%sC)' % degree_symbol)
         axhf.set_ylabel(r'HF (mW m$^{-2}$)')
 
     axhf.set_xlabel('Time (Ma)')
@@ -519,7 +500,7 @@ def model_vs_data_figure(model_run_data,
         ax.set_xticklabels([])
 
     for ax in all_panels:
-        ax.grid()
+        ax.yaxis.grid()
 
     #
     max_depth = z_nodes.max() * 1.1
@@ -610,7 +591,7 @@ def model_vs_data_figure(model_run_data,
     #cax = useful_functions.add_subplot_axes(axb, [0.01, 0.14, 0.5, 0.025])
     cax = fig.add_axes([0.7, 0.1, 0.25, 0.015])
     cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
-    cb.set_label(cb_label, fontsize='small')
+    cb.set_label(cb_label, fontsize='medium')
 
     if contour_variable is 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
