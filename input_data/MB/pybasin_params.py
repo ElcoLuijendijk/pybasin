@@ -20,20 +20,24 @@ datafile_output_dir = '../../heavy_data/pybasin_MB'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
-simulate_AHe = False
+simulate_AHe = True
 simulate_VR = True
 simulate_salinity = False
+
+# option to calculate AHe ages for all nodes rather than just the samples
+# in a particular borehole
+calculate_ahe_for_all_nodes = False
 
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = True
+make_model_data_fig = False
 
 # black and white figure
 model_data_fig_bw = False
 
-# varaible to show color contours for in burial history panel
+# variable to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
 # to show evolution of temperature or salinity over time
 contour_variable = 'temperature'
@@ -45,8 +49,9 @@ fig_adj = 'png'
 # goodness of fit
 ################
 # weights for calculating overall goodness of fit from the gof statistic for
-# temperature, vitrinite reflectance and apatite fission track age data
-gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0]
+# temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He data
+gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
 
 ##############################################
 # sediment provenance parameters, used for AFT
@@ -183,9 +188,3 @@ max_decompaction_error = 0.01
 #######
 # sigma of uncertainty range for VR data, if not specified in input file
 vr_unc_sigma = 0.05
-
-####################
-# salinity diffusion
-####################
-tortuosity_factor = -1/3.
-Dw = 20.3e-10

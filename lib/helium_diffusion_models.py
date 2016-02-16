@@ -50,7 +50,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
         gamma_old = gamma
         gamma = 3.0 / (n * np.pi)**2 * (1.0 - sigma / (2 * a) + 1 / (n * np.pi) * 1 / (k * sigma) * (1.0 - np.cos(k * sigma)) + 1.0 / (k * sigma) * np.sin(k * sigma))
 
-        pdb.set_trace()
+        #pdb.set_trace()
 
     nt = len(t)
 

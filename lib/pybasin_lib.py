@@ -1659,7 +1659,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
 
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
-                 prov_ages_start, prov_ages_end, Ts):
+                 prov_ages_start, prov_ages_end, Ts, grain_radius_nodes):
 
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
@@ -1707,32 +1707,42 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     #figb.savefig('burial_prov_test.png', dpi=300)
 
     # calculate FT ages for all formations
-    print 'calculating AHe ages for all nodes'
     n_prov_scenarios = prov_ages_start.shape[1]
-    ahe_age_nodes = np.zeros((n_nodes, n_prov_scenarios))
-    ahe_ln_mean_nodes = np.zeros((n_nodes, n_prov_scenarios))
-    ahe_ln_std_nodes = np.zeros((n_nodes, n_prov_scenarios))
+
+    ahe_age_nodes_all = []
+    ahe_age_nodes_min_all = []
+    ahe_age_nodes_max_all = []
 
     for nn in xrange(n_nodes):
 
-        for n_prov in xrange(n_prov_scenarios):
-            #pdb.set_trace()
-            sec_in_year = 365 * 24 * 60 * 60
-            he_age_i = he.calculate_he_age_meesters_dunai_2002(
-                ahe_node_times[nn][n_prov] * 1e6 * sec_in_year,
-                ahe_node_temps[nn][n_prov] + Kelvin,
-                radius, U238, Th232)
+        n_grains = len(grain_radius_nodes[nn])
 
-            # store AHe age in Myr bp
-            ahe_age_nodes[nn, n_prov] = he_age_i[-1] / sec_in_year / 1e6
-            #ahe_ln_mean_nodes[nn, n_prov] = l_mean
-            #ahe_ln_std_nodes[nn, n_prov] = l_mean_std
+        ahe_age_nodes = np.zeros((n_grains, n_prov_scenarios))
 
-    # take min and max age for the difference prov scenarios
-    ahe_age_nodes_min = np.min(ahe_age_nodes, axis=1)
-    ahe_age_nodes_max = np.max(ahe_age_nodes, axis=1)
+        for ng in range(n_grains):
 
-    return (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+            for n_prov in xrange(n_prov_scenarios):
+                #pdb.set_trace()
+                sec_in_year = 365 * 24 * 60 * 60
+                he_age_i = he.calculate_he_age_meesters_dunai_2002(
+                    ahe_node_times[nn][n_prov] * 1e6 * sec_in_year,
+                    ahe_node_temps[nn][n_prov] + Kelvin,
+                    grain_radius_nodes[nn][ng], U238, Th232)
+
+                # store AHe age in Myr bp
+                ahe_age_nodes[ng, n_prov] = he_age_i[-1] / sec_in_year / 1e6
+                #ahe_ln_mean_nodes[nn, n_prov] = l_mean
+                #ahe_ln_std_nodes[nn, n_prov] = l_mean_std
+
+        # take min and max age for the difference prov scenarios
+        ahe_age_nodes_min = np.min(ahe_age_nodes, axis=1)
+        ahe_age_nodes_max = np.max(ahe_age_nodes, axis=1)
+
+        ahe_age_nodes_all.append(ahe_age_nodes)
+        ahe_age_nodes_min_all.append(ahe_age_nodes_min)
+        ahe_age_nodes_max_all.append(ahe_age_nodes_max)
+
+    return (ahe_age_nodes_all, ahe_age_nodes_min_all, ahe_age_nodes_max_all,
             ahe_node_times_burial, ahe_node_zs)
 
 

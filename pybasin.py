@@ -124,6 +124,8 @@ if pybasin_params.simulate_AFT is True:
 
 if pybasin_params.simulate_AHe is True:
     # read apatite U-Th/He (AHe) data
+    ahe_samples = pd.read_csv(os.path.join(input_dir, 'ahe_samples.csv'))
+    # read apatite U-Th/He (AHe) data
     ahe_data = pd.read_csv(os.path.join(input_dir, 'AHe_data.csv'))
 
 if pybasin_params.simulate_salinity is True:
@@ -457,15 +459,18 @@ for well_number, well in enumerate(model_scenarios.wells):
                 prov_start_samples = np.zeros((n_aft_samples, n_prov))
                 prov_end_samples = np.zeros((n_aft_samples, n_prov))
                 for h in xrange(n_prov):
-                    prov_start_samples[:, h] = np.interp(aft_data_well['depth'],
-                                                         z_nodes[-1, active_nodes[-1]],
-                                                         prov_start_nodes[active_nodes[-1], h])
-                    prov_end_samples[:, h] = np.interp(aft_data_well['depth'],
-                                                       z_nodes[-1, active_nodes[-1]],
-                                                       prov_end_nodes[active_nodes[-1], h])
+                    prov_start_samples[:, h] = \
+                        np.interp(aft_data_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  prov_start_nodes[active_nodes[-1], h])
+                    prov_end_samples[:, h] = \
+                        np.interp(aft_data_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  prov_end_nodes[active_nodes[-1], h])
 
                 # get active node array for samples only
-                active_nodes_aft_samples = np.zeros((nt, n_aft_samples), dtype=bool)
+                active_nodes_aft_samples = np.zeros((nt, n_aft_samples),
+                                                    dtype=bool)
                 for h in xrange(nt):
                     active_nodes_aft_samples[h, :] = \
                         np.interp(aft_data_well['depth'],
@@ -484,7 +489,8 @@ for well_number, well in enumerate(model_scenarios.wells):
 
                 (aft_age_samples, aft_age_samples_min, aft_age_samples_max,
                  aft_ln_mean_samples, aft_ln_std_samples,
-                 aft_sample_times_burial, aft_sample_zs) = simulated_AFT_data_samples
+                 aft_sample_times_burial, aft_sample_zs) = \
+                    simulated_AFT_data_samples
 
                 # add AFT sample data to AFT well dataframe?
         else:
@@ -499,17 +505,83 @@ for well_number, well in enumerate(model_scenarios.wells):
             resample_t = pybasin_params.resample_AFT_timesteps
             nt_prov = pybasin_params.provenance_time_nt
 
-            # calculate helium ages
-            simulated_AHe_data =\
-                pybasin_lib.simulate_ahe(
-                    resample_t, nt_prov, n_nodes, time_array_bp,
-                    z_nodes, T_nodes, active_nodes,
-                    prov_start_nodes, prov_end_nodes,
-                    Ts)
+            if pybasin_params.calculate_ahe_for_all_nodes is True:
+                # calculate helium ages
+                simulated_AHe_data =\
+                    pybasin_lib.simulate_ahe(
+                        resample_t, nt_prov, n_nodes, time_array_bp,
+                        z_nodes, T_nodes, active_nodes,
+                        prov_start_nodes, prov_end_nodes,
+                        Ts)
 
-            (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-             ahe_ln_mean_nodes, ahe_ln_std_nodes,
-             ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+                (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+                 ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+
+            # find if there is any aft data for this well:
+            ind = ahe_samples['location'] == well
+            ahe_samples_well = ahe_samples[ind]
+
+            if True in ind:
+
+                nt = T_nodes.shape[0]
+                n_ahe_samples = len(ahe_samples_well)
+
+                # get T history for samples only
+                T_ahe_samples = np.zeros((nt, n_ahe_samples))
+                for h in xrange(nt):
+                    T_ahe_samples[h, :] = \
+                        np.interp(ahe_samples_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  T_nodes[h, active_nodes[-1]])
+
+                # get burial history of samples
+                z_ahe_samples = np.zeros((nt, n_ahe_samples))
+                for h in xrange(nt):
+                    z_ahe_samples[h, :] = \
+                        np.interp(ahe_samples_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  z_nodes[h, active_nodes[-1]])
+
+                # get prov history for samples only
+                n_prov = prov_start_nodes.shape[1]
+                prov_start_ahe_samples = np.zeros((n_ahe_samples, n_prov))
+                prov_end_ahe_samples = np.zeros((n_ahe_samples, n_prov))
+                for h in xrange(n_prov):
+                    prov_start_ahe_samples[:, h] = \
+                        np.interp(ahe_samples_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  prov_start_nodes[active_nodes[-1], h])
+                    prov_end_ahe_samples[:, h] = \
+                        np.interp(ahe_samples_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  prov_end_nodes[active_nodes[-1], h])
+
+                # get active node array for samples only
+                active_nodes_ahe_samples = np.zeros((nt, n_ahe_samples),
+                                                    dtype=bool)
+                for h in xrange(nt):
+                    active_nodes_ahe_samples[h, :] = \
+                        np.interp(ahe_samples_well['depth'],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  active_nodes[h, active_nodes[-1]])
+
+                # assemble grain diameters
+                samples = ahe_samples_well['sample'].values
+                ahe_grain_radius_samples = []
+                for ahe_sample in samples:
+                    ind_sample = ahe_data['sample'] == ahe_sample
+                    ahe_grain_radius_sample = ahe_data['grain_radius'][ind_sample].values
+                    ahe_grain_radius_samples.append(ahe_grain_radius_sample)
+
+                simulated_ahe_data_samples =\
+                    pybasin_lib.simulate_ahe(
+                        resample_t, nt_prov, n_ahe_samples, time_array_bp,
+                        z_ahe_samples, T_ahe_samples, active_nodes_ahe_samples,
+                        prov_start_ahe_samples, prov_end_ahe_samples,
+                        Ts, ahe_grain_radius_samples)
+
+                (ahe_age_samples, ahe_age_samples_min, ahe_age_samples_max,
+                 ahe_node_times_burial, ahe_node_zs) = simulated_ahe_data_samples
 
         else:
             simulated_He_data = None
@@ -554,6 +626,7 @@ for well_number, well in enumerate(model_scenarios.wells):
 
         if pybasin_params.simulate_VR is True:
 
+            # calculate model error vitrinite reflectance data
             ind = ((vr_data['well'] == well)
                                & (vr_data['depth'] < z_nodes[-1].max()))
             vr_data_well = vr_data[ind]
@@ -595,19 +668,6 @@ for well_number, well in enumerate(model_scenarios.wells):
 
             if True in ind.values:
 
-                #aft_data_well['simulated_AFT_min'] = \
-                #    np.interp(aft_data_well['depth'],
-                #              z_nodes[-1, active_nodes[-1]],
-                #              aft_age_nodes_min[active_nodes[-1]])
-
-                #aft_data_well['simulated_AFT_max'] = \
-                #    np.interp(aft_data_well['depth'],
-                #              z_nodes[-1, active_nodes[-1]],
-                #              aft_age_nodes_max[active_nodes[-1]])
-
-                # find the AFT single grain ages in the sample:
-                # TODO:...
-
                 age_bins = []
                 age_pdfs = []
 
@@ -622,8 +682,6 @@ for well_number, well in enumerate(model_scenarios.wells):
                                 aft_ages['AFT_age'][ind_sample].values,
                                 aft_ages['AFT_age_stderr_min'][ind_sample].values,
                                 aft_ages['AFT_age_stderr_plus'][ind_sample].values)
-                        #aft_data_well['age_peak_debug'] = \
-                        #    age_bins[np.argmax(age_pdfs, axis=1)]
                     else:
 
                         # get pdf of observed age from central age instead
@@ -635,8 +693,6 @@ for well_number, well in enumerate(model_scenarios.wells):
                                 aft_data_well['AFT_age'][ind_sample].values,
                                 aft_data_well['AFT_age_stderr_min'][ind_sample].values,
                                 aft_data_well['AFT_age_stderr_plus'][ind_sample].values)
-
-                        #pdb.set_trace()
 
                     age_bins.append(age_bin)
                     age_pdfs.append(age_pdf)
@@ -681,6 +737,82 @@ for well_number, well in enumerate(model_scenarios.wells):
         else:
             aft_age_gof = np.nan
 
+
+        if pybasin_params.simulate_AHe is True:
+
+            # calculate model error fission track data
+            ind = ((ahe_samples['location'] == well)
+               & (ahe_samples['depth'] <= z_nodes[-1].max() + 1.0))
+            ahe_samples_well = ahe_samples[ind]
+
+            ahe_age_bin = np.linspace(0, prov_start_nodes.max(), 100)
+
+            if True in ind.values:
+
+                ahe_age_pdfs = []
+
+                for ahe_sample_i, ahe_sample_ix, ahe_sample in zip(itertools.count(),
+                                                                   ahe_samples_well.index,
+                                                                   ahe_samples_well['sample']):
+
+                    if ahe_sample in ahe_data['sample'].values:
+                        ind_sample = ahe_data['sample'].values == ahe_sample
+
+                        grain_pdfs = []
+
+                        for grain_i, ahe_age_obs, ahe_age_obs_SE \
+                                in zip(itertools.count(),
+                                       ahe_data['AHe_age_corr'][ind_sample].values,
+                                       ahe_data['AHe_age_corr_SE'][ind_sample].values):
+
+                            ahe_age_pdf = scipy.stats.norm.pdf(ahe_age_bin,
+                                                               ahe_age_obs,
+                                                               ahe_age_obs_SE)
+
+                            # normalize to make sum of pdf 1
+                            ahe_age_pdf = ahe_age_pdf / ahe_age_pdf.sum()
+
+                            # find out how much of pdf is covered by simulated
+                            # end-member AHe ages
+                            #ahe_age_pdf = ahe_age_pdf / ahe_age_pdf.sum()
+
+                            ahe_age_sim_min = \
+                                ahe_age_samples_min[ahe_sample_i][grain_i]
+                            ahe_age_sim_max = \
+                                ahe_age_samples_max[ahe_sample_i][grain_i]
+
+                            if ahe_age_sim_min == 0:
+                                start_ind = 0
+                            else:
+                                start_ind = np.where(ahe_age_sim_min >= ahe_age_bin)[0][-1]
+
+                            if ahe_age_sim_max == 0.0:
+                                end_ind = 0
+                            else:
+                                end_ind = np.where(ahe_age_sim_max <= ahe_age_bin)[0][0]
+
+                            pdf_fit_sum = np.sum(ahe_age_pdf[start_ind:end_ind])
+
+                            grain_pdfs.append(pdf_fit_sum)
+
+                            #ahe_data['GOF_ahe_ages'][ind_sample][grain_i] = pdf_fit_sum
+
+                            # calculate mean GOF from single grain GOFs for each sample
+
+                            #ahe_age_samples_min
+                            #ahe_age_samples_max
+
+                    #ahe_age_bins.append(ahe_age_bin)
+                    #ahe_age_pdfs.append(ahe_age_pdf)
+                    ahe_samples_well.ix[ahe_sample_ix, 'mean_GOF_all_grains'] = np.mean(np.array(grain_pdfs))
+                    ahe_samples_well.ix[ahe_sample_ix, 'min_GOF_all_grains'] = np.min(np.array(grain_pdfs))
+                    ahe_samples_well.ix[ahe_sample_ix, 'max_GOF_all_grains'] = np.max(np.array(grain_pdfs))
+
+                ahe_age_gof = ahe_samples_well['mean_GOF_all_grains'].mean()
+
+            else:
+                ahe_age_gof = np.nan
+
         if pybasin_params.simulate_salinity is True:
             # calculate model error salinity data
             ind = (salinity_data['well'] == well) & (salinity_data['depth'] < z_nodes[-1].max())
@@ -715,6 +847,8 @@ for well_number, well in enumerate(model_scenarios.wells):
             gofs = np.append(gofs, [vr_gof])
         if pybasin_params.simulate_AFT is True:
             gofs = np.append(gofs, [aft_age_gof])
+        if pybasin_params.simulate_AHe is True:
+            gofs = np.append(gofs, [ahe_age_gof])
 
         ind = np.isnan(gofs) == False
         gof_weights = np.array(pybasin_params.gof_weights)[ind]
@@ -728,6 +862,8 @@ for well_number, well in enumerate(model_scenarios.wells):
             print 'vitrinite reflectance GOF = %0.2f' % vr_gof
         if pybasin_params.simulate_AFT is True:
             print 'AFT age GOF = %0.2f' % aft_age_gof
+        if pybasin_params.simulate_AHe is True:
+            print 'AHe GOF = %0.2f' % ahe_age_gof
 
         print 'weighted mean GOF = %0.2f' % gof_mean
 
@@ -738,6 +874,9 @@ for well_number, well in enumerate(model_scenarios.wells):
             model_results.ix[model_scenario_number, 'vr_gof'] = vr_gof
         if pybasin_params.simulate_AFT is True:
             model_results.ix[model_scenario_number, 'aft_age_gof'] = aft_age_gof
+        if pybasin_params.simulate_AHe is True:
+            model_results.ix[model_scenario_number, 'ahe_gof'] = ahe_age_gof
+
         model_results.ix[model_scenario_number, 'mean_gof'] = gof_mean
 
         ############################
@@ -778,20 +917,20 @@ for well_number, well in enumerate(model_scenarios.wells):
             surface_temp_array, basal_hf_array,
             z_nodes, active_nodes, T_nodes,
             node_strat, node_age,
-            T_data_well['depth'],
-            T_data_well['temperature'],
-            T_data_well['temperature_unc_1sigma'],
+            T_data_well['depth'].values,
+            T_data_well['temperature'].values,
+            T_data_well['temperature_unc_1sigma'].values,
             T_gof]
 
         if pybasin_params.simulate_AFT is True:
 
             AFT_data = [simulated_AFT_data,
-                        aft_data_well['depth'],
-                        aft_data_well['AFT_age'],
-                        aft_data_well['AFT_age_stderr_min'],
-                        aft_data_well['AFT_age_stderr_plus'],
-                        aft_data_well['length_mean'],
-                        aft_data_well['length_std'],
+                        aft_data_well['depth'].values,
+                        aft_data_well['AFT_age'].values,
+                        aft_data_well['AFT_age_stderr_min'].values,
+                        aft_data_well['AFT_age_stderr_plus'].values,
+                        aft_data_well['length_mean'].values,
+                        aft_data_well['length_std'].values,
                         aft_data_well['data_type'].values,
                         age_bins,
                         age_pdfs,
@@ -802,22 +941,22 @@ for well_number, well in enumerate(model_scenarios.wells):
 
         if pybasin_params.simulate_VR is True:
             VR_data = [vr_nodes,
-                       vr_data_well['depth'],
-                       vr_data_well['VR'],
-                       vr_data_well['VR_unc_1sigma'],
+                       vr_data_well['depth'].values,
+                       vr_data_well['VR'].values,
+                       vr_data_well['VR_unc_1sigma'].values,
                        vr_gof]
         else:
             VR_data = None
 
         if pybasin_params.simulate_salinity is True:
             C_data = [C_nodes, surface_salinity_array, salinity_lwr_bnd,
-                      salinity_data_well['depth'],
-                      salinity_data_well['salinity'],
-                      salinity_data_well['salinity_unc_1sigma'],
+                      salinity_data_well['depth'].values,
+                      salinity_data_well['salinity'].values,
+                      salinity_data_well['salinity_unc_1sigma'].values,
                       salinity_rmse]
         else:
             C_data = None
-
+        
         model_run_data.append(AFT_data)
         model_run_data.append(VR_data)
         model_run_data.append(C_data)

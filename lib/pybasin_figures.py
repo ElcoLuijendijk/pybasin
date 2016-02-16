@@ -198,6 +198,10 @@ def model_vs_data_figure(model_run_data,
     nrows = 3
     ncols = 2
 
+    bottom = 0.12
+
+    max_depth = z_nodes.max() * 1.1
+
     if C_data is not None:
         C_panel_ind = ncols
         ncols += 1
@@ -215,9 +219,9 @@ def model_vs_data_figure(model_run_data,
 
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.03, hspace=0.03,
-                           bottom=0.10, top=0.98, left=0.12, right=0.97,
+                           bottom=bottom, top=0.96, left=0.12, right=0.97,
                            width_ratios=width_ratios,
-                           height_ratios=[1, 5, 1])
+                           height_ratios=[1, 4, 1])
 
     axb = fig.add_subplot(gs[1, 0])
     axst = fig.add_subplot(gs[0, 0])
@@ -397,7 +401,11 @@ def model_vs_data_figure(model_run_data,
                  **line_props)
 
     if T_data is not None and len(T_data) > 0:
-        ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
+        try:
+            ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
+        except:
+            print 'error '
+            pdb.set_trace()
 
     # plot modeled salinity
     if C_data is not None and C_nodes is not None:
@@ -429,7 +437,7 @@ def model_vs_data_figure(model_run_data,
 
         ax_afta.plot(node_age[active_nodes[-1]],
                      z_nodes[-1, active_nodes[-1]],
-                     color='blue', lw=1.5, ls='--', zorder=101)
+                     color='green', lw=1.5, ls='--', zorder=101)
 
     if AFT_data is not None:
         # show central ages
@@ -439,14 +447,23 @@ def model_vs_data_figure(model_run_data,
                          **erb_props)
 
         # violin plots of single grain age pdf
+        violin_width = max_depth / 20.0
+        pdf_threshold = 1e-5
         for sample_no in xrange(len(aft_age)):
-            vd = dict(coords=aft_age_bins[sample_no],
-                      vals=aft_age_pdfs[sample_no],
+            pdf_plot = aft_age_pdfs[sample_no]
+            ind = pdf_plot > pdf_threshold
+            #pdf_plot[pdf_plot < pdf_threshold] = 0.0
+            vd = dict(coords=aft_age_bins[sample_no][ind],
+                      vals=aft_age_pdfs[sample_no][ind],
                       mean=1.0, min=1.0, max=1.0, median=1.0)
             vp = ax_afta.violin([vd],
+                                positions=[aft_age_depth[sample_no]],
                                 vert=False,
-                                widths=20.0,
+                                widths=violin_width,
                                 showextrema=False)
+            for pc in vp['bodies']:
+                pc.set_edgecolor('darkblue')
+                pc.set_facecolor('lightblue')
 
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):
@@ -503,7 +520,7 @@ def model_vs_data_figure(model_run_data,
         ax.yaxis.grid()
 
     #
-    max_depth = z_nodes.max() * 1.1
+
     max_time = time_array_bp.max() / 1e6 * 1.1
 
     if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
@@ -516,7 +533,7 @@ def model_vs_data_figure(model_run_data,
         ax.set_xlim(max_time, 0)
 
     for ax in depth_panels:
-        ax.set_ylim(max_depth, -20.0)
+        ax.set_ylim(max_depth, -max_depth / 20.0)
 
     max_T = T_nodes[-1].max()
 
@@ -546,7 +563,7 @@ def model_vs_data_figure(model_run_data,
             max_VR = vr_nodes.max()
         else:
             max_VR = 1.5
-        if vr_data.max() > max_VR:
+        if len(vr_data) > 0 and vr_data.max() > max_VR:
             max_VR = vr_data.max()
         ax_vr.set_xlim(0.1, max_VR * 1.1)
 
@@ -555,7 +572,7 @@ def model_vs_data_figure(model_run_data,
             afta_max = aft_age_nodes[active_nodes[-1]].max()
         else:
             afta_max = max_time
-        if aft_age.max() > afta_max:
+        if len(aft_age) > 0 and aft_age.max() > afta_max:
             afta_max = aft_age.max()
         ax_afta.set_xlim(afta_max * 1.1, 0)
 
@@ -588,8 +605,11 @@ def model_vs_data_figure(model_run_data,
         axst.set_yticks(st_ticks)
 
     # add colorbar
-    #cax = useful_functions.add_subplot_axes(axb, [0.01, 0.14, 0.5, 0.025])
-    cax = fig.add_axes([0.7, 0.1, 0.25, 0.015])
+    cax_left = ax_temp.get_position().x0 + 0.05
+    pos_right = all_panels[-1].get_position()
+    cax_right = pos_right.x0 + pos_right.width
+    cax_width = cax_right - cax_left - 0.03
+    cax = fig.add_axes([cax_left, bottom, cax_width, 0.015])
     cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
     cb.set_label(cb_label, fontsize='medium')
 
