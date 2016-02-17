@@ -240,7 +240,7 @@ for well_number, well in enumerate(wells):
                                           len(model_scenario_param_list))
 
         # estimate total runtime and time left
-        if (model_scenario_number / 1000 == model_scenario_number / 1000.0
+        if (model_scenario_number / 250 == model_scenario_number / 250.0
                 and model_scenario_number > 0):
 
             now = time.time()
@@ -1094,8 +1094,12 @@ for well_number, well in enumerate(wells):
             pl.clf()
 
         # save model results .csv file
-        fn = os.path.join(output_dir, 'model_results_all_wells_%s_ms0-%i.csv'
-                          % (today_str,
+        if wells[0] == wells[-1]:
+            well_txt = wells[0]
+        else:
+            well_txt = '%s-%s' % (wells[0], wells[-1])
+        fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
+                          % (today_str, well_txt,
                              n_scenarios))
         print 'saving model results .csv file %s' % fn
         model_results.to_csv(fn, index_label='model_scenario_number')
