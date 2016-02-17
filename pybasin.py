@@ -38,21 +38,16 @@ if scriptdir not in sys.path:
 
 print ''
 
-if len(sys.argv) > 1 and sys.argv[-1][-3:] != '.py':
-    scenario_name = sys.argv[-1]
-    model_input_subfolder = os.path.join(scriptdir, 'input_data',
-                                         scenario_name)
-    print 'running model input data from folder %s' % model_input_subfolder
 
-else:
-    # read default input folder
-    fin = open(os.path.join(scriptdir, 'default_input_folder.txt'))
-    d = fin.readline()
-    fin.close()
-    scenario_name = d.split()[0]
-    model_input_subfolder = os.path.join(scriptdir, 'input_data',
-                                         scenario_name)
-    print 'running model input data from folder %s' % model_input_subfolder
+
+# read default input folder
+fin = open(os.path.join(scriptdir, 'default_input_folder.txt'))
+d = fin.readline()
+fin.close()
+scenario_name = d.split()[0]
+model_input_subfolder = os.path.join(scriptdir, 'input_data',
+                                     scenario_name)
+print 'running model input data from folder %s' % model_input_subfolder
 
 # import model parameter and model functions scripts
 sys.path.append(model_input_subfolder)
@@ -187,7 +182,15 @@ model_scenario_param_list = \
                            model_scenarios.exhumation_starts_and_durations,
                            model_scenarios.basal_heat_flow_scenarios))
 
-n_scenarios = len(model_scenarios.wells) * len(model_scenario_param_list)
+# check sys arguments to run a particular well
+if len(sys.argv) > 1:
+    wells = sys.argv[1:]
+else:
+    wells = model_scenarios.wells
+
+print 'running the following wells: ', wells
+
+n_scenarios = len(wells) * len(model_scenario_param_list)
 
 model_scenario_numbers = np.arange(n_scenarios)
 
@@ -212,11 +215,11 @@ start_time = time.time()
 #######################
 # go through all wells
 #######################
-for well_number, well in enumerate(model_scenarios.wells):
+for well_number, well in enumerate(wells):
 
     print 'x' * 20
     print 'well %s, %i/%i' % (well, well_number + 1,
-                              len(model_scenarios.wells))
+                              len(wells))
 
     if np.any(well_strats['well'] == well) is False:
         #print 'warning, well %s not in well strat file'
