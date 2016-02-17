@@ -16,7 +16,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
     D : numpy array
         diffusivity for each timestep (m2 s-1)
     radius : float
-        radius of diffusion domain
+        radius of diffusion domain (m)
     U_function : string, optional
         'constant' or 'exponential'
     shape : string, optional
@@ -133,12 +133,14 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
     return t_c
 
 
-def calculate_he_age_meesters_dunai_2002(t, T, radius, U238, Th232,
+def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          D0_div_a2=10**7.7,
-                                         Ea=117.0e3,
+                                         Ea=36.2*4184,
                                          R=8.3144621,
                                          decay_constant_238U=4.916e-18,
-                                         decay_constant_232Th=1.57e-18):
+                                         decay_constant_232Th=1.57e-18,
+                                         decay_constant_235U = 3.12e-17,
+                                         alpha_ejection=True):
 
     """
 
@@ -160,11 +162,12 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U238, Th232,
     Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
     # diffusivity acc. to Cerniak et al (2009)
-    Dc = 2.10e-6 * np.exp(-Ea / (R*T))
+    #Dc = 2.10e-6 * np.exp(-Ea / (R*T))
+    U238 = (137.88 / 138.88) * U
+    U235 = (1.0 / 138.88) * U
+    Th232 = Th
+    Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
 
-    # calculate He production rate
-    Ur0 = 8 * U238 * decay_constant_238U + 6 * Th232 * decay_constant_232Th
-
-    He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dc, radius, Ur0, n_eigenmodes=15)
+    He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0, n_eigenmodes=15, alpha_ejection=alpha_ejection)
 
     return He_age

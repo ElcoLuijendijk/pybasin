@@ -131,8 +131,6 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
 
 def model_vs_data_figure(model_run_data,
                          show_provenance_hist=True,
-                         time_int_grid=1,
-                         model_data_fig_bw=False,
                          contour_variable='temperature',
                          debug=False):
 
@@ -149,7 +147,7 @@ def model_vs_data_figure(model_run_data,
      T_depth,
      T_data,
      T_data_sigma,
-     T_GOF, AFT_data, VR_data, C_data] = \
+     T_GOF, AFT_data, VR_data, C_data, AHe_data] = \
         model_run_data
 
     if AFT_data is not None:
@@ -177,6 +175,19 @@ def model_vs_data_figure(model_run_data,
          salinity_depth, salinity_data, salinity_data_unc,
          salinity_RMSE] = C_data
 
+    if AHe_data is not None:
+        [ahe_sample_depths,
+         ahe_ages_all_samples,
+         ahe_ages_all_samples_SE,
+         ahe_age_bin,
+         ahe_age_pdfs,
+         modeled_ahe_age_samples,
+         modeled_ahe_age_samples_min,
+         modeled_ahe_age_samples_max,
+         ahe_age_gof,
+         simulated_AHe_data] = AHe_data
+
+
     nt_total, n_nodes = T_nodes.shape
 
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -193,6 +204,11 @@ def model_vs_data_figure(model_run_data,
 
     fig = pl.figure(figsize=(xsize, xsize / golden_ratio))
 
+    font = {'family': 'sans-serif',
+            'size': 9}
+
+    pl.rc('font', **font)
+
     width_ratios = [8, 3]
 
     nrows = 3
@@ -201,6 +217,14 @@ def model_vs_data_figure(model_run_data,
     bottom = 0.12
 
     max_depth = z_nodes.max() * 1.1
+
+    # skip VR, AFT and AHe panels if no data
+    if VR_data is not None and len(vr_data) == 0:
+        VR_data = None
+    if AFT_data is not None and len(aft_age) == 0:
+        AFT_data = None
+    if AHe_data is not None and len(ahe_ages_all_samples) == 0:
+        AHe_data = None
 
     if C_data is not None:
         C_panel_ind = ncols
@@ -214,6 +238,11 @@ def model_vs_data_figure(model_run_data,
 
     if AFT_data is not None:
         aft_panel_ind = ncols
+        ncols += 1
+        width_ratios.append(4)
+
+    if AHe_data is not None:
+        ahe_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
 
@@ -240,6 +269,10 @@ def model_vs_data_figure(model_run_data,
     if AFT_data is not None:
         ax_afta = fig.add_subplot(gs[1, aft_panel_ind])
         all_panels.append(ax_afta)
+    if AHe_data is not None:
+        ax_ahe = fig.add_subplot(gs[1, ahe_panel_ind])
+        all_panels.append(ax_ahe)
+
     #ax_aftln = fig.add_subplot(gs[1, 4])
 
     depth_panels = [all_panels[0]] + all_panels[3:]
@@ -265,16 +298,13 @@ def model_vs_data_figure(model_run_data,
     textprops = {"fontsize": 'small',
                  'ha': 'center',
                  'va': 'bottom',
-                 'weight': 'bold',
-                 'bbox': dict(facecolor="white", ec='white', alpha=0.7)}
+                 'weight': 'normal',
+                 'bbox': dict(facecolor="white",
+                              ec='white',
+                              alpha=0.7)}
 
-    if model_data_fig_bw is True:
-        provenance_color = 'black'
-        cmap = matplotlib.cm.get_cmap('Greys')
-
-    else:
-        provenance_color = 'darkgray'
-        cmap = matplotlib.cm.get_cmap('jet')
+    provenance_color = 'darkgray'
+    cmap = matplotlib.cm.get_cmap('jet')
 
     if contour_variable == 'salinity':
         cnt_var = C_nodes
@@ -418,12 +448,12 @@ def model_vs_data_figure(model_run_data,
                      **scatter_props)
 
     # plot vitrinite
-    if VR_data is not None and vr_nodes is not None:
+    if VR_data is not None and vr_nodes is not None and len(vr_data) > 0:
         ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
                    z_nodes[-1, active_nodes[-1]],
                    **line_props)
 
-    if VR_data is not None and len(vr_data) > 0:
+        #if VR_data is not None and len(vr_data) > 0:
         ax_vr.errorbar(vr_data, vr_depth,
                        xerr=vr_data_sigma,
                        **erb_props)
@@ -489,6 +519,67 @@ def model_vs_data_figure(model_run_data,
     #ax_aftln.errorbar(aft_length_mean, aft_age_depth,
     #                  xerr=aft_length_std, **erb_props)
 
+    if AHe_data is not None and simulated_AHe_data is not None:
+
+        (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+                     ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+        _, n_grain_radius, n_prov_scenarios = np.array(ahe_age_nodes).shape
+
+        ahe_age_min_grains = np.array(ahe_age_nodes_min)[active_nodes[-1]]
+        ahe_age_max_grains = np.array(ahe_age_nodes_max)[active_nodes[-1]]
+
+        ahe_age_min = np.min(ahe_age_min_grains, axis=1)
+        ahe_age_max = np.max(ahe_age_max_grains, axis=1)
+
+        ax_ahe.fill_betweenx(z_nodes[-1, active_nodes[-1]], ahe_age_min,
+                             ahe_age_max, color='lightgrey')
+
+        ax_ahe.plot(node_age[active_nodes[-1]],
+                     z_nodes[-1, active_nodes[-1]],
+                     color='green', lw=1.5, ls='--', zorder=101)
+
+        ahe_age_nodes_array = np.array(ahe_age_nodes)
+        for n_prov in xrange(n_prov_scenarios):
+            for n_rad in xrange(n_grain_radius):
+                ax_ahe.plot(ahe_age_nodes_array[active_nodes[-1], n_rad, n_prov],
+                             z_nodes[-1, active_nodes[-1]],
+                             **line_props)
+
+    if AHe_data is not None:
+        for ahe_ages_sample, ahe_sample_depth, ahe_ages_sample_SE in \
+                zip(ahe_ages_all_samples, ahe_sample_depths, ahe_ages_all_samples_SE):
+
+            #show AHe ages:
+            depths = np.ones(len(ahe_ages_sample)) * ahe_sample_depth
+            ax_ahe.errorbar(ahe_ages_sample, depths,
+                            xerr=ahe_ages_sample_SE * 1.96,
+                            **erb_props)
+
+        for ahe_age_pdf, ahe_sample_depth in \
+                zip(ahe_age_pdfs, ahe_sample_depths):
+
+            # violin plots of single grain age pdf
+            violin_width = max_depth / 20.0
+            pdf_threshold = 1e-5
+
+            ahe_age_pdf_combined = np.zeros_like(ahe_age_pdf[0])
+            for pdf in ahe_age_pdf:
+                ahe_age_pdf_combined += pdf
+
+            ind_vp = ahe_age_pdf_combined > pdf_threshold
+
+            vd = dict(coords=ahe_age_bin[ind_vp],
+                      vals=ahe_age_pdf_combined[ind_vp],
+                      mean=1.0, min=1.0, max=1.0, median=1.0)
+            vp = ax_ahe.violin([vd],
+                               positions=[ahe_sample_depth],
+                               vert=False,
+                               widths=violin_width,
+                               showextrema=False)
+            for pc in vp['bodies']:
+                pc.set_edgecolor('darkblue')
+                pc.set_facecolor('lightblue')
+
     # add labels:
     axb.set_ylabel('Burial depth (m)')
 
@@ -508,6 +599,8 @@ def model_vs_data_figure(model_run_data,
         ax_vr.set_xlabel('VR (Ro)')
     if AFT_data is not None:
         ax_afta.set_xlabel('AFT age (Ma)')
+    if AHe_data is not None:
+        ax_ahe.set_xlabel('AHe age (Ma)')
     #ax_aftln.set_xlabel(r'AFT ln ($\mu m$)')
 
     for ax in all_panels[3:]:
@@ -518,9 +611,14 @@ def model_vs_data_figure(model_run_data,
 
     for ax in all_panels:
         ax.yaxis.grid()
+        #ax.spines['right'].set_color('none')
+        #ax.spines['top'].set_color('none')
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
 
     #
-
     max_time = time_array_bp.max() / 1e6 * 1.1
 
     if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
@@ -567,28 +665,48 @@ def model_vs_data_figure(model_run_data,
             max_VR = vr_data.max()
         ax_vr.set_xlim(0.1, max_VR * 1.1)
 
+
+    thermochron_age_max = max_time
+
     if AFT_data is not None:
         if simulated_AFT_data is not None:
-            afta_max = aft_age_nodes[active_nodes[-1]].max()
-        else:
-            afta_max = max_time
-        if len(aft_age) > 0 and aft_age.max() > afta_max:
-            afta_max = aft_age.max()
-        ax_afta.set_xlim(afta_max * 1.1, 0)
+            thermochron_age_max = aft_age_nodes[active_nodes[-1]].max()
+        if len(aft_age) > 0 and aft_age.max() > thermochron_age_max:
+            thermochron_age_max = aft_age.max()
+
+    if AHe_data is not None:
+        if simulated_AFT_data is not None:
+            if np.max(np.array(ahe_age_nodes)) > thermochron_age_max:
+                thermochron_age_max = np.max(np.array(ahe_age_nodes))
+        for ahe_ages_sample in ahe_ages_all_samples:
+            if ahe_ages_sample.max() > thermochron_age_max:
+                thermochron_age_max = ahe_ages_sample.max()
+
+    if AFT_data is not None:
+        ax_afta.set_xlim(thermochron_age_max * 1.1, 0)
+    if AHe_data is not None:
+        ax_ahe.set_xlim(thermochron_age_max * 1.1, 0)
 
     #ax_aftln.set_xlim(2, 17)
     #if max_T > 75.0:
     #    t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
     #    ax_temp.set_xticks(t_ticks)
 
+
+
+    # remove last tick label to avoid overlap
+    ax_temp.set_xticks(ax_temp.get_xticks()[:-1])
+    if VR_data is not None:
+        ax_vr.set_xticks(ax_vr.get_xticks()[:-1])
+    if AFT_data is not None:
+        ax_afta.set_xticks(ax_afta.get_xticks()[:-1])
+    if AHe_data is not None:
+        ax_ahe.set_xticks(ax_ahe.get_xticks()[:-1])
+
     for ax in all_panels[3:]:
         # reduce number of tick labels
         print ax.get_xticks()
         ax.set_xticks(ax.get_xticks()[::2])
-
-    for ax in all_panels[3:-1]:
-        # remove last tick label to avoid overlap
-        ax.set_xticks(ax.get_xticks()[:-1])
 
     if contour_variable == 'salinity':
         axst.set_yticks(axst.get_yticks()[1::2])
@@ -603,21 +721,6 @@ def model_vs_data_figure(model_run_data,
         st_max = int(np.ceil(surface_temp_array.max() / 10.0)) * 10.0
         st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
         axst.set_yticks(st_ticks)
-
-    # add colorbar
-    cax_left = ax_temp.get_position().x0 + 0.05
-    pos_right = all_panels[-1].get_position()
-    cax_right = pos_right.x0 + pos_right.width
-    cax_width = cax_right - cax_left - 0.03
-    cax = fig.add_axes([cax_left, bottom, cax_width, 0.015])
-    cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
-    cb.set_label(cb_label, fontsize='medium')
-
-    if contour_variable is 'salinity':
-        cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
-        cb.set_ticks(cb_ticks)
-    #else:
-    #    cb_ticks = np.arange(0, np.round(max_T / 25.0) * 25.0 + 25.0, 25.0)
 
     if np.isnan(T_GOF) == False:
         ax_temp.text(0.5, 1.03,
@@ -637,6 +740,25 @@ def model_vs_data_figure(model_run_data,
                      transform=ax_afta.transAxes,
                      **textprops)
 
-    #fig.tight_layout()
+    if AHe_data is not None and np.isnan(ahe_age_gof) == False:
+        ax_ahe.text(0.5, 1.03,
+                    'GOF=%0.2f' % ahe_age_gof,
+                    transform=ax_ahe.transAxes,
+                    **textprops)
+
+    #gs.tight_layout(fig, h_pad=0.02, w_pad=0.02)
+    # add colorbar
+    cax_left = ax_temp.get_position().x0 + 0.05
+    pos_right = all_panels[-1].get_position()
+    cax_right = pos_right.x0 + pos_right.width
+    cax_width = cax_right - cax_left - 0.03
+    cax_bottom = axhf.get_position().y0
+    cax = fig.add_axes([cax_left, cax_bottom, cax_width, 0.015])
+    cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
+    cb.set_label(cb_label, fontsize='medium')
+
+    if contour_variable is 'salinity':
+        cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
+        cb.set_ticks(cb_ticks)
 
     return fig

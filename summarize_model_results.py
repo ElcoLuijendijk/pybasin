@@ -29,7 +29,7 @@ gof_cutoff = 0.7
 default_heat_flow = 0.065
 
 # read model result data
-model_result_fn = "model_output/MB/final_results_10aug2015/model_results_borehole_and_surface_24aug2015.csv"
+model_result_fn = "model_output/MB/final_results_17feb2016/model_results_all_wells_17-2-2016_ms0-14880_mod.csv"
 df = pd.read_csv(model_result_fn)
 
 #

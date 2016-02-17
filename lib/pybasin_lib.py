@@ -1723,14 +1723,16 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
             for n_prov in xrange(n_prov_scenarios):
                 #pdb.set_trace()
-                sec_in_year = 365 * 24 * 60 * 60
+                Myr = 1e6 * 365.25 * 24 * 60 * 60
+                t = ahe_node_times[nn][n_prov] * Myr
+                T = ahe_node_temps[nn][n_prov] + Kelvin
+                grain_radius = grain_radius_nodes[nn][ng]
                 he_age_i = he.calculate_he_age_meesters_dunai_2002(
-                    ahe_node_times[nn][n_prov] * 1e6 * sec_in_year,
-                    ahe_node_temps[nn][n_prov] + Kelvin,
-                    grain_radius_nodes[nn][ng], U238, Th232)
+                    t, T, grain_radius, U238, Th232)
 
                 # store AHe age in Myr bp
-                ahe_age_nodes[ng, n_prov] = he_age_i[-1] / sec_in_year / 1e6
+                ahe_age_nodes[ng, n_prov] = he_age_i[-1] / Myr
+
                 #ahe_ln_mean_nodes[nn, n_prov] = l_mean
                 #ahe_ln_std_nodes[nn, n_prov] = l_mean_std
 

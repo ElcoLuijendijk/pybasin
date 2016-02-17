@@ -19,7 +19,7 @@ import useful_functions
 
 x_data = 'cooling'
 y_data = 'aft_age_gof'
-y_data2 = 'vr_gof'
+y_data2 = 'ahe_gof'
 z_data = None
 
 s = 40
@@ -30,8 +30,8 @@ default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_10aug2015/' \
-                  'model_results_all_wells_16-7-2015_ms0-15360_mod.csv'
+model_result_fn = 'model_output/MB/final_results_17feb2016/' \
+                  'model_results_all_wells_17-2-2016_ms0-14880_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
 
@@ -62,8 +62,11 @@ for well in wells:
 
     df = df_all[df_all['well'] == well]
 
-    fig = useful_functions.setup_figure(width='2col',
-                                        height=float(nrows)/ncols)
+    width = 8.0
+    height=width * float(nrows)/ncols
+    #fig = useful_functions.setup_figure(width='2col',
+    #                                    height=float(nrows)/ncols)
+    fig = pl.figure(figsize=(width, height))
 
     panels = [fig.add_subplot(nrows, ncols, i)
               for i in xrange(1, ncombs + 1)]
@@ -183,5 +186,5 @@ for well in wells:
     base_fn_new = base_fn.split('.csv')[0] + '_%s_%s.png' % (well, fn_adj)
     fn = os.path.join(fig_dir, base_fn_new)
 
-    fig.savefig(fn, dpi=300)
+    fig.savefig(fn, dpi=200)
 

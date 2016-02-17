@@ -18,7 +18,7 @@ import pandas as pd
 min_T_gof = 0.5
 default_heat_flow = 0.065
 
-model_result_fn = "model_output/MB/final_results_10aug2015/model_results_boreholes_and_surface_10aug2015.csv"
+model_result_fn = "model_output/MB/final_results_17feb2016/model_results_all_wells_17-2-2016_ms0-14880.csv"
 
 df = pd.read_csv(model_result_fn)
 
@@ -60,7 +60,6 @@ for well in wells:
     df['present_max_T'][well_ind] = present_max_T
 
     df['cooling'][well_ind] = df['max_temperature'][well_ind] - present_max_T
-
 
 # save results
 mod_fn = model_result_fn.split('.csv')[0] + '_mod.csv'

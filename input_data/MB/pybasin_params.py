@@ -32,7 +32,7 @@ calculate_ahe_for_all_nodes = False
 save_model_run_data = False
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = False
+make_model_data_fig = True
 
 # black and white figure
 model_data_fig_bw = False

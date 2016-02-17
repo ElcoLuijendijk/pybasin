@@ -51,6 +51,8 @@ model_results_files = [fn for fn in all_files
 model_result_fns = [os.path.join(model_output_subfolder, fn)
                     for fn in model_results_files]
 
+model_result_fns = ['model_output/MB/final_results_17feb2016/model_results_all_wells_17-2-2016_ms0-14880_mod.csv']
+
 # go through all model files:
 for model_result_fn in model_result_fns:
 
@@ -88,6 +90,9 @@ for model_result_fn in model_result_fns:
     for param_col, multiplier in zip(param_cols, multipliers):
         df[param_col] *= multiplier
 
+    # override param cols to restrict the number of figures
+    param_cols = ['exhumation_magnitude', 'basal_heat_flow']
+
     # find number of wells
     wells = np.unique(df['well'])
     n_wells = len(wells)
@@ -104,8 +109,14 @@ for model_result_fn in model_result_fns:
         for gof_col in gof_cols:
 
             ############################
-            fig = useful_functions.setup_figure(width='2col',
-                                                height=float(n_rows)/n_cols)
+
+            width = 8.0
+            height=width * float(n_rows)/n_cols
+            #fig = useful_functions.setup_figure(width='2col',
+            #                                    height=float(nrows)/ncols)
+            fig = pl.figure(figsize=(width, height))
+            #fig = useful_functions.setup_figure(width='2col',
+            #                                    height=float(n_rows)/n_cols)
 
             panels = [fig.add_subplot(n_rows, n_cols, i)
                       for i in xrange(1, n_wells+2)]
@@ -173,4 +184,6 @@ for model_result_fn in model_result_fns:
 
             fig.savefig(fn)
 
+            pl.clf()
 
+print 'done'
