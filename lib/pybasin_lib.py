@@ -1659,7 +1659,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
 
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
-                 prov_ages_start, prov_ages_end, Ts, grain_radius_nodes):
+                 prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th):
 
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
@@ -1727,8 +1727,10 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                 t = ahe_node_times[nn][n_prov] * Myr
                 T = ahe_node_temps[nn][n_prov] + Kelvin
                 grain_radius = grain_radius_nodes[nn][ng]
+                U_grain = U[nn][ng]
+                Th_grain = Th[nn][ng]
                 he_age_i = he.calculate_he_age_meesters_dunai_2002(
-                    t, T, grain_radius, U238, Th232)
+                    t, T, grain_radius, U_grain, Th_grain)
 
                 # store AHe age in Myr bp
                 ahe_age_nodes[ng, n_prov] = he_age_i[-1] / Myr

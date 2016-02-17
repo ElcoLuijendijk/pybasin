@@ -61,6 +61,10 @@ import model_scenarios
 
 year = 365.25 * 24.0 * 60 * 60.
 
+decay_constant_238U = 4.916e-18
+decay_constant_232Th = 1.57e-18
+decay_constant_235U = 3.12e-17
+
 input_dir = pybasin_params.input_dir
 output_dir = pybasin_params.output_dir
 
@@ -499,10 +503,6 @@ for well_number, well in enumerate(model_scenarios.wells):
 
         if pybasin_params.simulate_AHe is True:
 
-            # TODO, calculate AHe age for samples only, not all nodes
-            # TODO read radius from input file
-            # TODO figure out what U238 and TH parameters do
-
             resample_t = pybasin_params.resample_AFT_timesteps
             nt_prov = pybasin_params.provenance_time_nt
 
@@ -516,11 +516,16 @@ for well_number, well in enumerate(model_scenarios.wells):
 
                 if pybasin_params.calculate_ahe_for_all_nodes is True or pybasin_params.make_model_data_fig is True:
 
+                    print '-' * 10
                     print 'calculating AHe for all nodes'
 
                     ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
+                    U_nodes = np.zeros((n_nodes, 2))
+                    Th_nodes = np.zeros((n_nodes, 2))
+                    Ur0_max = 0
+                    Ur0_min = 99999
+                    # fin min and max grain diameters and U and Th contents for this location
 
-                    # fin min and max grain diameters for this location
                     samples = ahe_samples_well['sample'].values
                     #ahe_grain_radius_samples = []
                     for ahe_sample_no, ahe_sample in enumerate(samples):
@@ -530,17 +535,34 @@ for well_number, well in enumerate(model_scenarios.wells):
                             ahe_grain_radius_nodes[:, 0] = np.min(ahe_grain_radius_sample)
                         if np.max(ahe_grain_radius_sample) > ahe_grain_radius_nodes[0, 1] or ahe_sample_no==0:
                             ahe_grain_radius_nodes[:, 1] = np.max(ahe_grain_radius_sample)
-                    
+
+                        U = ahe_data['U'][ind_sample].values
+                        Th = ahe_data['Th'][ind_sample].values
+                        U238 = (137.88 / 138.88) * U
+                        U235 = (1.0 / 138.88) * U
+                        Th232 = Th
+                        Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
+
+                        if np.max(Ur0) > Ur0_max:
+                            U_nodes[:, 1] = U[np.argmax(Ur0)]
+                            Th_nodes[:, 1] = Th[np.argmax(Ur0)]
+                            Ur0_max = Ur0.max()
+                        if np.max(Ur0) < Ur0_min:
+                            U_nodes[:, 0] = U[np.argmin(Ur0)]
+                            Th_nodes[:, 0] = Th[np.argmin(Ur0)]
+                            Ur0_min = Ur0.min()
+
                     # calculate helium ages for all nodes
                     simulated_AHe_data =\
                         pybasin_lib.simulate_ahe(
                             resample_t, nt_prov, n_nodes, time_array_bp,
                             z_nodes, T_nodes, active_nodes,
                             prov_start_nodes, prov_end_nodes,
-                            Ts, ahe_grain_radius_nodes)
+                            Ts, ahe_grain_radius_nodes, U_nodes, Th_nodes)
 
                     (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
                      ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+
                 else:
                     simulated_AHe_data = None
 
@@ -589,17 +611,26 @@ for well_number, well in enumerate(model_scenarios.wells):
                 # assemble grain diameters
                 samples = ahe_samples_well['sample'].values
                 ahe_grain_radius_samples = []
+
+                U_samples = []
+                Th_samples = []
+
                 for ahe_sample in samples:
                     ind_sample = ahe_data['sample'] == ahe_sample
                     ahe_grain_radius_sample = ahe_data['grain_radius'][ind_sample].values * 1e-6
                     ahe_grain_radius_samples.append(ahe_grain_radius_sample)
+
+                    U_sample = ahe_data['U'][ind_sample].values * 1e-6
+                    U_samples.append(U_sample)
+                    Th_sample = ahe_data['Th'][ind_sample].values * 1e-6
+                    Th_samples.append(Th_sample)
 
                 simulated_ahe_data_samples =\
                     pybasin_lib.simulate_ahe(
                         resample_t, nt_prov, n_ahe_samples, time_array_bp,
                         z_ahe_samples, T_ahe_samples, active_nodes_ahe_samples,
                         prov_start_ahe_samples, prov_end_ahe_samples,
-                        Ts, ahe_grain_radius_samples)
+                        Ts, ahe_grain_radius_samples, U_samples, Th_samples)
 
                 (modeled_ahe_age_samples, modeled_ahe_age_samples_min, modeled_ahe_age_samples_max,
                  ahe_node_times_burial, ahe_node_zs) = simulated_ahe_data_samples
