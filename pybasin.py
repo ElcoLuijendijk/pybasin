@@ -397,22 +397,36 @@ for well_number, well in enumerate(wells):
         model_results.ix[model_scenario_number,
                          'max_depth'] = z_nodes.max()
 
+        vr_nodes = None
+
+        ################################
+        # simulate vitrinite reflectance
+        ################################
         if pybasin_params.simulate_VR is True:
-            #def model_data_comparison(time_array, time_array_bp, z_nodes, T_nodes,
-            # active_nodes, n_nodes, pybasin_params):
-            # model VR for all formations
-            print 'calculating vitrinite reflectance for n=%i nodes' % n_nodes
 
-            vr_nodes = pybasin_lib.calculate_vr(T_nodes,
-                                                active_nodes,
-                                                time_array,
-                                                n_nodes)
+            # find if there are VR samples for this well
+            ind = ((vr_data['well'] == well)
+                               & (vr_data['depth'] < z_nodes[-1].max()))
+            vr_data_well = vr_data[ind]
 
-            # store surface VR value
-            model_results.ix[model_scenario_number, 'vr_surface'] = \
-                vr_nodes[-1, active_nodes[-1]][0]
-        else:
-            vr_nodes = None
+            # interpolate vitrinite reflectance data
+            if True in ind.values:
+                print 'calculating vitrinite reflectance for n=%i nodes' % n_nodes
+
+                vr_nodes = pybasin_lib.calculate_vr(T_nodes,
+                                                    active_nodes,
+                                                    time_array,
+                                                    n_nodes)
+
+                # store surface VR value
+                model_results.ix[model_scenario_number, 'vr_surface'] = \
+                    vr_nodes[-1, active_nodes[-1]][0]
+
+        ##############################################################
+        # simulate apatite fission track ages and length distributions
+        ##############################################################
+        simulated_AFT_data = None
+        location_has_AFT = False
 
         if pybasin_params.simulate_AFT is True:
 
@@ -423,23 +437,29 @@ for well_number, well in enumerate(wells):
 
             if True in ind:
 
+                location_has_AFT = True
+
                 #
                 resample_t = pybasin_params.resample_AFT_timesteps
                 nt_prov = pybasin_params.provenance_time_nt
 
-                # simulate AFT all nodes
-                simulated_AFT_data =\
-                    pybasin_lib.simulate_aft(
-                        resample_t, nt_prov, n_nodes, time_array_bp,
-                        z_nodes, T_nodes, active_nodes,
-                        prov_start_nodes, prov_end_nodes,
-                        pybasin_params.annealing_kinetics_values,
-                        pybasin_params.annealing_kinetic_param,
-                        Ts)
+                if pybasin_params.calculate_thermochron_for_all_nodes is True:
+                    # simulate AFT all nodes
+                    simulated_AFT_data =\
+                        pybasin_lib.simulate_aft(
+                            resample_t, nt_prov, n_nodes, time_array_bp,
+                            z_nodes, T_nodes, active_nodes,
+                            prov_start_nodes, prov_end_nodes,
+                            pybasin_params.annealing_kinetics_values,
+                            pybasin_params.annealing_kinetic_param,
+                            Ts)
 
-                (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                 aft_ln_mean_nodes, aft_ln_std_nodes,
-                 aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+                    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+                     aft_ln_mean_nodes, aft_ln_std_nodes,
+                     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+
+                else:
+                    simulated_AFT_data = None
 
                 nt = T_nodes.shape[0]
                 n_aft_samples = len(aft_data_well)
@@ -498,11 +518,12 @@ for well_number, well in enumerate(wells):
                  aft_sample_times_burial, aft_sample_zs) = \
                     simulated_AFT_data_samples
 
-                # add AFT sample data to AFT well dataframe?
-            else:
-                simulated_AFT_data = None
-        else:
-            simulated_AFT_data = None
+        #################################
+        # simulate apatite (U-Th)/He ages
+        #################################
+
+        location_has_AHe = False
+        simulated_AHe_data = None
 
         if pybasin_params.simulate_AHe is True:
 
@@ -517,7 +538,7 @@ for well_number, well in enumerate(wells):
 
                 location_has_AHe = True
 
-                if pybasin_params.calculate_ahe_for_all_nodes is True or pybasin_params.make_model_data_fig is True:
+                if pybasin_params.calculate_thermochron_for_all_nodes is True or pybasin_params.make_model_data_fig is True:
 
                     print '-' * 10
                     print 'calculating AHe for all nodes'
@@ -565,9 +586,6 @@ for well_number, well in enumerate(wells):
 
                     (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
                      ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
-
-                else:
-                    simulated_AHe_data = None
 
                 nt = T_nodes.shape[0]
                 n_ahe_samples = len(ahe_samples_well)
@@ -638,19 +656,14 @@ for well_number, well in enumerate(wells):
                 (modeled_ahe_age_samples, modeled_ahe_age_samples_min, modeled_ahe_age_samples_max,
                  ahe_node_times_burial, ahe_node_zs) = simulated_ahe_data_samples
 
-            else:
-                location_has_AHe = False
-
-        else:
-            simulated_He_data = None
-            location_has_AHe = False
-
         ##################################
         # calculate model goodness of fit:
         ##################################
+
         # calculate model error temperature data
         ind = (T_data['well'] == well) & (T_data['depth'] < z_nodes[-1].max())
         T_data_well = T_data[ind]
+
         if True in ind.values:
             T_data_well['simulated_T'] = np.interp(T_data_well['depth'],
                                                    z_nodes[-1, active_nodes[-1]],
@@ -683,6 +696,9 @@ for well_number, well in enumerate(wells):
             T_rmse = np.nan
             T_gof = np.nan
 
+        # calculate model error VR data
+        vr_rmse = np.nan
+        vr_gof = np.nan
         if pybasin_params.simulate_VR is True:
 
             # calculate model error vitrinite reflectance data
@@ -711,13 +727,9 @@ for well_number, well in enumerate(wells):
 
                 vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
                 vr_gof = np.mean(vr_data_well['P_fit'])
-            else:
-                vr_rmse = np.nan
-                vr_gof = np.nan
-        else:
-            vr_rmse = np.nan
-            vr_gof = np.nan
 
+        # calculate model error AFT data
+        aft_age_gof = np.nan
         if pybasin_params.simulate_AFT is True:
 
             # calculate model error fission track data
@@ -726,6 +738,8 @@ for well_number, well in enumerate(wells):
             aft_data_well = aft_samples[ind]
 
             if True in ind.values:
+
+                location_has_AFT = True
 
                 age_bins = []
                 age_pdfs = []
@@ -791,12 +805,9 @@ for well_number, well in enumerate(wells):
 
                 # calculate mean GOF from single grain GOFs for each sample
                 aft_age_gof = aft_data_well['GOF_aft_ages'].mean()
-            else:
-                aft_age_gof = np.nan
-        else:
-            aft_age_gof = np.nan
 
-
+        # simulate apatite (U-Th)/He data
+        ahe_age_gof = np.nan
         if pybasin_params.simulate_AHe is True:
 
             # calculate model error fission track data
@@ -874,11 +885,11 @@ for well_number, well in enumerate(wells):
 
                 ahe_age_gof = ahe_samples_well['mean_GOF_all_grains'].mean()
 
-            else:
-                ahe_age_gof = np.nan
-
+        # calculate model error salinity data
+        salinity_rmse = np.nan
+        salinity_gof = np.nan
         if pybasin_params.simulate_salinity is True:
-            # calculate model error salinity data
+
             ind = (salinity_data['well'] == well) & (salinity_data['depth'] < z_nodes[-1].max())
             salinity_data_well = salinity_data[ind]
 
@@ -899,9 +910,6 @@ for well_number, well in enumerate(wells):
 
                 salinity_rmse = np.sqrt(np.mean(salinity_data_well['residual']**2))
                 salinity_gof = np.mean(salinity_data_well['P_fit'])
-            else:
-                salinity_rmse = np.nan
-                salinity_gof = np.nan
 
         # calculate mean goodness of fit of temperature, vitrinite and aft age data
         # TODO: add salinity data...
@@ -946,8 +954,7 @@ for well_number, well in enumerate(wells):
         ############################
         # calculate resetting depth
         ############################
-
-        if pybasin_params.simulate_AFT is True:
+        if pybasin_params.simulate_AFT is True and pybasin_params.calculate_thermochron_for_all_nodes is True:
             # modeled resetting depth
             ind_reset_min = aft_age_nodes_min <= node_age
             ind_reset_max = aft_age_nodes_max <= node_age
@@ -986,7 +993,7 @@ for well_number, well in enumerate(wells):
             T_data_well['temperature_unc_1sigma'].values,
             T_gof]
 
-        if pybasin_params.simulate_AFT is True:
+        if pybasin_params.simulate_AFT is True and location_has_AFT is True:
 
             AFT_data = [simulated_AFT_data,
                         aft_data_well['depth'].values,
