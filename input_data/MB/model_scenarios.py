@@ -22,11 +22,20 @@ import numpy as np
 # Rigi wells:
 wells = ['Huenenberg',
          'MRP025', 'MRP170', 'MRP172', 'MRP174',
-         'RH10', 'RH15', 'RH25', 'RH30a', 'RH30b', 'RH35', 'RH40', 'RH45', 'RH50', 'RH60c',
-         'RH65', 'RH70', 'RV15', 'RV20', 'RV25', 'RV30a', 'RV30b', 'RV30c', 'Weggis']
+         'RH10', 'RH12', 'RH15', 'RH17', 'RH20', 'RH23', 'RH30a', 'RH30b',
+         'RH35', 'RH40', 'RH45', 'RH50', 'RH60c', 'RH65', 'RH70',
+         'RV15', 'RV20', 'RV25', 'RV30a', 'RV30b', 'RV30c', 'Weggis',
+         'RV05', 'RV10b', 'RV15', 'RV25', 'RV30c',
+         'RH15', 'RH40', 'RH20', 'RH10', 'RH30a', 'RH30b', 'Entlebuch']
+
          #'S1', 'S2', 'S20', 'S3', 'S31', 'S64', 'S7',
          #'Weggis']
 
+wells = ['RH12', 'RH15', 'RH17', 'RH20', 'RH23', 'RH30a', 'RH30b',
+         'RH35', 'RH40', 'RH45', 'RH50', 'RH60c', 'RH65', 'RH70',
+         'RV15', 'RV20', 'RV25', 'RV30a', 'RV30b', 'RV30c', 'Weggis',
+         'RV05', 'RV10b', 'RV15', 'RV25', 'RV30c',
+         'RH15', 'RH40', 'RH20', 'RH10', 'RH30a', 'RH30b', 'Entlebuch']
 
 # strat period for which to change the basal heat flow
 # must match a period of heatflow_periods in the param file
@@ -35,8 +44,8 @@ basal_heat_flow_scenario_period = 'all'
 # basal heat flow scenarios to try, heat flow in mW m^-2
 # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
 #basal_heat_flow_scenarios = [50e-3, 70e-3, 90e-3]
-basal_heat_flow_scenarios = np.arange(50, 90, 5.0) * 1e-3
-#basal_heat_flow_scenarios = [65.0 * 1e-3]
+#basal_heat_flow_scenarios = np.arange(50, 90, 5.0) * 1e-3
+basal_heat_flow_scenarios = [65.0 * 1e-3]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
@@ -45,8 +54,8 @@ exhumation_scenarios_period = 'molasse_exhumation'
 # exhumation (m) for each model scenario
 # example for testing exhumation of 500, 1000 and 1500 m:
 # exhumation_magnitudes = [500, 1000, 1500]
-exhumation_magnitudes = np.arange(0., 5000, 500)
-#exhumation_magnitudes = [2500.0]
+#exhumation_magnitudes = np.arange(0., 5000, 500)
+exhumation_magnitudes = [2000.0]
 
 # exhumation phase start and duration
 # list of lists or list of tuples. first value of inner list or tuple is start of
@@ -55,11 +64,14 @@ exhumation_magnitudes = np.arange(0., 5000, 500)
 # and duration of 5 My and 2.5 My:
 # exhumation_starts_and_durations = [[10.0, 5.0], [7.5, 2.5]]
 
-exhumation_starts_and_durations = [[12.0, 10.0],
-                                   [12.0, 5.5],
-                                   [12.0, 1.0],
-                                   [8.0, 5.5],
-                                   [8.0, 1.0],
-                                   [4.0, 1.0]]
+#exhumation_starts_and_durations = [[12.0, 10.0],
+#                                   [12.0, 5.5],
+#                                   [12.0, 1.0],
+#                                   [8.0, 5.5],
+#                                   [8.0, 1.0],
+#                                   [4.0, 1.0]]
 #exhumation_starts_and_durations = [[10.0, 7.0]]
-
+#exhumation_starts = np.arange(2.0, 14.0, 2.0)
+#exhumation_durations = np.arange(1.0, 13.0, 2.0)
+exhumation_starts = [12.0]
+exhumation_durations = [10.0]

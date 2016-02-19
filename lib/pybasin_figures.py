@@ -665,7 +665,6 @@ def model_vs_data_figure(model_run_data,
             max_VR = vr_data.max()
         ax_vr.set_xlim(0.1, max_VR * 1.1)
 
-
     thermochron_age_max = max_time
 
     if AFT_data is not None:
@@ -675,7 +674,7 @@ def model_vs_data_figure(model_run_data,
             thermochron_age_max = aft_age.max()
 
     if AHe_data is not None:
-        if simulated_AFT_data is not None:
+        if simulated_AHe_data is not None:
             if np.max(np.array(ahe_age_nodes)) > thermochron_age_max:
                 thermochron_age_max = np.max(np.array(ahe_age_nodes))
         for ahe_ages_sample in ahe_ages_all_samples:

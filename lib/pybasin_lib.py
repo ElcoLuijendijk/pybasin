@@ -1789,7 +1789,8 @@ def calculate_diffusion_coeff(T_cal, C):
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
                           Ts, litho_props,
-                          output_dir, model_scenario_number):
+                          output_dir, model_scenario_number,
+                          save_csv_files=False):
     """
     run burial and thermal history model
 
@@ -1816,30 +1817,33 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         pybasin_params.original_thicknesses,
         pybasin_params.max_thickness)
 
-    # save geohistory dataframe as .csv file
-    geohist_df.to_csv(os.path.join(output_dir,
-                                   'geo_history_well_%s_ms%i.csv'
-                                   % (well, model_scenario_number)),
-                      index_label='strat_unit')
+    if save_csv_files is True:
+        # save geohistory dataframe as .csv file
+        geohist_df.to_csv(os.path.join(output_dir,
+                                       'geo_history_well_%s_ms%i.csv'
+                                       % (well, model_scenario_number)),
+                          index_label='strat_unit')
 
     strat_thickness_df = \
         reconstruct_strat_thickness(geohist_df)
 
-    strat_thickness_df.to_csv(
-        os.path.join(output_dir,
-                     'formation_thickness_history_well_%s_ms%i.csv'
-                     % (well, model_scenario_number)),
-        index_label='strat_unit')
+    if save_csv_files is True:
+        strat_thickness_df.to_csv(
+            os.path.join(output_dir,
+                         'formation_thickness_history_well_%s_ms%i.csv'
+                         % (well, model_scenario_number)),
+            index_label='strat_unit')
 
     # calculate burial depths from thickness dataframe
     burial_df = strat_thickness_df.copy()
     for ind in burial_df.index:
         burial_df.ix[ind] = strat_thickness_df.ix[:ind].sum()
 
-    burial_df.to_csv(os.path.join(output_dir,
-                                  'burial_history_well_%s_ms%i.csv'
-                                  % (well, model_scenario_number)),
-                     index_label='strat_unit')
+    if save_csv_files is True:
+        burial_df.to_csv(os.path.join(output_dir,
+                                      'burial_history_well_%s_ms%i.csv'
+                                      % (well, model_scenario_number)),
+                         index_label='strat_unit')
 
     # find which formations are active and inactive
     active_fm = pd.DataFrame(index=strat_thickness_df.index,

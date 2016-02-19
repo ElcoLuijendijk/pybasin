@@ -134,8 +134,8 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
 
 
 def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
-                                         D0_div_a2=10**7.7,
-                                         Ea=36.2*4184,
+                                         D0_div_a2=np.exp(13.4),
+                                         Ea=32.9 * 4184,
                                          R=8.3144621,
                                          decay_constant_238U=4.916e-18,
                                          decay_constant_232Th=1.57e-18,
@@ -143,6 +143,15 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          alpha_ejection=True):
 
     """
+
+    parameters Wolf et al. (1996, 1998), Durango apatite:
+    D0_div_a2 = 10**7.7
+    Ea = 36.2*4184
+
+    parameters Farley (2000), Durango apatite:
+    D0_div_a2 = np.exp(13.4)
+    Ea = 32.9 * 4184 kJ/mol
+
 
     :param t:
     :param T:
@@ -157,6 +166,8 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     :return:
     """
 
+
+
     D0 = D0_div_a2 * radius ** 2
 
     Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
@@ -167,7 +178,12 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     U235 = (1.0 / 138.88) * U
     Th232 = Th
     Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
+    decay_constant = Ur0 / (8*U238 + 7*U235 + 6*Th232)
 
-    He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0, n_eigenmodes=15, alpha_ejection=alpha_ejection)
+    He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0,
+                                                  decay_constant=decay_constant,
+                                                  U_function='exponential',
+                                                  n_eigenmodes=15,
+                                                  alpha_ejection=alpha_ejection)
 
     return He_age

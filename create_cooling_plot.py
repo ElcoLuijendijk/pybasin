@@ -30,21 +30,25 @@ default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_17feb2016/' \
-                  'model_results_all_wells_17-2-2016_ms0-14880_mod.csv'
+model_result_fn = 'model_output/MB/final_results_19feb2016/' \
+                  'model_results_merged_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
 
 # find all combinations of age and duration of exhumation event
-ad_comb = zip(df_all['exhumation_start'], df_all['exhumation_duration'])
+#ad_comb = zip(df_all['exhumation_start'], df_all['exhumation_duration'])
 
-unique_ad_comb = list(set(ad_comb))
-unique_ad_comb.sort()
+df_comb = df_all[['exhumation_start',
+                  'exhumation_duration']]
+unique_ad_comb = df_comb.drop_duplicates().dropna()
+
+#unique_ad_comb = list(set(ad_comb))
+#unique_ad_comb.sort()
 
 ncombs = len(unique_ad_comb)
 
 ncols = 3
-nrows = int(np.ceil((len(unique_ad_comb)) / ncols))
+nrows = int(np.ceil(ncombs / float(ncols)))
 
 # cooling figure
 if z_data is not None and 'gof' in z_data:
@@ -71,12 +75,12 @@ for well in wells:
     panels = [fig.add_subplot(nrows, ncols, i)
               for i in xrange(1, ncombs + 1)]
 
-    for panel, ad_comb_i in zip(panels, unique_ad_comb):
+    for panel, ad_comb_i in zip(panels, unique_ad_comb.index):
 
-        print ad_comb_i
+        print unique_ad_comb.ix[ad_comb_i]
 
-        ind = np.logical_and(df['exhumation_start'] == ad_comb_i[0],
-                             df['exhumation_duration'] == ad_comb_i[1])
+        ind = np.logical_and(df['exhumation_start'] == unique_ad_comb.ix[ad_comb_i, 'exhumation_start'],
+                             df['exhumation_duration'] == unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
 
         if z_data is not None and 'gof' in z_data:
             ind_pass = np.logical_and(df[z_data] >= gof_cutoff, ind)
@@ -115,12 +119,12 @@ for well in wells:
             if y_data2 is not None:
                 panelr = panel.twinx()
                 sc2 = panel.scatter(df[x_data][ind].values, df[y_data2][ind].values, c='lightgrey',
-                                     edgecolor=edgecolor,
-                                     s=s * 2/3.,
-                                     marker='s',
-                                     vmin=vmin, vmax=vmax,
-                                     cmap=matplotlib.cm.jet_r,
-                                     zorder=1)
+                                    edgecolor=edgecolor,
+                                    s=s * 2/3.,
+                                    marker='s',
+                                    vmin=vmin, vmax=vmax,
+                                    cmap=matplotlib.cm.jet_r,
+                                    zorder=1)
 
                 #offset = 60
                 #new_fixed_axis = panel.get_grid_helper().new_fixed_axis
@@ -149,7 +153,7 @@ for well in wells:
         panel.set_ylabel(y_data.replace('_', ' '))
 
         tekst = 'start exhumation = %0.0f Ma\nduration exhumation = %0.0f Ma' \
-                % (ad_comb_i[0], ad_comb_i[1])
+                % (unique_ad_comb.ix[ad_comb_i, 'exhumation_start'], unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
         panel.set_title(tekst, fontsize='x-small')
 
         if 'gof' in y_data:

@@ -18,7 +18,7 @@ import pandas as pd
 min_T_gof = 0.5
 default_heat_flow = 0.065
 
-model_result_fn = "model_output/MB/final_results_17feb2016/model_results_all_wells_17-2-2016_ms0-14880.csv"
+model_result_fn = "model_output/MB/final_results_19feb2016/model_results_merged.csv"
 
 df = pd.read_csv(model_result_fn)
 

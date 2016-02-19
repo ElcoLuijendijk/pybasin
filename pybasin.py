@@ -177,10 +177,19 @@ for litho_prop_name in litho_props.columns:
         strat_info_mod[litho_prop_name] = strat_info_mod[litho_prop_name] + s
 
 # construct list with exhumation and heatflow estimates
-model_scenario_param_list = \
+model_scenario_param_list_raw = \
     list(itertools.product(model_scenarios.exhumation_magnitudes,
-                           model_scenarios.exhumation_starts_and_durations,
+                           model_scenarios.exhumation_starts,
+                           model_scenarios.exhumation_durations,
                            model_scenarios.basal_heat_flow_scenarios))
+
+# go through param list to weed out scenarios with exhumation end < 0 Ma
+model_scenario_param_list = []
+for i, model_params in enumerate(model_scenario_param_list_raw):
+    if model_params[2] < model_params[1]:
+        model_scenario_param_list.append(model_params)
+    else:
+        pass
 
 # check sys arguments to run a particular well
 if len(sys.argv) > 1:
@@ -262,15 +271,13 @@ for well_number, well in enumerate(wells):
 
             print 'writing estimated runtime to runtime.txt'
 
-            fout = open('runtime.txt', 'w')
+            fout = open('runtime_%s.txt' % well, 'w')
             fout.write(tekst)
             fout.close()
 
         # update model scenario parameters:
-        (exhumation_magnitude, exhumation_start_and_duration,
+        (exhumation_magnitude, exhumation_start, exhumation_duration,
          basal_heat_flow) = model_scenario_params
-
-        exhumation_start, exhumation_duration = exhumation_start_and_duration
 
         # record scenario params in dataframe:
         model_results.ix[model_scenario_number, 'exhumation_magnitude'] = \
@@ -435,7 +442,7 @@ for well_number, well in enumerate(wells):
                    & (aft_samples['depth'] <= z_nodes[-1].max() + 1.0))
             aft_data_well = aft_samples[ind]
 
-            if True in ind:
+            if True in ind.values:
 
                 location_has_AFT = True
 
@@ -560,8 +567,8 @@ for well_number, well in enumerate(wells):
                         if np.max(ahe_grain_radius_sample) > ahe_grain_radius_nodes[0, 1] or ahe_sample_no==0:
                             ahe_grain_radius_nodes[:, 1] = np.max(ahe_grain_radius_sample)
 
-                        U = ahe_data['U'][ind_sample].values
-                        Th = ahe_data['Th'][ind_sample].values
+                        U = ahe_data['U'][ind_sample].values * 1e-6
+                        Th = ahe_data['Th'][ind_sample].values * 1e-6
                         U238 = (137.88 / 138.88) * U
                         U235 = (1.0 / 138.88) * U
                         Th232 = Th
@@ -738,8 +745,6 @@ for well_number, well in enumerate(wells):
             aft_data_well = aft_samples[ind]
 
             if True in ind.values:
-
-                location_has_AFT = True
 
                 age_bins = []
                 age_pdfs = []
@@ -954,7 +959,11 @@ for well_number, well in enumerate(wells):
         ############################
         # calculate resetting depth
         ############################
-        if pybasin_params.simulate_AFT is True and pybasin_params.calculate_thermochron_for_all_nodes is True:
+        calculate_resetting_depth = False
+        if (calculate_resetting_depth is True
+                and pybasin_params.simulate_AFT is True
+                and pybasin_params.calculate_thermochron_for_all_nodes is True):
+            
             # modeled resetting depth
             ind_reset_min = aft_age_nodes_min <= node_age
             ind_reset_max = aft_age_nodes_max <= node_age
