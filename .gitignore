@@ -2,5 +2,4 @@
 *.pyo
 *.*~
 model_output/
-input_data/MB/*.csv
 default_input_folder.txt
