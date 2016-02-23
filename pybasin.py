@@ -963,7 +963,7 @@ for well_number, well in enumerate(wells):
         if (calculate_resetting_depth is True
                 and pybasin_params.simulate_AFT is True
                 and pybasin_params.calculate_thermochron_for_all_nodes is True):
-            
+
             # modeled resetting depth
             ind_reset_min = aft_age_nodes_min <= node_age
             ind_reset_max = aft_age_nodes_max <= node_age

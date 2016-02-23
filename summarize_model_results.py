@@ -33,8 +33,14 @@ default_heat_flow = 0.065
 default_exhumation = 2000.0
 
 # read model result data
-model_result_fn = "model_output/MB/final_results_19feb2016/model_results_merged_mod.csv"
+model_result_fn = "model_output/MB/final_results_21feb2016/model_results_merged_mod.csv"
 df = pd.read_csv(model_result_fn)
+
+# calculate exhumation rate and drop samples with > 2 km / My cooling
+df['exhumation_rate'] = df['exhumation_magnitude'] / df['exhumation_duration']
+max_relaistic_exhumation_rate = 2000.0
+ind = df['exhumation_rate'] < max_relaistic_exhumation_rate
+df = df[ind]
 
 #
 #df['cooling'] = df['mean_cooling_exhumation_phase_0']

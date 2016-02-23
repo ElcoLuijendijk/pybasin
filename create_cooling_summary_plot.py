@@ -18,9 +18,9 @@ import matplotlib.pyplot as pl
 import useful_functions
 
 x_datas = ['cooling', 'exhumation_start', 'exhumation_duration']
-y_datas = ['vr_gof', 'aft_age_gof', 'ahe_gof']
-markers = ['v', 'o', 's']
-colors = ['brown', 'lightblue', 'gray']
+y_datas = ['aft_age_gof', 'ahe_gof']
+markers = ['o', 's']
+colors = ['lightblue', 'gray']
 
 degree_symbol = unichr(176)
 s = 15

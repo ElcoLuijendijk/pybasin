@@ -26,13 +26,13 @@ simulate_salinity = False
 
 # option to calculate AHe ages for all nodes rather than just the samples
 # in a particular borehole
-calculate_thermochron_for_all_nodes = True
+calculate_thermochron_for_all_nodes = False
 
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = True
+make_model_data_fig = False
 
 # black and white figure
 model_data_fig_bw = False

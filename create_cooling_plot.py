@@ -30,7 +30,7 @@ default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_19feb2016/' \
+model_result_fn = 'model_output/MB/final_results_21feb2016/' \
                   'model_results_merged_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
