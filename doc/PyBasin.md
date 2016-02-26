@@ -468,4 +468,12 @@ The vector $\vec{b}$ is:
 
 \pagebreak
 
+## Fission track annealing module
+
+Test on macbook 2014 generation, single core, 2.4 GHz intel core i5, 26 feb 2016:
+
+time 10 executions fortran:  0.0905869007111 sec
+time 10 executions python:  6.35004782677 sec
+s
+
 # References

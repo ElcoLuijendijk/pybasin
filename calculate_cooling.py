@@ -18,7 +18,7 @@ import pandas as pd
 min_T_gof = 0.5
 default_heat_flow = 0.065
 
-model_result_fn = "model_output/MB/final_results_21feb2016/model_results_merged.csv"
+model_result_fn = "model_output/MB/final_results_rapid_exhumation_23feb2016/model_results_merged.csv"
 
 df = pd.read_csv(model_result_fn)
 
@@ -30,7 +30,7 @@ df['cooling'][df['cooling'].isnull()] = 0.0
 
 df['present_max_T'] = np.nan
 df['estimated_present_day_heat_flow'] = np.nan
-df['max_cooling'] = np.nan
+df['cooling_with_fixed_present_HF'] = np.nan
 df['max_T_gof'] = np.nan
 
 for well in wells:
@@ -59,7 +59,10 @@ for well in wells:
 
     df['present_max_T'][well_ind] = present_max_T
 
-    df['cooling'][well_ind] = df['max_temperature'][well_ind] - present_max_T
+    df['cooling_with_fixed_present_HF'][well_ind] = df['max_temperature'][well_ind] - present_max_T
+
+#
+df['cooling'] = df['cooling_with_fixed_present_HF']
 
 # save results
 mod_fn = model_result_fn.split('.csv')[0] + '_mod.csv'

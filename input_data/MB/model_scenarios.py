@@ -28,6 +28,8 @@ wells = ['Huenenberg',
          'RV05', 'RV10b', 'RV15', 'RV25', 'RV30c',
          'RH15', 'RH40', 'RH20', 'RH10', 'RH30a', 'RH30b', 'Entlebuch']
 
+#wells = ['RH30b']
+
 # strat period for which to change the basal heat flow
 # must match a period of heatflow_periods in the param file
 basal_heat_flow_scenario_period = 'all'
@@ -36,7 +38,7 @@ basal_heat_flow_scenario_period = 'all'
 # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
 #basal_heat_flow_scenarios = [50e-3, 70e-3, 90e-3]
 basal_heat_flow_scenarios = np.arange(40, 105, 5.0) * 1e-3
-#basal_heat_flow_scenarios = [65.0 * 1e-3]
+#basal_heat_flow_scenarios = [80.0 * 1e-3]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
@@ -62,7 +64,8 @@ exhumation_magnitudes = np.arange(0., 5000, 500)
 #                                   [8.0, 1.0],
 #                                   [4.0, 1.0]]
 #exhumation_starts_and_durations = [[10.0, 7.0]]
-exhumation_starts = np.arange(2.0, 14.0, 2.0)
-exhumation_durations = np.arange(1.0, 13.0, 2.0)
+exhumation_starts = np.arange(1.0, 14.0, 2.0)
+#exhumation_durations = np.arange(1.0, 13.0, 2.0)
+exhumation_durations = np.arange(0.1, 1.0, 0.1)
 #exhumation_starts = [12.0]
 #exhumation_durations = [10.0]

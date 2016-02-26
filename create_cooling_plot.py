@@ -30,7 +30,7 @@ default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_21feb2016/' \
+model_result_fn = 'model_output/MB/final_results_rapid_exhumation_23feb2016/' \
                   'model_results_merged_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
@@ -152,7 +152,7 @@ for well in wells:
         panel.set_xlabel(x_data.replace('_', ' '))
         panel.set_ylabel(y_data.replace('_', ' '))
 
-        tekst = 'start exhumation = %0.0f Ma\nduration exhumation = %0.0f Ma' \
+        tekst = 'start exhumation = %0.1f Ma\nduration exhumation = %0.1f Ma' \
                 % (unique_ad_comb.ix[ad_comb_i, 'exhumation_start'], unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
         panel.set_title(tekst, fontsize='x-small')
 
