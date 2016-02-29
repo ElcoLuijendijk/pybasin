@@ -1,7 +1,21 @@
 __author__ = 'elco'
 
+import itertools
 import numpy as np
 import pdb
+
+import AFTannealingLib as AFT
+
+# import fortran module
+try:
+    import calculate_reduced_AFT_lengths
+except ImportError:
+    print 'failed to import fortran annealing module'
+    print 'use slower python implementation of AFT annealing module instead'
+    print 'compile the fortran module by running the following command ' \
+          'in the source directory of this module:'
+    print 'f2py -c calculate_reduced_AFT_lengths.f ' \
+          '-m calculate_reduced_AFT_lengths'
 
 
 def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant', shape='sphere',
@@ -133,14 +147,172 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
     return t_c
 
 
+def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
+                                use_fortran_algorithm=True,
+                                kinetic_parameter='Clwt',
+                                kinetic_value=0.0,
+                                rmr0_min=0,
+                                rmr0_max=0.85):
+
+    """
+    calculate He diffusivity as a function of radiation damage
+    acc. to RDAAM model, FLowers et al. (2009) GCA
+
+    default kinetic param = fluorapatite (Cl = 0.0 wt %)
+
+    parameters:
+    -----------
+    T : array
+        Temperature midpoint
+    t : array
+        time, array of begin and end of each timestep (len t = len T +1)
+
+    """
+
+    log_omega_p = -22.0
+    log_phi_p = -13.0
+    Etrap = 34.0 * 1000.0 # J/mol
+    ln_D0_L_div_a2 = 9.733
+    E_L = 122.3 * 1000.0 # J/mol
+    L = 8.1e-4  # in cm (!)
+    R = 8.3144621
+
+    # calculate reduced track density
+        # get annealing kinetics:
+    if kinetic_parameter != 'rmr0':
+        rmr0, kappa = \
+            AFT.calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
+    else:
+        print 'using rmr0 as kinetic parameter'
+        rmr0 = kinetic_value
+        kappa = 1.04 - rmr0
+
+    print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
+
+    if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
+        print '!! warning, rmr0 lower than minimum'
+        print '!! %s = %0.3f' % (kinetic_parameter, kinetic_value)
+        print '!! setting rmr0 to %0.3f' % rmr0_min
+        rmr0 = rmr0_min
+        kappa = 1.04 - rmr0
+    elif rmr0 > rmr0_max:
+        print '!! warning, rmr0 value exceeds most resistant apatite in ' \
+              'Carlson (1999) dataset'
+        print '!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max)
+        rmr0 = rmr0_max
+        kappa = 1.04 - rmr0
+
+    # calculate length of timesteps in sec
+    dts = (time[1:] - time[:-1])
+    temperature_midpoint = (temperature[1:] + temperature[:-1]) / 2.0
+    nsteps = len(dts)
+
+    if use_fortran_algorithm is True:
+
+        # fortran module for reduced track lengths:
+        # call fortran module to calculate reduced fission track lengths
+        rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa, nsteps)
+        rm = rmf
+        rc = rcf
+
+    else:
+        print 'use python reduced track ln function:'
+        # warning, reduced length is not correct
+        # check against fortran function
+
+        # python reduced track length function:
+        r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature)
+        rcp = AFT.kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+        rmp = AFT.caxis_project_reduced_lengths(rcp)
+        rm = rmp
+        rc = rcp
+
+    rho_r = AFT.calculate_normalized_density(rc)
+
+    decay_const_U238 = 4.916e-18
+    decay_const_Th232 = 1.57e-18
+    decay_const_U235 = 3.12e-17
+
+    Na = 6.022e23 # avagadro number
+
+    # density of apatite
+    density = 3190.0
+
+    atomic_mass_U238 = 238.05078826
+    atomic_mass_U235 = 235.0439299
+    atomic_mass_Th232 = 232.0377
+
+    U238_g = U238 * 1000
+    U238_mol = U238_g / atomic_mass_U238
+    U238_atoms_per_kg = U238_mol * Na
+    U238_atoms_per_cm3 = U238_atoms_per_kg * density / (100**3)
+
+    U235_g = U235 * 1000
+    U235_mol = U235_g / atomic_mass_U235
+    U235_atoms_per_kg = U235_mol * Na
+    U235_atoms_per_cm3 = U235_atoms_per_kg * density / (100**3)
+
+    Th232_g = Th232 * 1000
+    Th232_mol = Th232_g / atomic_mass_Th232
+    Th232_atoms_per_kg = Th232_mol * Na
+    Th232_atoms_per_cm3 = Th232_atoms_per_kg * density / (100**3)
+
+    # calculate volume density of tracks
+    # unit rho_v = tracks/cm3
+    t1 = time[:-1]
+    t2 = time[1:]
+    rho_v = (8.0/8.0 * U238_atoms_per_cm3 * (np.exp(decay_const_U238 * t2) - np.exp(decay_const_U238 * t1))
+             + 7.0/8.0 * U235_atoms_per_cm3 * (np.exp(decay_const_U235 * t2) - np.exp(decay_const_U235 * t1))
+             + 6.0/8.0 * Th232_atoms_per_cm3 * (np.exp(decay_const_Th232 * t2) - np.exp(decay_const_Th232 * t1)))
+
+    # calculate rho_s
+    eta_q = 0.91
+    lambda_f_yr = 8.46e-17  # fission track decay constant (yr-1)
+    #year = 365.25 * 24 * 60.0 * 60.0
+    year = 365 * 24 * 60.0 * 60.0
+    lambda_f = lambda_f_yr / year  # fission track decay constant (s-1)
+    decay_const = 1.551e-4
+    lambda_D = decay_const / year / 1e6
+
+    e_rho_s = lambda_f / lambda_D * rho_v * eta_q * L * rho_r
+
+    # cumulative sum of radiation damage, e_rho_s:
+    e_rho_s_sum = np.cumsum(e_rho_s)
+
+    # calculate diffusivity
+    C = 10**log_phi_p * e_rho_s_sum + 10**log_omega_p * e_rho_s_sum**3
+    D_div_a2 = np.exp(ln_D0_L_div_a2) * np.exp(-E_L / (R * temperature_midpoint)) / (C * np.exp(Etrap / (R*temperature_midpoint)) + 1)
+    D = D_div_a2 * radius**2
+
+    # convert diffusivity from midpoint to full array
+    D_final = np.zeros_like(temperature)
+    D_final[0] = D[0]
+    D_final[-1] = D[-1]
+    D_final[1:-1] = (D[1:] + D[:-1]) / 2.0
+
+    debug = False
+    if debug is True:
+        print rho_v.mean()
+        print e_rho_s.mean() / 1e6
+        print e_rho_s_sum.mean() / 1e6
+        print C.mean()
+        print D_div_a2.mean()
+        print D.mean()
+
+        pdb.set_trace()
+
+    return D_final
+
+
 def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          D0_div_a2=np.exp(13.4),
                                          Ea=32.9 * 4184,
                                          R=8.3144621,
                                          decay_constant_238U=4.916e-18,
                                          decay_constant_232Th=1.57e-18,
-                                         decay_constant_235U = 3.12e-17,
-                                         alpha_ejection=True):
+                                         decay_constant_235U=3.12e-17,
+                                         alpha_ejection=True,
+                                         method='Farley2000'):
 
     """
 
@@ -166,19 +338,40 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     :return:
     """
 
-
-
-    D0 = D0_div_a2 * radius ** 2
-
-    Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
-
-    # diffusivity acc. to Cerniak et al (2009)
-    #Dc = 2.10e-6 * np.exp(-Ea / (R*T))
+    # calculate He production:
     U238 = (137.88 / 138.88) * U
     U235 = (1.0 / 138.88) * U
     Th232 = Th
     Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
     decay_constant = Ur0 / (8*U238 + 7*U235 + 6*Th232)
+
+    if method is 'Farley2000':
+
+        print 'using Farley (2000) diffusion parameters for Durango apatite'
+        D0 = D0_div_a2 * radius ** 2
+        Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
+
+    elif method is 'RDAAM':
+        print 'using RDAAM model to calculate helium diffusivity'
+        Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius)
+
+    elif method is 'Wolf1996':
+        print 'using Wolf et al. (1996) diffusion parameters for Durango apatite'
+        # diffusivity params Wolf et al (1996), table 7, Durango
+        # tested, values are really given in log10 instead of ln
+        # big difference with D0 values in Flowers (2009), not sure why
+        log_D0_div_a2 = 7.7 #(1/sec)
+        D0_div_a2 = 10**log_D0_div_a2
+        #D0_div_a2 = np.exp(log_D0_div_a2)
+        Ea = 36.3 * 4184
+        D0 = D0_div_a2 * radius ** 2
+        Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
+
+    else:
+        print 'error, cannot determine method for calculating helium diffusivity'
+        print 'choose either "Wolf1996", "Farley2000", or "RDAAM"'
+        print 'current method = ', method
+        pdb.set_trace()
 
     He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0,
                                                   decay_constant=decay_constant,

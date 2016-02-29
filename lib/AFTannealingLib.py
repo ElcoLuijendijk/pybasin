@@ -22,7 +22,7 @@ try:
     import calculate_reduced_AFT_lengths
 except ImportError:
     print 'failed to import fortran annealing module'
-    print 'using slower python implementation of AFT annealing module instead'
+    print 'use slower python implementation of AFT annealing module instead'
     print 'compile the fortran module by running the following command ' \
           'in the source directory of this module:'
     print 'f2py -c calculate_reduced_AFT_lengths.f ' \
@@ -580,7 +580,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     
     # convert temperature units from degr. C to Kelvin:
     print 'converting temperature input to Kelvin'
-    temperature = temperature_input + 273.0
+    temperature = temperature_input + 273.15
 
     ##########################################################
     # check if no >3.5 degrees temperature change per timestep
@@ -640,6 +640,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         kappa = 1.04 - rmr0
 
     print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
+
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
         print '!! warning, rmr0 lower than minimum'
         print '!! %s = %0.3f' % (kinetic_parameter, kinetic_value)
