@@ -842,13 +842,13 @@ for well_number, well in enumerate(wells):
 
                         grain_pdfs = []
 
-                        ahe_ages_all_samples.append(ahe_data['AHe_age_corr'][ind_sample].values)
-                        ahe_ages_all_samples_SE.append(ahe_data['AHe_age_corr_SE'][ind_sample].values)
+                        ahe_ages_all_samples.append(ahe_data['raw_Ahe_age'][ind_sample].values)
+                        ahe_ages_all_samples_SE.append(ahe_data['raw_Ahe_age_SE'][ind_sample].values)
 
                         for grain_i, ahe_age_obs, ahe_age_obs_SE \
                                 in zip(itertools.count(),
-                                       ahe_data['AHe_age_corr'][ind_sample].values,
-                                       ahe_data['AHe_age_corr_SE'][ind_sample].values):
+                                       ahe_data['raw_Ahe_age'][ind_sample].values,
+                                       ahe_data['raw_Ahe_age_SE'][ind_sample].values):
 
                             ahe_age_pdf = scipy.stats.norm.pdf(ahe_age_bin,
                                                                ahe_age_obs,
