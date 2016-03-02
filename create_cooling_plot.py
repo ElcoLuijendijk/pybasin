@@ -63,7 +63,7 @@ else:
     vmax = None
 
 wells = np.unique(df_all['well'])
-wells = ['RH17', 'RV05', 'RV10b', 'RV30a', 'RV30b']
+
 for well in wells:
 
     print well

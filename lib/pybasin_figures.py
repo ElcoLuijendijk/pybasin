@@ -458,7 +458,10 @@ def model_vs_data_figure(model_run_data,
 
     else:
         ind = np.array(strat_transition) == True
-        leg_strat, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5, zorder=100)
+        n_strat_trans = ind.sum()
+        for i in xrange(n_strat_trans):
+            leg_strat, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind][:, i],
+                                  color='black', lw=0.5, zorder=100)
 
         leg_items += [leg_strat]
         leg_labels += ['major stratigraphic unit']
@@ -860,8 +863,7 @@ def model_vs_data_figure(model_run_data,
                        model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=3, fontsize='small')
-
-    pdb.set_trace()
+                   loc='lower center', ncol=3, fontsize='small',
+                   handlelength=3)
 
     return fig

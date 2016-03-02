@@ -28,7 +28,7 @@ wells = ['Huenenberg',
          'Weggis', 'Entlebuch']
 
 #wells = ['RH30b']
-wells = ['RH30a', 'RH30b']
+#wells = ['RH30a', 'RH30b']
 #wells = ['Huenenberg']
 
 # strat period for which to change the basal heat flow
