@@ -312,7 +312,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          decay_constant_232Th=1.57e-18,
                                          decay_constant_235U=3.12e-17,
                                          alpha_ejection=True,
-                                         method='Farley2000'):
+                                         method='RDAAM'):
 
     """
 

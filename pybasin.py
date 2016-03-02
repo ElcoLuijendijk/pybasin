@@ -418,7 +418,8 @@ for well_number, well in enumerate(wells):
 
             # interpolate vitrinite reflectance data
             if True in ind.values:
-                print 'calculating vitrinite reflectance for n=%i nodes' % n_nodes
+                print 'calculating vitrinite reflectance for n=%i nodes' \
+                      % n_nodes
 
                 vr_nodes = pybasin_lib.calculate_vr(T_nodes,
                                                     active_nodes,
@@ -450,7 +451,9 @@ for well_number, well in enumerate(wells):
                 resample_t = pybasin_params.resample_AFT_timesteps
                 nt_prov = pybasin_params.provenance_time_nt
 
-                if pybasin_params.calculate_thermochron_for_all_nodes is True:
+                if pybasin_params.calculate_thermochron_for_all_nodes is True \
+                        or pybasin_params.make_model_data_fig is True:
+
                     # simulate AFT all nodes
                     simulated_AFT_data =\
                         pybasin_lib.simulate_aft(
@@ -487,7 +490,7 @@ for well_number, well in enumerate(wells):
                                   z_nodes[-1, active_nodes[-1]],
                                   z_nodes[h, active_nodes[-1]])
 
-                # get prov history for samples only
+                # get provenance history for samples only
                 n_prov = prov_start_nodes.shape[1]
                 prov_start_samples = np.zeros((n_aft_samples, n_prov))
                 prov_end_samples = np.zeros((n_aft_samples, n_prov))
@@ -545,7 +548,8 @@ for well_number, well in enumerate(wells):
 
                 location_has_AHe = True
 
-                if pybasin_params.calculate_thermochron_for_all_nodes is True or pybasin_params.make_model_data_fig is True:
+                if pybasin_params.calculate_thermochron_for_all_nodes is True \
+                        or pybasin_params.make_model_data_fig is True:
 
                     print '-' * 10
                     print 'calculating AHe for all nodes'
@@ -555,24 +559,36 @@ for well_number, well in enumerate(wells):
                     Th_nodes = np.zeros((n_nodes, 2))
                     Ur0_max = 0
                     Ur0_min = 99999
-                    # fin min and max grain diameters and U and Th contents for this location
 
+                    # find min and max grain diameters and U and Th contents
+                    # for this location
                     samples = ahe_samples_well['sample'].values
                     #ahe_grain_radius_samples = []
                     for ahe_sample_no, ahe_sample in enumerate(samples):
                         ind_sample = ahe_data['sample'] == ahe_sample
-                        ahe_grain_radius_sample = ahe_data['grain_radius'][ind_sample].values * 1e-6
-                        if np.min(ahe_grain_radius_sample) < ahe_grain_radius_nodes[0, 0] or ahe_sample_no==0:
-                            ahe_grain_radius_nodes[:, 0] = np.min(ahe_grain_radius_sample)
-                        if np.max(ahe_grain_radius_sample) > ahe_grain_radius_nodes[0, 1] or ahe_sample_no==0:
-                            ahe_grain_radius_nodes[:, 1] = np.max(ahe_grain_radius_sample)
+                        ahe_grain_radius_sample = \
+                            ahe_data['grain_radius'][ind_sample].values * 1e-6
+                        if (np.min(ahe_grain_radius_sample)
+                                < ahe_grain_radius_nodes[0, 0]) \
+                                or ahe_sample_no==0:
+                            ahe_grain_radius_nodes[:, 0] = \
+                                np.min(ahe_grain_radius_sample)
+                        if (np.max(ahe_grain_radius_sample)
+                                > ahe_grain_radius_nodes[0, 1]) \
+                                or ahe_sample_no==0:
+                            ahe_grain_radius_nodes[:, 1] = \
+                                np.max(ahe_grain_radius_sample)
 
+                        # calculate helium production and select min and
+                        # max values of helium prodcution of all samples
                         U = ahe_data['U'][ind_sample].values * 1e-6
                         Th = ahe_data['Th'][ind_sample].values * 1e-6
                         U238 = (137.88 / 138.88) * U
                         U235 = (1.0 / 138.88) * U
                         Th232 = Th
-                        Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
+                        Ur0 = (8 * U238 * decay_constant_238U
+                               + 7 * U235 * decay_constant_235U
+                               + 6 * Th232 * decay_constant_232Th)
 
                         if np.max(Ur0) > Ur0_max:
                             U_nodes[:, 1] = U[np.argmax(Ur0)]
@@ -613,7 +629,7 @@ for well_number, well in enumerate(wells):
                                   z_nodes[-1, active_nodes[-1]],
                                   z_nodes[h, active_nodes[-1]])
 
-                # get prov history for samples only
+                # get provenance history for samples only
                 n_prov = prov_start_nodes.shape[1]
                 prov_start_ahe_samples = np.zeros((n_ahe_samples, n_prov))
                 prov_end_ahe_samples = np.zeros((n_ahe_samples, n_prov))
@@ -636,7 +652,7 @@ for well_number, well in enumerate(wells):
                                   z_nodes[-1, active_nodes[-1]],
                                   active_nodes[h, active_nodes[-1]])
 
-                # assemble grain diameters
+                # assemble grain diameters, U and Th content of each sample
                 samples = ahe_samples_well['sample'].values
                 ahe_grain_radius_samples = []
 
@@ -710,7 +726,7 @@ for well_number, well in enumerate(wells):
 
             # calculate model error vitrinite reflectance data
             ind = ((vr_data['well'] == well)
-                               & (vr_data['depth'] < z_nodes[-1].max()))
+                   & (vr_data['depth'] < z_nodes[-1].max()))
             vr_data_well = vr_data[ind]
 
             # interpolate vitrinite reflectance data
@@ -748,18 +764,30 @@ for well_number, well in enumerate(wells):
 
                 age_bins = []
                 age_pdfs = []
+                single_grain_aft_ages = []
+                single_grain_aft_ages_se_min = []
+                single_grain_aft_ages_se_plus = []
 
                 for sample in aft_data_well['sample']:
 
                     if sample in aft_ages['sample'].values:
                         ind_sample = aft_ages['sample'].values == sample
 
+                        # find single grain ages for this sample
+                        single_grain_ages_sample = aft_ages['AFT_age'][ind_sample].values
+                        single_grain_ages_se_min_sample = aft_ages['AFT_age_stderr_min'][ind_sample].values
+                        single_grain_ages_se_plus_sample = aft_ages['AFT_age_stderr_plus'][ind_sample].values
+                        single_grain_aft_ages.append(single_grain_ages_sample)
+                        single_grain_aft_ages_se_min.append(single_grain_ages_se_min_sample)
+                        single_grain_aft_ages_se_plus.append(single_grain_ages_se_plus_sample)
+
                         # get pdf of observed AFT ages from single grain ages
                         age_bin, age_pdf = \
                             pybasin_lib.calculate_aft_ages_pdf(
-                                aft_ages['AFT_age'][ind_sample].values,
-                                aft_ages['AFT_age_stderr_min'][ind_sample].values,
-                                aft_ages['AFT_age_stderr_plus'][ind_sample].values)
+                                single_grain_ages_sample,
+                                single_grain_ages_se_min_sample,
+                                single_grain_ages_se_plus_sample)
+
                     else:
 
                         # get pdf of observed age from central age instead
@@ -842,8 +870,10 @@ for well_number, well in enumerate(wells):
 
                         grain_pdfs = []
 
-                        ahe_ages_all_samples.append(ahe_data['raw_Ahe_age'][ind_sample].values)
-                        ahe_ages_all_samples_SE.append(ahe_data['raw_Ahe_age_SE'][ind_sample].values)
+                        ahe_ages_all_samples.append(
+                            ahe_data['raw_Ahe_age'][ind_sample].values)
+                        ahe_ages_all_samples_SE.append(
+                            ahe_data['raw_Ahe_age_SE'][ind_sample].values)
 
                         for grain_i, ahe_age_obs, ahe_age_obs_SE \
                                 in zip(itertools.count(),
@@ -895,7 +925,8 @@ for well_number, well in enumerate(wells):
         salinity_gof = np.nan
         if pybasin_params.simulate_salinity is True:
 
-            ind = (salinity_data['well'] == well) & (salinity_data['depth'] < z_nodes[-1].max())
+            ind = (salinity_data['well'] == well) & \
+                  (salinity_data['depth'] < z_nodes[-1].max())
             salinity_data_well = salinity_data[ind]
 
             if True in ind.values:
@@ -905,15 +936,18 @@ for well_number, well in enumerate(wells):
                               C_nodes[-1, active_nodes[-1]])
 
                 # calculate model error salinity data
-                salinity_data_well['residual'] = (salinity_data_well['salinity']
-                                           - salinity_data_well['simulated_salinity'])
-                salinity_data_well['residual_norm'] = (salinity_data_well['residual']
-                                                / salinity_data_well['salinity_unc_1sigma'])
+                salinity_data_well['residual'] = \
+                    (salinity_data_well['salinity']
+                     - salinity_data_well['simulated_salinity'])
+                salinity_data_well['residual_norm'] = \
+                    (salinity_data_well['residual']
+                     / salinity_data_well['salinity_unc_1sigma'])
                 salinity_data_well['P_fit'] = \
-                    (1.0
-                     - scipy.stats.norm.cdf(np.abs(salinity_data_well['residual_norm']))) * 2
+                    (1.0 - scipy.stats.norm.cdf(
+                        np.abs(salinity_data_well['residual_norm']))) * 2
 
-                salinity_rmse = np.sqrt(np.mean(salinity_data_well['residual']**2))
+                salinity_rmse = \
+                    np.sqrt(np.mean(salinity_data_well['residual']**2))
                 salinity_gof = np.mean(salinity_data_well['P_fit'])
 
         # calculate mean goodness of fit of temperature, vitrinite and aft age data
@@ -1012,6 +1046,10 @@ for well_number, well in enumerate(wells):
                         aft_data_well['length_mean'].values,
                         aft_data_well['length_std'].values,
                         aft_data_well['data_type'].values,
+                        aft_age_samples,
+                        single_grain_aft_ages,
+                        single_grain_aft_ages_se_min,
+                        single_grain_aft_ages_se_plus,
                         age_bins,
                         age_pdfs,
                         aft_age_gof]
@@ -1051,7 +1089,6 @@ for well_number, well in enumerate(wells):
 
         else:
             AHe_model_data = None
-
 
         model_run_data.append(AFT_data)
         model_run_data.append(VR_data)

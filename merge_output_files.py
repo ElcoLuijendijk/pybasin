@@ -3,7 +3,7 @@ import pandas as pd
 
 __author__ = 'elco'
 
-folder = 'model_output/MB/final_results_rapid_exhumation_23feb2016'
+folder = 'model_output/MB/final_results_1mar2016_rdaam'
 
 files = os.listdir(folder)
 

@@ -1,6 +1,7 @@
 __author__ = 'elcopone'
 
 import pdb
+import itertools
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as pl
@@ -132,7 +133,7 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
 def model_vs_data_figure(model_run_data,
                          show_provenance_hist=True,
                          contour_variable='temperature',
-                         debug=False):
+                         add_legend=True, debug=False):
 
     """
     create a figure comparing 1D burial and thermal model results
@@ -159,6 +160,10 @@ def model_vs_data_figure(model_run_data,
          aft_length_mean,
          aft_length_std,
          aft_data_type,
+         aft_age_samples,
+         single_grain_aft_ages,
+         single_grain_aft_ages_se_min,
+         single_grain_aft_ages_se_plus,
          aft_age_bins,
          aft_age_pdfs,
          aft_age_GOF] = AFT_data
@@ -187,7 +192,6 @@ def model_vs_data_figure(model_run_data,
          ahe_age_gof,
          simulated_AHe_data] = AHe_data
 
-
     nt_total, n_nodes = T_nodes.shape
 
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -201,8 +205,12 @@ def model_vs_data_figure(model_run_data,
 
     xsize = 170.0 / 25.4
     golden_ratio = (1.0 + np.sqrt(5))/2.0
+    ysize= xsize / golden_ratio
 
-    fig = pl.figure(figsize=(xsize, xsize / golden_ratio))
+    if add_legend is True:
+        ysize = ysize * 1.25
+
+    fig = pl.figure(figsize=(xsize, ysize))
 
     font = {'family': 'sans-serif',
             'size': 9}
@@ -215,6 +223,11 @@ def model_vs_data_figure(model_run_data,
     ncols = 2
 
     bottom = 0.12
+    if add_legend is True:
+        bottom = 0.30
+
+    leg_items = []
+    leg_labels = []
 
     max_depth = z_nodes.max() * 1.1
 
@@ -292,8 +305,8 @@ def model_vs_data_figure(model_run_data,
                  "color": 'gray',
                  "mec": 'black',
                  "mfc": 'gray',
+                 "lw": 0.5,
                  "zorder": 10}
-
 
     textprops = {"fontsize": 'small',
                  'ha': 'center',
@@ -402,17 +415,39 @@ def model_vs_data_figure(model_run_data,
     strat_transition.append(True)
 
     if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
+        strat_count = 0
         for xb, yb, strat_trans in zip(aft_node_times_burial,
                                        aft_node_zs,
                                        strat_transition):
             if strat_trans is True:
-                xf = np.concatenate((xb[0], xb[-1][::-1]))
-                yf = np.concatenate((yb[0], yb[-1][::-1]))
+                c = provenance_color
+                cf = 'lightgrey'
 
-                axb.fill(xf, yf, color='lightgrey', zorder=0)
+                # find min and max provenance depth
+                min_prov_ind = 0
+                max_prov_ind = 0
+                max_prov_age = 0
+                min_prov_age = 99999
+                for i, xbi, ybi in zip(itertools.count(), xb, yb):
+                    ind_surface = np.where(ybi >= 0)[0][0]
+                    prov_age_mid = np.mean(xbi[ind_surface])
+                    if prov_age_mid > max_prov_age:
+                        max_prov_age = prov_age_mid
+                        max_prov_ind = i
+                    if prov_age_mid < min_prov_age:
+                        min_prov_age = prov_age_mid
+                        min_prov_ind = i
+
+                xf = np.concatenate((xb[min_prov_ind], xb[max_prov_ind][::-1]))
+                yf = np.concatenate((yb[min_prov_ind], yb[max_prov_ind][::-1]))
+
+                axb.fill(xf, yf, color=cf, zorder=0)
 
                 for xbi, ybi in zip(xb, yb):
-                    axb.plot(xbi, ybi, color=provenance_color, lw=0.5)
+
+                    axb.plot(xbi, ybi, color=c, lw=0.5)
+
+                strat_count += 1
 
     else:
         ind = np.array(strat_transition) == True
@@ -458,7 +493,7 @@ def model_vs_data_figure(model_run_data,
                        xerr=vr_data_sigma,
                        **erb_props)
 
-    # plot aft ages
+    # plot modeled aft ages
     if AFT_data is not None and simulated_AFT_data is not None:
         ax_afta.fill_betweenx(z_nodes[-1, active_nodes[-1]],
                               aft_age_nodes_min[active_nodes[-1]],
@@ -470,11 +505,6 @@ def model_vs_data_figure(model_run_data,
                      color='green', lw=1.5, ls='--', zorder=101)
 
     if AFT_data is not None:
-        # show central ages
-        ax_afta.errorbar(aft_age, aft_age_depth,
-                         xerr=[aft_age_stderr_min * 1.96,
-                               aft_age_stderr_plus * 1.96],
-                         **erb_props)
 
         # violin plots of single grain age pdf
         violin_width = max_depth / 20.0
@@ -494,6 +524,21 @@ def model_vs_data_figure(model_run_data,
             for pc in vp['bodies']:
                 pc.set_edgecolor('darkblue')
                 pc.set_facecolor('lightblue')
+
+        if single_grain_aft_ages != []:
+
+            # show single grain AFT ages, without errorbar
+            for sample_no in xrange(len(single_grain_aft_ages)):
+                x = single_grain_aft_ages[sample_no]
+                y = np.ones_like(x) * aft_age_depth[sample_no]
+                ax_afta.scatter(x, y, color='black', s=5, marker='o')
+
+        else:
+            # show central ages
+            ax_afta.errorbar(aft_age, aft_age_depth,
+                             xerr=[aft_age_stderr_min * 1.96,
+                                   aft_age_stderr_plus * 1.96],
+                             **erb_props)
 
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):
@@ -610,7 +655,8 @@ def model_vs_data_figure(model_run_data,
         ax.set_xticklabels([])
 
     for ax in all_panels:
-        ax.yaxis.grid()
+        ax.yaxis.grid(True)
+        ax.xaxis.grid(False)
         #ax.spines['right'].set_color('none')
         #ax.spines['top'].set_color('none')
         ax.spines['right'].set_visible(False)

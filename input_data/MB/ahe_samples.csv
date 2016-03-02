@@ -15,6 +15,7 @@ RH05,RH05,0,3,"von Hagke et al 2012"
 RH10,RH10,0,3,"von Hagke et al 2012"
 RH12,RH12,0,2,
 RH15,RH15,0,3,"von Hagke et al 2012"
+RH17,RH17,0,3,
 RH20,RH20,0,3,
 RH23,RH23,0,2,
 RH30a,RH30a,0,3,"von Hagke et al 2012"
@@ -26,13 +27,17 @@ RH50,RH50,0,3,"von Hagke et al 2012"
 RH60c,RH60c,0,2,"von Hagke et al 2012"
 RH65,RH65,0,3,"von Hagke et al 2012"
 RH70,RH70,0,3,"von Hagke et al 2012"
+RV05,RV05,0,3,
+RV10b,RV10b,0,3,
 RV15,RV15,0,3,"von Hagke et al 2012"
 RV20,RV20,0,3,"von Hagke et al 2012"
 RV25,RV25,0,2,"von Hagke et al 2012"
+RV30a,RV30a,0,3,
+RV30b,RV30b,0,3,
 RV30c,RV30c,0,3,"von Hagke et al 2012"
-E3-1,E3-1,0,3,
-E3-2,E3-2,0,3,
-E3-2.5,E3-2.5,0,3,
-E3-3,E3-3,0,3,
-E3-4,E3-4,0,1,
-E3-5,E3-5,0,2,
+Entlebuch,E3-1,0,3,
+Entlebuch,E3-2,0,3,
+Entlebuch,E3-2.5,0,3,
+Entlebuch,E3-3,0,3,
+Entlebuch,E3-4,0,1,
+Entlebuch,E3-5,0,2,

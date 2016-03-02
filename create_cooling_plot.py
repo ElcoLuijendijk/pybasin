@@ -18,19 +18,23 @@ import matplotlib.pyplot as pl
 import useful_functions
 
 x_data = 'cooling'
-y_data = 'aft_age_gof'
+y_data1 = 'aft_age_gof'
 y_data2 = 'ahe_gof'
 z_data = None
 
+color1 = 'None'
+color2 = 'lightgrey'
+edgecolor = 'black'
+
 s = 40
 
-gof_cutoff = 0.7
+gof_cutoff = 0.5
 
 default_heat_flow = 0.065
 
 fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_rapid_exhumation_23feb2016/' \
+model_result_fn = 'model_output/MB/final_results_1mar2016_rdaam/' \
                   'model_results_merged_mod.csv'
 
 df_all = pd.read_csv(model_result_fn)
@@ -59,7 +63,7 @@ else:
     vmax = None
 
 wells = np.unique(df_all['well'])
-
+wells = ['RH17', 'RV05', 'RV10b', 'RV30a', 'RV30b']
 for well in wells:
 
     print well
@@ -82,91 +86,79 @@ for well in wells:
         ind = np.logical_and(df['exhumation_start'] == unique_ad_comb.ix[ad_comb_i, 'exhumation_start'],
                              df['exhumation_duration'] == unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
 
-        if z_data is not None and 'gof' in z_data:
-            ind_pass = np.logical_and(df[z_data] >= gof_cutoff, ind)
-            ind_fail = np.logical_and(df[z_data] < gof_cutoff, ind)
-
-            sc = panel.scatter(df[x_data][ind_pass], df[y_data][ind_pass],
-                               c=df[z_data][ind_pass],
-                               edgecolor='None',
-                               s=60,
-                               marker='o',
-                               vmin=vmin, vmax=vmax,
-                               cmap=matplotlib.cm.jet_r)
-
-            sc = panel.scatter(df[x_data][ind_fail], df[y_data][ind_fail],
-                               c=df[z_data][ind_fail],
-                               #edgecolor='None',
-                               s=30,
-                               marker='x',
-                               vmin=vmin, vmax=vmax,
-                               cmap=matplotlib.cm.jet_r)
-
-        else:
-            if z_data is not None:
-                c = df[z_data][ind]
-                edgecolor = 'None'
-            else:
-                c = 'black'
-                edgecolor='black'
-            sc = panel.scatter(df[x_data][ind], df[y_data][ind], c=c,
+        sc = panel.scatter(df[x_data][ind], df[y_data1][ind], c=color1,
                                edgecolor=edgecolor,
                                s=s,
                                vmin=vmin, vmax=vmax,
                                cmap=matplotlib.cm.jet_r,
                                zorder=10)
 
-            if y_data2 is not None:
-                panelr = panel.twinx()
-                sc2 = panel.scatter(df[x_data][ind].values, df[y_data2][ind].values, c='lightgrey',
-                                    edgecolor=edgecolor,
-                                    s=s * 2/3.,
-                                    marker='s',
-                                    vmin=vmin, vmax=vmax,
-                                    cmap=matplotlib.cm.jet_r,
-                                    zorder=1)
+        if y_data2 is not None:
+            panelr = panel.twinx()
+            sc2 = panel.scatter(df[x_data][ind].values, df[y_data2][ind].values,
+                                c=color2,
+                                edgecolor=edgecolor,
+                                s=s * 2/3.,
+                                marker='s',
+                                vmin=vmin, vmax=vmax,
+                                zorder=1)
 
-                #offset = 60
-                #new_fixed_axis = panel.get_grid_helper().new_fixed_axis
-                panelr.yaxis.tick_left()
-                panelr.yaxis.set_label_position('left')
-                #panelr.set_offset_position(self, position)
-                #panelr.axis["left2"] = new_fixed_axis(loc="left",
-                #                                      axes=panelr,
-                #                                      offset=(offset, 0))
+            #offset = 60
+            #new_fixed_axis = panel.get_grid_helper().new_fixed_axis
+            panelr.yaxis.tick_left()
+            panelr.yaxis.set_label_position('left')
+            #panelr.set_offset_position(self, position)
+            #panelr.axis["left2"] = new_fixed_axis(loc="left",
+            #                                      axes=panelr,
+            #                                      offset=(offset, 0))
 
-                #panelr.axis["left2"].toggle(all=True)
-                panelr.set_ylabel(y_data2.replace('_', ' '), labelpad=12)
-                #panelr.spines["left"].label.set_color('brown')
-                panelr.set_ylim(0, 1.0)
-                panelr.yaxis.label.set_color('gray')
+            #panelr.axis["left2"].toggle(all=True)
+            panelr.set_ylabel(y_data2.replace('_', ' '), labelpad=12)
+            #panelr.spines["left"].label.set_color('brown')
+            panelr.set_ylim(0, 1.0)
+            panelr.yaxis.label.set_color('gray')
 
-                #panelr.spines['left'].set_position(("axes", -0.4))
+            #panelr.spines['left'].set_position(("axes", -0.4))
 
-                # place second y axis and dataset below first
-                #panel.set_zorder(panelr.get_zorder()+1) # put ax in front of ax2
-                #panel.patch.set_visible(False) # hide the 'canvas'
+            # place second y axis and dataset below first
+            #panel.set_zorder(panelr.get_zorder()+1) # put ax in front of ax2
+            #panel.patch.set_visible(False) # hide the 'canvas'
 
-        panel.grid()
+        panel.yaxis.grid()
 
         panel.set_xlabel(x_data.replace('_', ' '))
-        panel.set_ylabel(y_data.replace('_', ' '))
+        panel.set_ylabel(y_data1.replace('_', ' '))
 
         tekst = 'start exhumation = %0.1f Ma\nduration exhumation = %0.1f Ma' \
-                % (unique_ad_comb.ix[ad_comb_i, 'exhumation_start'], unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
+                % (unique_ad_comb.ix[ad_comb_i, 'exhumation_start'],
+                   unique_ad_comb.ix[ad_comb_i, 'exhumation_duration'])
         panel.set_title(tekst, fontsize='x-small')
 
-        if 'gof' in y_data:
+        if 'gof' in y_data1:
             panel.set_ylim(0, 1.0)
             panel.axhline(y=gof_cutoff, color='black', lw=1.0)
 
-            gof_ind = df[y_data][ind] > gof_cutoff
+        # find best fit
+        a = np.any(np.isnan(df[y_data1][ind]) == False)
+        b = np.any(np.isnan(df[y_data2][ind]) == False)
+        gof_ind = np.zeros_like(df[y_data1][ind], dtype=bool)
+        if a == True and b == True:
+            gof_ind = (df[y_data1][ind] > gof_cutoff) & (df[y_data2][ind] > gof_cutoff)
+        elif a == True and b == False:
+            gof_ind = df[y_data1][ind] > gof_cutoff
+        elif a == False and b == True:
+            gof_ind = df[y_data2][ind] > gof_cutoff
+
+        if (a == True or b == True) and True in gof_ind.values:
+            print '\tfound gof > %0.3f for well %s' % (gof_cutoff, well)
+            #gof_ind = df[y_data][ind] > gof_cutoff
             x_min = np.min(df[x_data][ind][gof_ind])
             x_max = np.max(df[x_data][ind][gof_ind])
 
             panel.fill_between((x_min, x_max), (1.0, 1.0),
-                               color='lightgrey', zorder=0)
-            #print bla
+                               color='lightblue', zorder=0)
+        else:
+            print '\tcould not find any gof > %0.3f for well %s' % (gof_cutoff, well)
 
     fig.tight_layout()
 
@@ -192,3 +184,6 @@ for well in wells:
 
     fig.savefig(fn, dpi=200)
 
+    pl.clf()
+
+print 'done'

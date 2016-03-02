@@ -24,14 +24,17 @@ wait_time = 2.0
 
 ncores = 38
 
-# Rigi dataset: 30 outcrop samples, 2 boreholes:
+# Rigi dataset: 27 outcrop samples, 2 boreholes, plus Entlebuch for reference:
 locations = ['Huenenberg',
              'MRP025', 'MRP170', 'MRP172', 'MRP174',
              'RH10', 'RH12', 'RH15', 'RH17', 'RH20', 'RH23', 'RH30a', 'RH30b',
              'RH35', 'RH40', 'RH45', 'RH50', 'RH60c', 'RH65', 'RH70',
-             'RV15', 'RV20', 'RV25', 'RV30a', 'RV30b', 'RV30c', 'Weggis',
-             'RV05', 'RV10b', 'RV15', 'RV25', 'RV30c']
+             'RV05', 'RV10b', 'RV15', 'RV20', 'RV25',
+             'RV30a', 'RV30b', 'RV30c',
+             'Weggis', 'Entlebuch']
 
+#locations = ['RH17', 'RV05', 'RV10b', 'RV30a', 'RV30b']
+locations = ['RH30a', 'RH30b']
 
 n_batches = int(np.ceil(len(locations) / float(ncores)))
 
