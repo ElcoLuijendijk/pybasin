@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 import matplotlib.mlab
+import matplotlib.patches as mpatches
 
 #import useful_functions
 
@@ -208,7 +209,7 @@ def model_vs_data_figure(model_run_data,
     ysize= xsize / golden_ratio
 
     if add_legend is True:
-        ysize = ysize * 1.25
+        ysize = ysize * 1.1
 
     fig = pl.figure(figsize=(xsize, ysize))
 
@@ -224,10 +225,12 @@ def model_vs_data_figure(model_run_data,
 
     bottom = 0.12
     if add_legend is True:
-        bottom = 0.30
+        bottom = 0.23
 
     leg_items = []
     leg_labels = []
+    model_label = []
+    data_label = []
 
     max_depth = z_nodes.max() * 1.1
 
@@ -442,16 +445,23 @@ def model_vs_data_figure(model_run_data,
                 yf = np.concatenate((yb[min_prov_ind], yb[max_prov_ind][::-1]))
 
                 axb.fill(xf, yf, color=cf, zorder=0)
+                leg_prov_fill = mpatches.Patch(color=cf)
 
                 for xbi, ybi in zip(xb, yb):
-
-                    axb.plot(xbi, ybi, color=c, lw=0.5)
+                    leg_prov, = axb.plot(xbi, ybi, color=c, lw=0.5)
 
                 strat_count += 1
 
+        leg_items += [leg_prov, leg_prov_fill]
+        leg_labels += ['provenance burial history',
+                       'range of provenance histories']
+
     else:
         ind = np.array(strat_transition) == True
-        axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5, zorder=100)
+        leg_strat, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind], color='black', lw=0.5, zorder=100)
+
+        leg_items += [leg_strat]
+        leg_labels += ['major stratigraphic unit']
 
     # plot basal heat flow
     if contour_variable == 'salinity':
@@ -460,38 +470,47 @@ def model_vs_data_figure(model_run_data,
         axhf.plot(time_array_bp / 1e6, basal_hf_array * 1000.0,
                   **line_props)
 
-    # plot temperature
+    # plot surface temperature
     ax_temp.plot(T_nodes[-1, active_nodes[-1]],
                  z_nodes[-1, active_nodes[-1]],
                  **line_props)
+    model_label.append('temperature')
 
     if T_data is not None and len(T_data) > 0:
         try:
-            ax_temp.errorbar(T_data, T_depth, xerr=T_data_sigma * 2, **erb_props)
+            leg_data = ax_temp.errorbar(T_data, T_depth,
+                                        xerr=T_data_sigma * 2, **erb_props)
+            data_label.append('temperature')
         except:
             print 'error '
             pdb.set_trace()
 
     # plot modeled salinity
     if C_data is not None and C_nodes is not None:
-        ax_c.plot(C_nodes[-1, active_nodes[-1]],
-                  z_nodes[-1, active_nodes[-1]],
-                  **line_props)
+        leg_model, = ax_c.plot(C_nodes[-1, active_nodes[-1]],
+                              z_nodes[-1, active_nodes[-1]],
+                              **line_props)
+
+        model_label.append('salinity')
 
     if C_data is not None and len(salinity_data) > 0:
-        ax_c.scatter(salinity_data, salinity_depth,
-                     **scatter_props)
+        leg_data = ax_c.scatter(salinity_data, salinity_depth,
+                                **scatter_props)
+        data_label.append('salinity')
 
     # plot vitrinite
     if VR_data is not None and vr_nodes is not None and len(vr_data) > 0:
-        ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
-                   z_nodes[-1, active_nodes[-1]],
-                   **line_props)
+        leg_model, = ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
+                                z_nodes[-1, active_nodes[-1]],
+                                **line_props)
 
         #if VR_data is not None and len(vr_data) > 0:
-        ax_vr.errorbar(vr_data, vr_depth,
-                       xerr=vr_data_sigma,
-                       **erb_props)
+        leg_data = ax_vr.errorbar(vr_data, vr_depth,
+                                  xerr=vr_data_sigma,
+                                  **erb_props)
+
+        model_label.append('VR')
+        data_label.append('VR')
 
     # plot modeled aft ages
     if AFT_data is not None and simulated_AFT_data is not None:
@@ -499,10 +518,12 @@ def model_vs_data_figure(model_run_data,
                               aft_age_nodes_min[active_nodes[-1]],
                               aft_age_nodes_max[active_nodes[-1]],
                               color='lightgrey')
+        leg_model_range = mpatches.Patch(color='lightgrey')
 
         ax_afta.plot(node_age[active_nodes[-1]],
                      z_nodes[-1, active_nodes[-1]],
                      color='green', lw=1.5, ls='--', zorder=101)
+        #model_label.append('AFT age')
 
     if AFT_data is not None:
 
@@ -525,27 +546,41 @@ def model_vs_data_figure(model_run_data,
                 pc.set_edgecolor('darkblue')
                 pc.set_facecolor('lightblue')
 
+            leg_violin = mpatches.Patch(facecolor='lightblue',
+                                        edgecolor='blue')
+            leg_items.append(leg_violin)
+            leg_labels.append('age distribution AFT/AHe data')
+
         if single_grain_aft_ages != []:
 
             # show single grain AFT ages, without errorbar
             for sample_no in xrange(len(single_grain_aft_ages)):
                 x = single_grain_aft_ages[sample_no]
                 y = np.ones_like(x) * aft_age_depth[sample_no]
-                ax_afta.scatter(x, y, color='black', s=5, marker='o')
+                leg_sg = ax_afta.scatter(x, y, color='black', s=5, marker='o')
+
+            leg_items.append(leg_sg)
+            leg_labels.append('single grain AFT ages')
 
         else:
             # show central ages
-            ax_afta.errorbar(aft_age, aft_age_depth,
+            leg_data = ax_afta.errorbar(aft_age, aft_age_depth,
                              xerr=[aft_age_stderr_min * 1.96,
                                    aft_age_stderr_plus * 1.96],
                              **erb_props)
 
+            data_label.append('AFT age')
+            #leg_items.append(leg_ca)
+            #leg_labels.append('single grain AFT ages')
+
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):
             for n_kin in xrange(n_kinetic_scenarios):
-                ax_afta.plot(aft_age_nodes[active_nodes[-1], n_prov, n_kin],
-                             z_nodes[-1, active_nodes[-1]],
-                             **line_props)
+                leg_model = ax_afta.plot(
+                    aft_age_nodes[active_nodes[-1], n_prov, n_kin],
+                    z_nodes[-1, active_nodes[-1]],
+                    **line_props)
+        model_label.append('AFT ages')
 
     # plot track lengths
     #for n_prov in xrange(n_prov_scenarios):
@@ -576,19 +611,25 @@ def model_vs_data_figure(model_run_data,
         ahe_age_min = np.min(ahe_age_min_grains, axis=1)
         ahe_age_max = np.max(ahe_age_max_grains, axis=1)
 
-        ax_ahe.fill_betweenx(z_nodes[-1, active_nodes[-1]], ahe_age_min,
-                             ahe_age_max, color='lightgrey')
-
-        ax_ahe.plot(node_age[active_nodes[-1]],
-                     z_nodes[-1, active_nodes[-1]],
-                     color='green', lw=1.5, ls='--', zorder=101)
+        ax_ahe.fill_betweenx(z_nodes[-1, active_nodes[-1]],
+                                               ahe_age_min, ahe_age_max,
+                                               color='lightgrey')
+        leg_model_range = mpatches.Patch(color='lightgrey')
+        leg_strat, = ax_ahe.plot(node_age[active_nodes[-1]],
+                                z_nodes[-1, active_nodes[-1]],
+                                color='green', lw=1.5, ls='--', zorder=101)
+        leg_items.append(leg_strat)
+        leg_labels.append('strat. age')
 
         ahe_age_nodes_array = np.array(ahe_age_nodes)
         for n_prov in xrange(n_prov_scenarios):
             for n_rad in xrange(n_grain_radius):
-                ax_ahe.plot(ahe_age_nodes_array[active_nodes[-1], n_rad, n_prov],
-                             z_nodes[-1, active_nodes[-1]],
-                             **line_props)
+                leg_model, = ax_ahe.plot(ahe_age_nodes_array[active_nodes[-1], n_rad, n_prov],
+                                        z_nodes[-1, active_nodes[-1]],
+                                        **line_props)
+
+        model_label.append('AHe ages')
+
 
     if AHe_data is not None:
         for ahe_ages_sample, ahe_sample_depth, ahe_ages_sample_SE in \
@@ -596,9 +637,9 @@ def model_vs_data_figure(model_run_data,
 
             #show AHe ages:
             depths = np.ones(len(ahe_ages_sample)) * ahe_sample_depth
-            ax_ahe.errorbar(ahe_ages_sample, depths,
-                            xerr=ahe_ages_sample_SE * 1.96,
-                            **erb_props)
+            leg_data = ax_ahe.errorbar(ahe_ages_sample, depths,
+                                       xerr=ahe_ages_sample_SE * 1.96,
+                                       **erb_props)
 
         for ahe_age_pdf, ahe_sample_depth in \
                 zip(ahe_age_pdfs, ahe_sample_depths):
@@ -624,6 +665,8 @@ def model_vs_data_figure(model_run_data,
             for pc in vp['bodies']:
                 pc.set_edgecolor('darkblue')
                 pc.set_facecolor('lightblue')
+
+        data_label.append('AHe ages')
 
     # add labels:
     axb.set_ylabel('Burial depth (m)')
@@ -805,5 +848,20 @@ def model_vs_data_figure(model_run_data,
     if contour_variable is 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
         cb.set_ticks(cb_ticks)
+
+    model_label_merged = 'modeled ' + ', '.join(model_label)
+    model_range_label_merged = 'modeled range ' + ', '.join(model_label)
+    data_label_merged = 'observed ' + ', '.join(data_label)
+
+    if add_legend is True:
+        leg_items += [leg_data, leg_model, leg_model_range]
+        leg_labels += [data_label_merged,
+                       model_label_merged,
+                       model_range_label_merged]
+
+        fig.legend(leg_items, leg_labels,
+                   loc='lower center', ncol=3, fontsize='small')
+
+    pdb.set_trace()
 
     return fig
