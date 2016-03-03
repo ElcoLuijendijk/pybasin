@@ -146,13 +146,28 @@ def model_vs_data_figure(model_run_data,
      surface_temp_array, basal_hf_array,
      z_nodes, active_nodes, T_nodes,
      node_strat, node_age,
-     T_depth,
-     T_data,
-     T_data_sigma,
-     T_GOF, AFT_data, VR_data, C_data, AHe_data] = \
+     T_data, C_data, VR_data, AFT_data, AHe_data] = \
         model_run_data
 
-    if AFT_data is not None:
+    if T_data is not None:
+        (T_depth,
+         T_obs,
+         T_obs_sigma,
+         T_gof) = T_data
+
+    if C_data is not None:
+        [C_nodes, surface_salinity_array, salinity_lwr_bnd,
+         salinity_depth, salinity_data, salinity_data_unc,
+         salinity_RMSE] = C_data
+
+    if VR_data is not None:
+        [vr_nodes,
+         vr_depth,
+         vr_data,
+         vr_data_sigma,
+         vr_GOF] = VR_data
+
+    if AFT_data != None:
         [simulated_AFT_data,
          aft_age_depth,
          aft_age,
@@ -168,18 +183,6 @@ def model_vs_data_figure(model_run_data,
          aft_age_bins,
          aft_age_pdfs,
          aft_age_GOF] = AFT_data
-
-    if VR_data is not None:
-        [vr_nodes,
-         vr_depth,
-         vr_data,
-         vr_data_sigma,
-         vr_GOF] = VR_data
-
-    if C_data is not None:
-        [C_nodes, surface_salinity_array, salinity_lwr_bnd,
-         salinity_depth, salinity_data, salinity_data_unc,
-         salinity_RMSE] = C_data
 
     if AHe_data is not None:
         [ahe_sample_depths,
@@ -201,6 +204,10 @@ def model_vs_data_figure(model_run_data,
          aft_node_times_burial, aft_node_zs) = simulated_AFT_data
 
         _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
+
+    if AHe_data is not None and simulated_AHe_data is not None:
+        (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+         ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
 
     degree_symbol = unichr(176)
 
@@ -417,10 +424,18 @@ def model_vs_data_figure(model_run_data,
                                                major_strat[1:])]
     strat_transition.append(True)
 
-    if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
+    if (AFT_data is not None or AHe_data is not None) and show_provenance_hist is True:
+
+        if simulated_AFT_data is not None:
+            burial = aft_node_times_burial
+            depths = aft_node_zs
+        else:
+            burial = ahe_node_times_burial
+            depths = ahe_node_zs
+
+
         strat_count = 0
-        for xb, yb, strat_trans in zip(aft_node_times_burial,
-                                       aft_node_zs,
+        for xb, yb, strat_trans in zip(burial, depths,
                                        strat_transition):
             if strat_trans is True:
                 c = provenance_color
@@ -480,13 +495,9 @@ def model_vs_data_figure(model_run_data,
     model_label.append('temperature')
 
     if T_data is not None and len(T_data) > 0:
-        try:
-            leg_data = ax_temp.errorbar(T_data, T_depth,
-                                        xerr=T_data_sigma * 2, **erb_props)
-            data_label.append('temperature')
-        except:
-            print 'error '
-            pdb.set_trace()
+        leg_data = ax_temp.errorbar(T_obs, T_depth,
+                                    xerr=T_obs_sigma * 2, **erb_props)
+        data_label.append('temperature')
 
     # plot modeled salinity
     if C_data is not None and C_nodes is not None:
@@ -549,10 +560,10 @@ def model_vs_data_figure(model_run_data,
                 pc.set_edgecolor('darkblue')
                 pc.set_facecolor('lightblue')
 
-            leg_violin = mpatches.Patch(facecolor='lightblue',
-                                        edgecolor='blue')
-            leg_items.append(leg_violin)
-            leg_labels.append('age distribution AFT/AHe data')
+        leg_violin = mpatches.Patch(facecolor='lightblue',
+                                    edgecolor='blue')
+        leg_items.append(leg_violin)
+        leg_labels.append('age distribution AFT/AHe data')
 
         if single_grain_aft_ages != []:
 
@@ -622,7 +633,7 @@ def model_vs_data_figure(model_run_data,
                                 z_nodes[-1, active_nodes[-1]],
                                 color='green', lw=1.5, ls='--', zorder=101)
         leg_items.append(leg_strat)
-        leg_labels.append('strat. age')
+        leg_labels.append('age of deposition')
 
         ahe_age_nodes_array = np.array(ahe_age_nodes)
         for n_prov in xrange(n_prov_scenarios):
@@ -727,12 +738,8 @@ def model_vs_data_figure(model_run_data,
 
     max_T = T_nodes[-1].max()
 
-    # TODO: this fails when no T data, fix this
-    try:
-        if T_data.max() > max_T:
-            max_T = T_data.max()
-    except ValueError:
-        print 'no T data, continuing'
+    if T_data is not None:
+        max_T = T_data.max()
 
     ax_temp.set_xlim(0, max_T * 1.1)
 
@@ -783,8 +790,6 @@ def model_vs_data_figure(model_run_data,
     #    t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
     #    ax_temp.set_xticks(t_ticks)
 
-
-
     # remove last tick label to avoid overlap
     ax_temp.set_xticks(ax_temp.get_xticks()[:-1])
     if VR_data is not None:
@@ -813,9 +818,9 @@ def model_vs_data_figure(model_run_data,
         st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
         axst.set_yticks(st_ticks)
 
-    if np.isnan(T_GOF) == False:
+    if T_data is not None and np.isnan(T_gof) == False:
         ax_temp.text(0.5, 1.03,
-                     'GOF=%0.2f' % T_GOF,
+                     'GOF=%0.2f' % T_gof,
                      transform=ax_temp.transAxes,
                      **textprops)
 
@@ -864,6 +869,6 @@ def model_vs_data_figure(model_run_data,
 
         fig.legend(leg_items, leg_labels,
                    loc='lower center', ncol=3, fontsize='small',
-                   handlelength=3)
+                   handlelength=3, frameon=False)
 
     return fig
