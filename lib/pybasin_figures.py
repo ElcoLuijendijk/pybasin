@@ -153,7 +153,7 @@ def model_vs_data_figure(model_run_data,
         (T_depth,
          T_obs,
          T_obs_sigma,
-         T_gof) = T_data
+         T_gof, T_rmse) = T_data
 
     if C_data is not None:
         [C_nodes, surface_salinity_array, salinity_lwr_bnd,
@@ -238,6 +238,8 @@ def model_vs_data_figure(model_run_data,
     leg_labels = []
     model_label = []
     data_label = []
+    leg_data = None
+    leg_model_range = None
 
     max_depth = z_nodes.max() * 1.1
 
@@ -489,9 +491,9 @@ def model_vs_data_figure(model_run_data,
                   **line_props)
 
     # plot surface temperature
-    ax_temp.plot(T_nodes[-1, active_nodes[-1]],
-                 z_nodes[-1, active_nodes[-1]],
-                 **line_props)
+    leg_model, = ax_temp.plot(T_nodes[-1, active_nodes[-1]],
+                              z_nodes[-1, active_nodes[-1]],
+                              **line_props)
     model_label.append('temperature')
 
     if T_data is not None and len(T_data) > 0:
@@ -739,7 +741,7 @@ def model_vs_data_figure(model_run_data,
     max_T = T_nodes[-1].max()
 
     if T_data is not None:
-        max_T = T_data.max()
+        max_T = T_obs.max()
 
     ax_temp.set_xlim(0, max_T * 1.1)
 
@@ -862,10 +864,17 @@ def model_vs_data_figure(model_run_data,
     data_label_merged = 'observed ' + ', '.join(data_label)
 
     if add_legend is True:
-        leg_items += [leg_data, leg_model, leg_model_range]
-        leg_labels += [data_label_merged,
-                       model_label_merged,
+        if leg_data is not None:
+            leg_items += [leg_data]
+            leg_labels += [data_label_merged]
+
+        leg_items += [leg_model]
+        leg_labels += [model_label_merged,
                        model_range_label_merged]
+
+        if leg_model_range is not None:
+            leg_items += [leg_model_range]
+            leg_labels += [model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
                    loc='lower center', ncol=3, fontsize='small',
