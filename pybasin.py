@@ -1490,6 +1490,7 @@ for well_number, well in enumerate(wells):
                 pybasin_params.param_bounds_min,
                 pybasin_params.param_bounds_max)
 
+
         if (pybasin_params.opt_method == 'L-BFGS-B'
                 or pybasin_params.opt_method == 'TNC'
                 or pybasin_params.opt_method == 'SLSQP'):
@@ -1505,6 +1506,76 @@ for well_number, well in enumerate(wells):
                                         model_scenario_params,
                                         args=args,
                                         method=pybasin_params.opt_method)
+
+        print 'final optimized parameter values:'
+        print pybasin_params.params_to_change
+        print opt_results.x
+
+        model_scenario_params = opt_results.x
+        # run the model once more with final param values
+        (model_run_data,
+         T_model_data, T_gof,
+         C_data,
+         vr_gof, VR_data,
+         aft_age_gof, aft_age_error, AFT_data,
+         ahe_age_gof, ahe_age_error,
+         AHe_model_data) = update_model_params_and_run_model(
+            model_scenario_params,
+            pybasin_params.params_to_change,
+            model_results_df,
+            model_results_df2,
+            well_number, well, well_strat, well_strat_orig,
+            strat_info_mod, pybasin_params,
+            surface_temp, litho_props,
+            csv_output_dir,
+            output_dir,
+            model_scenario_number,
+            False,
+            pybasin_params.calibration_target,
+            record_data,
+            pybasin_params.param_bounds_min,
+            pybasin_params.param_bounds_max)
+
+        model_run_data_fig = model_run_data
+
+        model_run_data_fig.append(T_model_data)
+        model_run_data_fig.append(C_data)
+        model_run_data_fig.append(VR_data)
+        model_run_data_fig.append(AFT_data)
+        model_run_data_fig.append(AHe_model_data)
+
+        today = datetime.datetime.now()
+        today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+
+        #############################
+        # make a model vs data figure
+        #############################
+        if pybasin_params.make_model_data_fig is True:
+            fig = pybasin_figures.model_vs_data_figure(
+                model_run_data_fig,
+                contour_variable=pybasin_params.contour_variable)
+        #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
+
+            fn = os.path.join(fig_output_dir,
+                              'model_data_fig_%s_%s_ms%i.%s'
+                              % (well, today_str,
+                                 model_scenario_number,
+                                 pybasin_params.fig_adj))
+            print 'saving model-data comparison figure %s' % fn
+            fig.savefig(fn, dpi=200)
+            pl.clf()
+
+        # save model results .csv file
+        if wells[0] == wells[-1]:
+            well_txt = wells[0]
+        else:
+            well_txt = '%s-%s' % (wells[0], wells[-1])
+        fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
+                          % (today_str, well_txt,
+                             n_scenarios))
+        print 'saving model results .csv file %s' % fn
+        model_results_df.to_csv(fn, index_label='model_scenario_number')
+
 
     else:
         # go through all model scenarios:
