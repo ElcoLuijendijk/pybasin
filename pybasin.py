@@ -1435,7 +1435,36 @@ for well_number, well in enumerate(wells):
         return_objective_function = True
         record_data = True
 
-        model_scenario_params = pybasin_params.start_param_values
+        if pybasin_params.load_initial_params is True:
+
+            fn = os.path.join(input_dir, pybasin_params.initial_params_file)
+            df_init = pd.read_csv(fn)
+            ind = df_init['well'] == well
+            df_init_well = df_init.loc[ind]
+
+            # find best model run for current calibration targets
+            for i, cal_target in enumerate(pybasin_params.calibration_target):
+
+                if 'AHe' in cal_target:
+                    obj_col = 'ahe_gof'
+                if i == 0:
+                    df_init_well['obj_function'] = df_init_well[obj_col]
+                else:
+                    ind = df_init_well[obj_col] < df_init_well['obj_function']
+                    if True in ind.values:
+                        df_init_well.loc[ind, 'obj_function'] = \
+                            df_init_well.loc[ind, obj_col]
+
+            # copy parameters from best model run
+            max_ind = np.argmax(df_init_well['obj_function'])
+
+            model_scenario_params = []
+
+            for param_change in pybasin_params.params_to_change:
+                model_scenario_params.append(df_init_well.loc[max_ind, param_change])
+        else:
+            model_scenario_params = pybasin_params.start_param_values
+
 
         bounds = [(minval, maxval) for minval, maxval
                   in zip(pybasin_params.param_bounds_min,

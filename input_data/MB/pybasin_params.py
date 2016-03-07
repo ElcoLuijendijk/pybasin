@@ -61,25 +61,36 @@ calibrate_model_params = True
 # http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
 opt_method = 'Nelder-Mead'
 
-# list the parameters that should be updated by either the automatic calibration function
-# or the grid model space search
-#params_to_change = ['exhumation_magnitude', 'exhumation_start', 'exhumation_duration', 'basal_heat_flow']
-params_to_change = ['exhumation_magnitude', 'exhumation_start', 'exhumation_duration']
+# list the parameters that should be updated by either the automatic
+# calibration function or the grid model space search
+#params_to_change = ['exhumation_magnitude',
+# 'exhumation_start', 'exhumation_duration', 'basal_heat_flow']
+params_to_change = ['exhumation_magnitude',
+                    'exhumation_start',
+                    'exhumation_duration']
 
+# initial values for model parameters
 #start_param_values = [2000.0, 10.0, 7.0, 65.0e-3]
 start_param_values = [2000.0, 10.0, 7.0]
 
+# read initial params from file
+load_initial_params = True
+initial_params_file = 'initial_param_values.csv'
+
+# min. and max bounds for parameters
 param_bounds_min = [0.0, 1.0, 0.5]
 param_bounds_max = [6000.0, 12.0, 11.0]
 #param_bounds_min = [0.0, 1.0, 0.1]
 #param_bounds_max = [6000.0, 13.0, 3.23]
 
-
 # list of variables to calibrate model to
 # choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
 # for temperature, vitrinite reflectance, apatite fission track age and
 # apatite (U-Th)/He age, respectively
-calibration_target = ['AFT_age']
+calibration_target = ['AHe']
+
+
+
 
 #################
 # goodness of fit
