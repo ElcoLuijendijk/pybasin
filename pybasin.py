@@ -1447,6 +1447,13 @@ for well_number, well in enumerate(wells):
 
                 if 'AHe' in cal_target:
                     obj_col = 'ahe_gof'
+                elif 'AFT' in cal_target:
+                    obj_col = 'aft_age_gof'
+                elif cal_target == 'T':
+                    obj_col = 'T_gof'
+                elif cal_target == 'vr':
+                    obj_col = 'vr_gof'
+
                 if i == 0:
                     df_init_well['obj_function'] = df_init_well[obj_col]
                 else:
@@ -1464,7 +1471,6 @@ for well_number, well in enumerate(wells):
                 model_scenario_params.append(df_init_well.loc[max_ind, param_change])
         else:
             model_scenario_params = pybasin_params.start_param_values
-
 
         bounds = [(minval, maxval) for minval, maxval
                   in zip(pybasin_params.param_bounds_min,
