@@ -2,7 +2,6 @@
 edit this file to change the model parameters for PyBasin
 """
 
-
 import numpy as np
 
 #######################################################################
@@ -32,11 +31,15 @@ calculate_thermochron_for_all_nodes = False
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
+################
+# figure options
+################
+
 # option to generate 1 figure for each model run:
-make_model_data_fig = True
+make_model_data_fig = False
 
 # black and white figure
-model_data_fig_bw = False
+#model_data_fig_bw = False
 
 # variable to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
@@ -45,6 +48,38 @@ contour_variable = 'temperature'
 
 # type of figure file to save (pdf, png or jpg):
 fig_adj = 'png'
+
+
+###################
+# model_calibration
+###################
+
+# turn model calibration on or off:
+calibrate_model_params = True
+
+# calibration method, see scipy optimize documentation for list of available methods:
+# http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
+opt_method = 'Nelder-Mead'
+
+# list the parameters that should be updated by either the automatic calibration function
+# or the grid model space search
+#params_to_change = ['exhumation_magnitude', 'exhumation_start', 'exhumation_duration', 'basal_heat_flow']
+params_to_change = ['exhumation_magnitude', 'exhumation_start', 'exhumation_duration']
+
+#start_param_values = [2000.0, 10.0, 7.0, 65.0e-3]
+start_param_values = [2000.0, 10.0, 7.0]
+
+param_bounds_min = [0.0, 1.0, 0.5]
+param_bounds_max = [6000.0, 12.0, 11.0]
+#param_bounds_min = [0.0, 1.0, 0.1]
+#param_bounds_max = [6000.0, 13.0, 3.23]
+
+
+# list of variables to calibrate model to
+# choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
+# for temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He age, respectively
+calibration_target = ['AFT_age']
 
 #################
 # goodness of fit
@@ -79,7 +114,7 @@ heatflow_ages = np.array([0, 100.0])
 heatflow_history = np.array([65.0, 65.0]) * 1e-3
 
 # optimize heat flow:
-optimize_heatflow = False
+#optimize_heatflow = False
 
 # max size of heatflow timestep (in yrs)
 max_hf_timestep = 10000.0
@@ -138,19 +173,19 @@ max_thickness = 100.0
 # use this to simulate fault movement
 #################################################################
 # well ids of wells that are drilled across faults:
-change_thickness_wells = ['HSW-01', 'ALM-01',]
+#change_thickness_wells = ['HSW-01', 'ALM-01',]
 # stratigraphic units to change thickness of:
-change_thickness_units = ['ATWD', 'ATBR2']
+#change_thickness_units = ['ATWD', 'ATBR2']
 # time steps (in strat units) for thickness changes
 # if a sequence of time steps is given the changes are distributed evenly
-change_thickness_timing = [['ATWD', 'ATBR2', 'ATBRU', 'SL'],
-                          ['ATBR2', 'NL', 'NU']]
+#change_thickness_timing = [['ATWD', 'ATBR2', 'ATBRU', 'SL'],
+#                          ['ATBR2', 'NL', 'NU']]
 # change in thickness (m) for each time step:
 # 0 means that the unit is at the present-day thickness
 # positive numbers mean that the thickness of the unit increases over time
 # negative that the thickness decreases
-change_thickness_value = [[300, 600, 500, 0],
-                          [210, 210, 0]]
+#change_thickness_value = [[300, 600, 500, 0],
+#                          [210, 210, 0]]
 
 ############################################
 # Apatite fission track model params:
@@ -164,10 +199,10 @@ use_caxis_correction = False
 
 # parameters for annealing characteristics of apatite grains
 # options for kinetic params: 
-# 'Clwt' : Chloride wt fractions 
+# 'Clwt' : Chloride wt fraction
 # 'Dpar' : Dpar / etch pit size 
 annealing_kinetic_param = 'Dpar'
-# end member values for kinetic parameters (if no value given in input data)
+# end-member values for kinetic parameters (if no value given in input datafile for a sample)
 #annealing_kinetics_values = np.array([1.5, 1.8])
 annealing_kinetics_values = np.array([1.2, 2.2])
 
@@ -187,5 +222,5 @@ max_decompaction_error = 0.01
 #######
 # VR
 #######
-# sigma of uncertainty range for VR data, if not specified in input file
+# sigma of uncertainty range for VR data, if not specified in input VR datafile
 vr_unc_sigma = 0.05

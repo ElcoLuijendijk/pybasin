@@ -29,7 +29,7 @@ wells = ['Huenenberg',
 
 #wells = ['RH30b']
 #wells = ['RH30a', 'RH30b']
-wells = ['RV30c']
+wells = ['RH15']
 # strat period for which to change the basal heat flow
 # must match a period of heatflow_periods in the param file
 basal_heat_flow_scenario_period = 'all'
@@ -48,7 +48,7 @@ exhumation_scenarios_period = 'molasse_exhumation'
 # example for testing exhumation of 500, 1000 and 1500 m:
 # exhumation_magnitudes = [500, 1000, 1500]
 #exhumation_magnitudes = np.arange(0., 5000, 500)
-exhumation_magnitudes = [2000.0]
+exhumation_magnitudes = [1000.0, 2000.0, 3000.0]
 
 # exhumation phase start and duration
 # list of lists or list of tuples. first value of inner list or tuple is start of

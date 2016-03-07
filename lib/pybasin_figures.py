@@ -182,7 +182,8 @@ def model_vs_data_figure(model_run_data,
          single_grain_aft_ages_se_plus,
          aft_age_bins,
          aft_age_pdfs,
-         aft_age_GOF] = AFT_data
+         aft_age_GOF,
+         aft_age_error] = AFT_data
 
     if AHe_data is not None:
         [ahe_sample_depths,
@@ -193,7 +194,7 @@ def model_vs_data_figure(model_run_data,
          modeled_ahe_age_samples,
          modeled_ahe_age_samples_min,
          modeled_ahe_age_samples_max,
-         ahe_age_gof,
+         ahe_age_gof, ahe_age_error,
          simulated_AHe_data] = AHe_data
 
     nt_total, n_nodes = T_nodes.shape
@@ -237,6 +238,7 @@ def model_vs_data_figure(model_run_data,
     leg_items = []
     leg_labels = []
     model_label = []
+    model_range_label = []
     data_label = []
     leg_data = None
     leg_model_range = None
@@ -441,7 +443,7 @@ def model_vs_data_figure(model_run_data,
                                        strat_transition):
             if strat_trans is True:
                 c = provenance_color
-                cf = 'lightgrey'
+                cf = 'beige'
 
                 # find min and max provenance depth
                 min_prov_ind = 0
@@ -477,10 +479,10 @@ def model_vs_data_figure(model_run_data,
         ind = np.array(strat_transition) == True
         n_strat_trans = ind.sum()
         for i in xrange(n_strat_trans):
-            leg_strat, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind][:, i],
+            leg_strat_unit, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind][:, i],
                                   color='black', lw=0.5, zorder=100)
 
-        leg_items += [leg_strat]
+        leg_items += [leg_strat_unit]
         leg_labels += ['major stratigraphic unit']
 
     # plot basal heat flow
@@ -539,7 +541,7 @@ def model_vs_data_figure(model_run_data,
         ax_afta.plot(node_age[active_nodes[-1]],
                      z_nodes[-1, active_nodes[-1]],
                      color='green', lw=1.5, ls='--', zorder=101)
-        #model_label.append('AFT age')
+        model_range_label.append('AFT age')
 
     if AFT_data is not None:
 
@@ -548,19 +550,23 @@ def model_vs_data_figure(model_run_data,
         pdf_threshold = 1e-5
         for sample_no in xrange(len(aft_age)):
             pdf_plot = aft_age_pdfs[sample_no]
-            ind = pdf_plot > pdf_threshold
-            #pdf_plot[pdf_plot < pdf_threshold] = 0.0
-            vd = dict(coords=aft_age_bins[sample_no][ind],
-                      vals=aft_age_pdfs[sample_no][ind],
-                      mean=1.0, min=1.0, max=1.0, median=1.0)
-            vp = ax_afta.violin([vd],
-                                positions=[aft_age_depth[sample_no]],
-                                vert=False,
-                                widths=violin_width,
-                                showextrema=False)
-            for pc in vp['bodies']:
-                pc.set_edgecolor('darkblue')
-                pc.set_facecolor('lightblue')
+
+            if np.any(np.isnan(pdf_plot)) == False:
+
+                ind = pdf_plot > pdf_threshold
+
+                #pdf_plot[pdf_plot < pdf_threshold] = 0.0
+                vd = dict(coords=aft_age_bins[sample_no][ind],
+                          vals=aft_age_pdfs[sample_no][ind],
+                          mean=1.0, min=1.0, max=1.0, median=1.0)
+                vp = ax_afta.violin([vd],
+                                    positions=[aft_age_depth[sample_no]],
+                                    vert=False,
+                                    widths=violin_width,
+                                    showextrema=False)
+                for pc in vp['bodies']:
+                    pc.set_edgecolor('darkblue')
+                    pc.set_facecolor('lightblue')
 
         leg_violin = mpatches.Patch(facecolor='lightblue',
                                     edgecolor='blue')
@@ -592,7 +598,7 @@ def model_vs_data_figure(model_run_data,
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):
             for n_kin in xrange(n_kinetic_scenarios):
-                leg_model = ax_afta.plot(
+                leg_model, = ax_afta.plot(
                     aft_age_nodes[active_nodes[-1], n_prov, n_kin],
                     z_nodes[-1, active_nodes[-1]],
                     **line_props)
@@ -641,10 +647,11 @@ def model_vs_data_figure(model_run_data,
         for n_prov in xrange(n_prov_scenarios):
             for n_rad in xrange(n_grain_radius):
                 leg_model, = ax_ahe.plot(ahe_age_nodes_array[active_nodes[-1], n_rad, n_prov],
-                                        z_nodes[-1, active_nodes[-1]],
-                                        **line_props)
+                                         z_nodes[-1, active_nodes[-1]],
+                                         **line_props)
 
         model_label.append('AHe ages')
+        model_range_label.append('AHe ages')
 
 
     if AHe_data is not None:
@@ -748,13 +755,9 @@ def model_vs_data_figure(model_run_data,
     if contour_variable == 'salinity':
         max_C = C_nodes[-1].max()
 
-    # TODO: this fails when no T data, fix this
-        try:
-            if salinity_data.max() > max_C:
-                max_C = salinity_data.max()
-        except ValueError:
-            print 'no salinity data, continuing'
 
+    if C_data is not None and salinity_data.max() > max_C:
+        max_C = salinity_data.max()
         ax_c.set_xlim(0, max_C * 1.1)
 
     if VR_data is not None:
@@ -834,13 +837,13 @@ def model_vs_data_figure(model_run_data,
 
     if AFT_data is not None and np.isnan(aft_age_GOF) == False:
         ax_afta.text(0.5, 1.03,
-                     'GOF=%0.2f' % aft_age_GOF,
+                     'GOF=%0.2f\nerror=%0.2f My' % (aft_age_GOF, aft_age_error),
                      transform=ax_afta.transAxes,
                      **textprops)
 
     if AHe_data is not None and np.isnan(ahe_age_gof) == False:
         ax_ahe.text(0.5, 1.03,
-                    'GOF=%0.2f' % ahe_age_gof,
+                    'GOF=%0.2f\nerror=%0.2f My' % (ahe_age_gof, ahe_age_error),
                     transform=ax_ahe.transAxes,
                     **textprops)
 
@@ -860,7 +863,7 @@ def model_vs_data_figure(model_run_data,
         cb.set_ticks(cb_ticks)
 
     model_label_merged = 'modeled ' + ', '.join(model_label)
-    model_range_label_merged = 'modeled range ' + ', '.join(model_label)
+    model_range_label_merged = 'modeled range ' + ', '.join(model_range_label)
     data_label_merged = 'observed ' + ', '.join(data_label)
 
     if add_legend is True:
@@ -869,15 +872,14 @@ def model_vs_data_figure(model_run_data,
             leg_labels += [data_label_merged]
 
         leg_items += [leg_model]
-        leg_labels += [model_label_merged,
-                       model_range_label_merged]
+        leg_labels += [model_label_merged]
 
         if leg_model_range is not None:
             leg_items += [leg_model_range]
             leg_labels += [model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=3, fontsize='small',
+                   loc='lower center', ncol=2, fontsize='small',
                    handlelength=3, frameon=False)
 
     return fig

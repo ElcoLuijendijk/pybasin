@@ -492,24 +492,20 @@ def chi_sq_test(Nsj, Nij):
     return p_chisq
 
 
-def APFU_to_Cl_wt_fraction(Cl_apfu, F_apfu, OH_apfu):
+def APFU_to_Cl_wt_fraction(Cl_apfu): #, F_apfu, OH_apfu):
     
-    '''
+    """
     convert Chloride APFU units to weight fraction
 
     Parameters
     ----------
     Cl_apfu : array or float
-    
-    F_apfu : array or float
-    
-    OH_apfu : array or float
-    
+
     Returns
     -------  
     Cl_wtfract : array or float
 
-    '''
+    """
     
     # atomic weights (g mol-1)
     Ca = 40.078
@@ -521,7 +517,8 @@ def APFU_to_Cl_wt_fraction(Cl_apfu, F_apfu, OH_apfu):
     Br = 79.904
 
     # weight fluorapatite:
-    apatite_weight = Ca*5 + (P+4*O)*3 + F*F_apfu + Cl*Cl_apfu + (O+H)*OH_apfu
+    #apatite_weight = Ca*10 + (P+4*O)*6 + F*F_apfu + Cl*Cl_apfu + (O+H)*OH_apfu
+    apatite_weight = Ca*10 + (P+4*O)*6 + F*2 #+ Cl*Cl_apfu + (O+H)*OH_apfu
     Cl_weight = Cl*Cl_apfu
     Cl_wtfract = Cl_weight / apatite_weight
 

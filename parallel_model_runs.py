@@ -34,7 +34,7 @@ locations = ['Huenenberg',
              'Weggis', 'Entlebuch']
 
 #locations = ['RH17', 'RV05', 'RV10b', 'RV30a', 'RV30b']
-locations = ['RH30a', 'RH30b']
+#locations = ['RH30a', 'RH30b']
 
 n_batches = int(np.ceil(len(locations) / float(ncores)))
 

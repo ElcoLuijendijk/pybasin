@@ -469,7 +469,13 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            rmr0_max=0.85,
                            min_length=2.18,
                            surpress_resampling=False,
-                           use_fortran_algorithm=True):
+                           use_fortran_algorithm=True,
+                           alpha =  0.04672,
+                           beta = -1.0,
+                           C0 =  0.39528,
+                           C1 =  0.01073,
+                           C2 =  -65.12969,
+                           C3 =  -7.91715):
     
     
     """

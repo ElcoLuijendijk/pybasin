@@ -207,6 +207,9 @@ def subdivide_strat_units(input_df, max_thickness):
             subdiv_df.ix[unit, 'age_top'] = subdiv_age_end[i]
             subdiv_df.ix[unit, 'depth_bottom'] = subdiv_bottom[i]
             subdiv_df.ix[unit, 'depth_top'] = subdiv_top[i]
+    else:
+        print 'errror, something wrong with input strat data '
+        pdb.set_trace()
 
     # merge original and subdivided dataframes
     output_df = pd.concat((input_df, subdiv_df))
@@ -1532,7 +1535,7 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     """
 
     binrange = 30
-    binsize = 0.01
+    binsize = 0.005
     bins = np.arange(0, binrange, binsize)
     bins[0] = 1.0e-10
 
@@ -1938,9 +1941,18 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     ##############################################
 
     # calculate timesteps
-    nt_heatflows = np.array([int(np.round(duration * 1e6 /
-                                          pybasin_params.max_hf_timestep))
+    if (np.min(durations) * 1e6 / 2.0) < pybasin_params.max_hf_timestep:
+        dt = np.min(durations) * 1e6 / 2.0
+    else:
+        dt = pybasin_params.max_hf_timestep
+
+    nt_heatflows = np.array([int(np.round(duration * 1e6 / dt))
                              for duration in durations])
+
+    if np.min(nt_heatflows) <= 0:
+        msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
+        % (np.argmin(nt_heatflows), len(nt_heatflows))
+        raise ValueError(msg)
 
     nt_total = nt_heatflows.sum()
 
@@ -2004,7 +2016,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                           nt_heatflow)
         except ValueError, msg:
             print msg
-            pdb.set_trace()
+            raise
+
         zs_surface = np.zeros((nt_heatflow, 1))
         zs_top = np.hstack((zs_surface, zs_bottom[:, :-1]))
         #zs_all = np.hstack((zs_surface, zs_bottom))
@@ -2237,8 +2250,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             T_init = T_nodes[timestep-1, active_nodes_i]
 
         if np.any(np.isnan(T_init)):
-            print 'error'
-            pdb.set_trace()
+            msg = 'error, nan value in T_init\n' + str(T_init)
+            print msg
+            raise ValueError(msg)
 
         # calculate temperature
         T_nodes[timestep, active_nodes_i], A = \
@@ -2254,7 +2268,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 basal_hf_array[timestep],
                 surface_temp_array[timestep],
                 None)
-
 
         if pybasin_params.simulate_salinity is True:
 
