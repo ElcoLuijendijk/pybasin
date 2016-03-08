@@ -78,7 +78,7 @@ for batch in range(n_batches):
     for i, p in enumerate(processes):
         p.wait()
         done += 1
-        print 'another process done %i to go' % (ncores - done)
+        print 'another process done %i to go' % (len(processes) - done)
 
     # close output files
     for fout in fouts:

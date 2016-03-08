@@ -4,3 +4,5 @@
 model_output/
 default_input_folder.txt
 *test*
+*backup*
+initial*.csv

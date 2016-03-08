@@ -179,7 +179,7 @@ def get_initial_track_length(kinetic_parameter, kinetic_value,
             
         elif kinetic_parameter == 'Clwt':
             Clwtfract = kinetic_value
-            Cl_apfu = Cl_wt_fraction_to_APFU (Clwtfract)
+            Cl_apfu = Cl_wt_fraction_to_APFU(Clwtfract)
             if apply_c_axis_correction == False:
                 initial_track_length = 16.18 + 0.544 * Cl_apfu
                 
@@ -197,23 +197,22 @@ def get_initial_track_length(kinetic_parameter, kinetic_value,
             
         elif kinetic_parameter == 'Clwt':
             Clwtfract = kinetic_value
-            Cl_apfu = Cl_wt_fraction_to_APFU (Clwtfract)
-            if apply_c_axis_correction  ==  False:
+            Cl_apfu = Cl_wt_fraction_to_APFU(Clwtfract)
+            if apply_c_axis_correction is False:
                 initial_track_length = 15.936 + 0.538 * Cl_apfu
                 # use HeFTy 1.6.7 default values:
                 initial_track_length2 = 15.936 + 0.16 * Clwtfract*100.0
-                
             else:
                 initial_track_length = 16.187 + 0.604 * Cl_apfu
                  # use HeFTy 1.6.7 default values:
                 initial_track_length2 = 16.187 + 0.18 * Clwtfract*100.0
         
-            print 'init. lengths: %0.3f, %0.3f'\
-                    %(initial_track_length,initial_track_length2)
+            print 'init. lengths: %0.3f, %0.3f' % (initial_track_length,
+                                                   initial_track_length2)
         
         elif kinetic_parameter == 'rmr0':
             rmr0 = kinetic_value
-            if apply_c_axis_correction  ==  False:
+            if apply_c_axis_correction is False:
                 initial_track_length = 16.187
             else:
                 initial_track_length = 15.936
@@ -262,23 +261,23 @@ def set_annealing_parameters():
     Ketcham et al. 2007 annealing model parameters
     
     returns:
-        C0, C1, C2, C3, alfa, beta
+        C0, C1, C2, C3, alpha, beta
     
     references:
         Ketcham et al. (2007) Am. Min. 92: 799-810,  Table 5c
     """
     
     # g function parameters:
-    alfa =  0.04672
+    alpha = 0.04672
     beta = -1.0
 
     # fanning curvelinear function
-    C0 =  0.39528
-    C1 =  0.01073
-    C2 =  -65.12969
-    C3 =  -7.91715
+    C0 = 0.39528
+    C1 = 0.01073
+    C2 = -65.12969
+    C3 = -7.91715
     
-    return C0, C1, C2, C3, alfa, beta
+    return C0, C1, C2, C3, alpha, beta
 
 
 def correct_for_uranium_decay(time_bp, decay_const=1.551e-4):
@@ -315,7 +314,7 @@ def calculate_teq(g1, T1, C0, C1, C2, C3):
     
     
 def calculate_reduced_track_lengths(dts, temperatures,
-                                    alpha=0.04672, beta=-1.0,
+                                    alpha=0.04672,
                                     C0=0.39528, C1=0.01073,
                                     C2=-65.12969, C3=-7.91715):
     
@@ -323,10 +322,10 @@ def calculate_reduced_track_lengths(dts, temperatures,
     Ketcham 2007 (HeFTy) annealing model
     
     input parameters:
-        dts                     1D array of duration of each timestep (sec)
-        temperatures            1D array of temperature during each timestep (K)
+        dts                     array of duration of each timestep (sec)
+        temperatures            array of temperature during each timestep(K)
         alfa = 0.04672          emperically fitted annealing parameter,
-                                see Ketcham(2007)
+                                see Ketcham et al. (2007) Am. Min.
         beta = -1.0             annealing parameter, see Ketcham(2007)
         C0 = 0.39528            annealing parameter, see Ketcham(2007)
         C1 = 0.01073            annealing parameter, see Ketcham(2007)
@@ -339,7 +338,7 @@ def calculate_reduced_track_lengths(dts, temperatures,
 
     #print '-' * 5
     #print 'start calculation of reduced track lengths'
-    
+
     # initialize arrays:
     nsteps = len(dts)
     g = np.zeros(nsteps)
@@ -470,12 +469,11 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            min_length=2.18,
                            surpress_resampling=False,
                            use_fortran_algorithm=True,
-                           alpha =  0.04672,
-                           beta = -1.0,
-                           C0 =  0.39528,
-                           C1 =  0.01073,
-                           C2 =  -65.12969,
-                           C3 =  -7.91715):
+                           alpha=0.04672,
+                           C0=0.39528,
+                           C1=0.01073,
+                           C2=-65.12969,
+                           C3=-7.91715):
     
     
     """
@@ -665,7 +663,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
         rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
-            dts, temperature, rmr0, kappa, nsteps)
+            dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
+        #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
+        #    dts, temperature, rmr0, kappa, nsteps)
         rm = rmf
         rc = rcf
 
@@ -675,7 +675,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         # check against fortran function
 
         # python reduced track length function:
-        r_cmod = calculate_reduced_track_lengths(dts, temperature)
+        r_cmod = calculate_reduced_track_lengths(dts, temperature,
+                                                 C0=C0, C1=C1, C2=C2, C3=C3,
+                                                 alpha=alpha)
         rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
         rmp = caxis_project_reduced_lengths(rcp)
         rm = rmp

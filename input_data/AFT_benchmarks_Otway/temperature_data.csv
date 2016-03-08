@@ -1,0 +1,10 @@
+well,depth,temperature,temperature_unc_1sigma,data_type
+Flaxmans-1,2585,92,5,BHT_corrected
+Eumeralla-1,1019.236,44.94,5,BHT_corrected
+Eumeralla-1,1319.755,54.963,5,BHT_corrected
+Eumeralla-1,1609.405,65.066,5,BHT_corrected
+Eumeralla-1,1775.781,70.995,5,BHT_corrected
+Eumeralla-1,1834.584,73.017,5,BHT_corrected
+Eumeralla-1,2052.518,80.088,5,BHT_corrected
+Eumeralla-1,2573.99,96.934,5,BHT_corrected
+Eumeralla-1,3009.719,112.06,5,BHT_corrected

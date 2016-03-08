@@ -2,6 +2,7 @@
 edit this file to change the model parameters for PyBasin
 """
 
+
 import numpy as np
 
 #######################################################################
@@ -9,13 +10,13 @@ import numpy as np
 #######################################################################
 
 print '-' * 10
-print 'Molasse Basin input data'
+print 'AFT benchmark input'
 print '-' * 10
 
 # location of input data .csv files
-input_dir = 'input_data/MB'
-output_dir = 'model_output/MB'
-datafile_output_dir = '../../heavy_data/pybasin_MB'
+input_dir = 'input_data/AFT_benchmarks_Otway'
+output_dir = 'model_output/AFT_benchmarks_Otway'
+datafile_output_dir = '../../heavy_data/AFT_benchmarks'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
@@ -31,15 +32,8 @@ calculate_thermochron_for_all_nodes = False
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
-################
-# figure options
-################
-
 # option to generate 1 figure for each model run:
 make_model_data_fig = True
-
-# black and white figure
-#model_data_fig_bw = False
 
 # variable to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
@@ -55,7 +49,7 @@ fig_adj = 'png'
 ###################
 
 # turn model calibration on or off:
-calibrate_model_params = True
+calibrate_model_params = False
 
 # calibration method, see scipy optimize documentation for list of available methods:
 # http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
@@ -63,35 +57,38 @@ opt_method = 'Nelder-Mead'
 
 # list the parameters that should be updated by either the automatic
 # calibration function or the grid model space search
+# chooose any combination of 'exhumation_magnitude', 'exhumation_start',
+# 'exhumation_duration', 'basal_heat_flow',
+# or fission track annealing params:
+# 'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha'
 #params_to_change = ['exhumation_magnitude',
-# 'exhumation_start', 'exhumation_duration', 'basal_heat_flow']
-params_to_change = ['exhumation_magnitude',
-                    'exhumation_start',
-                    'exhumation_duration',
-                    'basal_heat_flow']
+#                    'exhumation_start',
+#                    'exhumation_duration',
+#                    'basal_heat_flow']
+params_to_change = ['AFT_C0', 'AFT_C1',
+                    'AFT_C2', 'AFT_C3',
+                    'AFT_alpha']
 
 # initial values for model parameters
-start_param_values = [2000.0, 10.0, 7.0, 65.0e-3]
+start_param_values = [0.39528, 0.01073, -65.12969, -7.91715, 0.04672]
 #start_param_values = [2000.0, 10.0, 7.0]
 
 # read initial params from file
-load_initial_params = True
+load_initial_params = False
 initial_params_file = 'initial_param_values.csv'
 
 # min. and max bounds for parameters
-param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
-param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
-#param_bounds_min = [0.0, 1.0, 0.1]
-#param_bounds_max = [6000.0, 13.0, 3.23]
+# set to None for unconstrained calibration
+#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
+#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+param_bounds_min = None
+param_bounds_max = None
 
 # list of variables to calibrate model to
 # choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
 # for temperature, vitrinite reflectance, apatite fission track age and
 # apatite (U-Th)/He age, respectively
-calibration_target = ['AFT_age', 'AHe']
-
-
-
+calibration_target = ['AFT_age']
 
 #################
 # goodness of fit
@@ -101,18 +98,6 @@ calibration_target = ['AFT_age', 'AHe']
 # apatite (U-Th)/He data
 gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
 
-##############################################
-# sediment provenance parameters, used for AFT
-##############################################
-# calibrate provenance ages
-calibrateProvenanceScenarios = False
-# provenance age
-# set to 0 for a provenance age that is equal to the stratigraphic
-# age of the sample
-prov_ages_start = [70.0, 70.0, 25.0, 20.0]
-# time that the sample reaches the surface:
-prov_ages_end = [68.0, 1.0, 23.1, 1.0]
-
 provenance_time_nt = 100
 
 ######################
@@ -121,12 +106,12 @@ provenance_time_nt = 100
 # heatflow_periods: first 1,2,3 or more letters of stratigraphic period to 
 # set the basal heat flow for. use heatflow_periods = 'all' to set a default 
 # value for all strat. periods
-heatflow_ages = np.array([0, 100.0])
+heatflow_ages = np.array([0.0, 10.0, 90.0, 120.0])
 # heatflow_history: heat flow in W/m^2
-heatflow_history = np.array([65.0, 65.0]) * 1e-3
+heatflow_history = np.array([61.0, 61.0, 80.0, 61.0]) * 1e-3
 
 # optimize heat flow:
-#optimize_heatflow = False
+optimize_heatflow = False
 
 # max size of heatflow timestep (in yrs)
 max_hf_timestep = 10000.0
@@ -138,33 +123,21 @@ resample_AFT_timesteps = 10
 # exhumation scenarios
 #############################
 # name of exhumation phase
-exhumation_phase_ids = ['pre-molasse_exhumation',
-                        'molasse_exhumation']
+exhumation_phase_ids = ['late_miocene_exhumation']
 # start (Ma)
-exhumation_period_starts = np.array([80, 12.0])
+exhumation_period_starts = np.array([10.0])
 # end of exhumation phase (Ma)
-exhumation_period_ends = np.array([40.0, 2.0])
+exhumation_period_ends = np.array([0.0])
 # exhumed thickness
-exhumed_thicknesses = np.array([3000.0, 1000.0])
+exhumed_thicknesses = np.array([0.0])
 
 # determine last deposited unit before unfconformity:
 # list of 'normal' stratigrpahic thicknesses
 # exhumation will start at the lowest missing unit
-# Molasse strat units, following Kemp et al. (1999)
-exhumed_strat_units = [['Kimm'],
-                       ['UMM', 'USM-I', 'USM-II',
-                       'OMM', 'OSM', 'thrust_sheet_1',
-                       'thrust_sheet_2']]
-
-# ages Molasse units according to Kemp et al., (1999)
-#exhumed_units_duration = np.array([2, 7.25, 3.75, 1,
-#                                   1.75, 4.25])
+exhumed_strat_units = [['Gellibrand_Marl', 'Port_Campbell_Lst']]
 
 # thicknesses
-# USM
-original_thicknesses = [[3000.0],
-                        [600.0, 2175.0, 1125.0,
-                        525.0, 6000.0, 6000.0, 6000.0]]
+original_thicknesses = [[750.0, 400.0]]
 
 # or set pre-exhumation thickness of particular unit, if known
 # exhumation will then be calculated to match the present-day thickness
@@ -180,25 +153,6 @@ original_thicknesses = [[3000.0],
 ###########################################
 max_thickness = 100.0
 
-#################################################################
-# change thickness of strat units
-# use this to simulate fault movement
-#################################################################
-# well ids of wells that are drilled across faults:
-#change_thickness_wells = ['HSW-01', 'ALM-01',]
-# stratigraphic units to change thickness of:
-#change_thickness_units = ['ATWD', 'ATBR2']
-# time steps (in strat units) for thickness changes
-# if a sequence of time steps is given the changes are distributed evenly
-#change_thickness_timing = [['ATWD', 'ATBR2', 'ATBRU', 'SL'],
-#                          ['ATBR2', 'NL', 'NU']]
-# change in thickness (m) for each time step:
-# 0 means that the unit is at the present-day thickness
-# positive numbers mean that the thickness of the unit increases over time
-# negative that the thickness decreases
-#change_thickness_value = [[300, 600, 500, 0],
-#                          [210, 210, 0]]
-
 ############################################
 # Apatite fission track model params:
 ############################################
@@ -211,12 +165,12 @@ use_caxis_correction = False
 
 # parameters for annealing characteristics of apatite grains
 # options for kinetic params: 
-# 'Clwt' : Chloride wt fraction
+# 'Clwt' : Chloride wt fractions 
 # 'Dpar' : Dpar / etch pit size 
-annealing_kinetic_param = 'Dpar'
-# end-member values for kinetic parameters (if no value given in input datafile for a sample)
-#annealing_kinetics_values = np.array([1.5, 1.8])
-annealing_kinetics_values = np.array([1.2, 2.2])
+annealing_kinetic_param = 'Clwt'
+# end member values for kinetic parameters (if no value given in input data)
+# min and max Cl wt % Flaxmans-1 sample (Green 1989): 0.179 % - 2.08 %
+annealing_kinetics_values = np.array([0.00179, 0.0208])
 
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
@@ -229,6 +183,14 @@ C0 = 0.39528
 C1 = 0.01073
 C2 = -65.12969
 C3 = -7.91715
+
+# calibrated values for Frio pseudo-borehole data by Corrigan (1993):
+#alpha = 0.0570171869542
+#C0 = 0.465675271105
+#C1 = 0.00893230883784
+#C2 = -75.4037631023
+#C3 = -8.20203665287
+
 
 ###################################################
 # compaction
@@ -243,5 +205,5 @@ max_decompaction_error = 0.01
 #######
 # VR
 #######
-# sigma of uncertainty range for VR data, if not specified in input VR datafile
+# sigma of uncertainty range for VR data, if not specified in input file
 vr_unc_sigma = 0.05

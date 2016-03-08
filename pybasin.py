@@ -125,7 +125,6 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                     single_grain_ages_se_plus_sample)
 
         else:
-
             # get pdf of observed age from central age instead
             ind_sample = aft_data_well['sample'].values == sample
 
@@ -135,6 +134,10 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                     aft_data_well['AFT_age'][ind_sample].values,
                     aft_data_well['AFT_age_stderr_min'][ind_sample].values,
                     aft_data_well['AFT_age_stderr_plus'][ind_sample].values)
+
+            single_grain_aft_ages.append(None)
+            single_grain_aft_ages_se_min.append(None)
+            single_grain_aft_ages_se_plus.append(None)
 
         age_bins.append(age_bin)
         age_pdfs.append(age_pdf)
@@ -369,7 +372,10 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    annealing_kinetic_param,
                                    surface_temp,
                                    aft_data_well,
-                                   calculate_thermochron_for_all_nodes=False):
+                                   calculate_thermochron_for_all_nodes=False,
+                                   C0=0.39528, C1=0.01073,
+                                   C2=-65.12969, C3=-7.91715,
+                                   alpha=0.04672):
 
     """
 
@@ -394,7 +400,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                 prov_start_nodes, prov_end_nodes,
                 annealing_kinetics_values,
                 annealing_kinetic_param,
-                surface_temp)
+                surface_temp, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
 
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
@@ -454,7 +460,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             prov_start_samples, prov_end_samples,
             annealing_kinetics_values,
             annealing_kinetic_param,
-            surface_temp)
+            surface_temp,
+            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
 
     (modeled_aft_age_samples, modeled_aft_age_samples_min,
      modeled_aft_age_samples_max,
@@ -690,7 +697,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         end = geohist_df.ix[exhumed_unit_block[0], 'age_top']
 
         if end < 0:
-            pdb.set_trace()
+            end = 0
 
         # find temperatures at start and end
         if start * 1e6 in time_array_bp and end * 1e6 in time_array_bp:
@@ -801,7 +808,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                 surface_temp,
                 aft_data_well,
                 calculate_thermochron_for_all_nodes=
-                calculate_thermochron_for_all_nodes)
+                calculate_thermochron_for_all_nodes,
+                C0=pybasin_params.C0,
+                C1=pybasin_params.C1,
+                C2=pybasin_params.C2,
+                C3=pybasin_params.C3,
+                alpha=pybasin_params.alpha)
 
     #################################
     # simulate apatite (U-Th)/He ages
@@ -885,6 +897,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     # calculate model error AFT data
     aft_age_gof = np.nan
+    aft_age_error = np.nan
     if pybasin_params.simulate_AFT is True:
 
         # calculate model error fission track data
@@ -1013,10 +1026,6 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df)
 
 
-def add_one(model_scenario_number):
-    return (model_scenario_number + 1)
-
-
 def update_model_params_and_run_model(model_scenario_params, params_to_change,
                                       model_results_df, model_results_df2,
                                       well_number, well, well_strat,
@@ -1035,14 +1044,15 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
     well_strat = well_strat_orig.copy()
 
     (exhumation_magnitude, exhumation_start, exhumation_duration,
-     basal_heat_flow, alpha, C1, C2, C3, C4) = (None, None, None, None, None,
+     basal_heat_flow, alpha, C0, C1, C2, C3) = (None, None, None, None, None,
                                                 None, None, None, None)
 
-    for i in range(len(model_scenario_params)):
-        if model_scenario_params[i] > param_bounds_max[i]:
-            model_scenario_params[i] = param_bounds_max[i]
-        if model_scenario_params[i] < param_bounds_min[i]:
-            model_scenario_params[i] = param_bounds_min[i]
+    if param_bounds_min is not None and param_bounds_max is not None:
+        for i in range(len(model_scenario_params)):
+            if model_scenario_params[i] > param_bounds_max[i]:
+                model_scenario_params[i] = param_bounds_max[i]
+            if model_scenario_params[i] < param_bounds_min[i]:
+                model_scenario_params[i] = param_bounds_min[i]
 
     if 'exhumation_magnitude' in params_to_change:
         ind = params_to_change.index('exhumation_magnitude')
@@ -1057,15 +1067,15 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
         basal_heat_flow = \
             model_scenario_params[params_to_change.index('basal_heat_flow')]
     if 'AFT_alpha' in params_to_change:
-        alpha = model_scenario_params[params_to_change.index('alpha')]
+        alpha = model_scenario_params[params_to_change.index('AFT_alpha')]
+    if 'AFT_C0' in params_to_change:
+        C0 = model_scenario_params[params_to_change.index('AFT_C0')]
     if 'AFT_C1' in params_to_change:
-        C1 = model_scenario_params[params_to_change.index('C1')]
+        C1 = model_scenario_params[params_to_change.index('AFT_C1')]
     if 'AFT_C2' in params_to_change:
-        C2 = model_scenario_params[params_to_change.index('C2')]
+        C2 = model_scenario_params[params_to_change.index('AFT_C2')]
     if 'AFT_C3' in params_to_change:
-        C3 = model_scenario_params[params_to_change.index('C3')]
-    if 'AFT_C4' in params_to_change:
-        C4 = model_scenario_params[params_to_change.index('C4')]
+        C3 = model_scenario_params[params_to_change.index('AFT_C3')]
 
     # update parameter file with new value of exhumation
     exhumation_phase_id = \
@@ -1099,19 +1109,24 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
             print 'constant basal heat flow = %0.2e' % basal_heat_flow
         elif model_scenarios.basal_heat_flow_scenario_period == 'last':
             pybasin_params.heatflow_history[-1] = basal_heat_flow
+        elif model_scenarios.basal_heat_flow_scenario_period == 'first':
+            pybasin_params.heatflow_history[0] = basal_heat_flow
 
-            print 'basal heat flow last step = %0.2e' % basal_heat_flow
+    print 'basal heat flow history:'
+    for a, b in zip(pybasin_params.heatflow_ages,
+                    pybasin_params.heatflow_history):
+        print '%0.2f Ma: %0.3e W/m2' % (a, b)
 
     if alpha is not None:
         pybasin_params.alpha = alpha
+    if C0 is not None:
+        pybasin_params.C0 = C0
     if C1 is not None:
         pybasin_params.C1 = C1
     if C2 is not None:
         pybasin_params.C2 = C2
     if C3 is not None:
         pybasin_params.C3 = C3
-    if C4 is not None:
-        pybasin_params.C4 = C4
 
     if record_data is True:
         # record scenario params in dataframe:
@@ -1125,10 +1140,10 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
         model_results_df.ix[model_scenario_number, 'basal_heat_flow'] = \
             pybasin_params.heatflow_history[-1]
         model_results_df.ix[model_scenario_number, 'AFT_eq_alpha'] = alpha
+        model_results_df.ix[model_scenario_number, 'AFT_eq_C0'] = C0
         model_results_df.ix[model_scenario_number, 'AFT_eq_C1'] = C1
         model_results_df.ix[model_scenario_number, 'AFT_eq_C2'] = C2
         model_results_df.ix[model_scenario_number, 'AFT_eq_C3'] = C3
-        model_results_df.ix[model_scenario_number, 'AFT_eq_C4'] = C4
 
     (model_run_data,
      T_model_data, T_gof,
@@ -1216,7 +1231,6 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
                 aft_age_gof, aft_age_error, AFT_data,
                 ahe_age_gof, ahe_age_error,
                 AHe_model_data)
-
 
 # check if script dir in python path
 scriptdir = os.path.realpath(sys.path[0])
@@ -1367,7 +1381,18 @@ model_scenario_param_list_raw = \
     list(itertools.product(model_scenarios.exhumation_magnitudes,
                            model_scenarios.exhumation_starts,
                            model_scenarios.exhumation_durations,
-                           model_scenarios.basal_heat_flow_scenarios))
+                           model_scenarios.basal_heat_flow_scenarios,
+                           model_scenarios.AFT_C0,
+                           model_scenarios.AFT_C1,
+                           model_scenarios.AFT_C2,
+                           model_scenarios.AFT_C3,
+                           model_scenarios.AFT_alpha))
+
+# record names of parameters
+params_to_change = ['exhumation_magnitude', 'exhumation_start',
+                    'exhumation_duration', 'basal_heat_flow',
+                    'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha']
+
 
 # go through param list to weed out scenarios with exhumation end < 0 Ma
 model_scenario_param_list = []
@@ -1420,7 +1445,6 @@ for well_number, well in enumerate(wells):
                               len(wells))
 
     if np.any(well_strats['well'] == well) is False:
-        #print 'warning, well %s not in well strat file'
         raise IOError('error, could not find well %s in well strat file')
 
     well_strat = well_strats[well_strats['well'] == well]
@@ -1428,7 +1452,6 @@ for well_number, well in enumerate(wells):
 
     # copy original well strat file
     well_strat_orig = well_strat.copy()
-
 
     if pybasin_params.calibrate_model_params is True:
 
@@ -1462,19 +1485,17 @@ for well_number, well in enumerate(wells):
                         df_init_well.loc[ind, 'obj_function'] = \
                             df_init_well.loc[ind, obj_col]
 
-            # copy parameters from best model run
+            # copy initial parameters from best model run
             max_ind = np.argmax(df_init_well['obj_function'])
 
             model_scenario_params = []
 
             for param_change in pybasin_params.params_to_change:
                 model_scenario_params.append(df_init_well.loc[max_ind, param_change])
-        else:
-            model_scenario_params = pybasin_params.start_param_values
 
-        bounds = [(minval, maxval) for minval, maxval
-                  in zip(pybasin_params.param_bounds_min,
-                         pybasin_params.param_bounds_max)]
+        else:
+            # get initial param values from pybasin_params.py file
+            model_scenario_params = pybasin_params.start_param_values
 
         args = (pybasin_params.params_to_change, model_results_df,
                 model_results_df2,
@@ -1490,11 +1511,15 @@ for well_number, well in enumerate(wells):
                 pybasin_params.param_bounds_min,
                 pybasin_params.param_bounds_max)
 
-
+        # calibrate model parameters using the scipy.optimize module:
         if (pybasin_params.opt_method == 'L-BFGS-B'
                 or pybasin_params.opt_method == 'TNC'
                 or pybasin_params.opt_method == 'SLSQP'):
 
+            # constrained calibration
+            bounds = [(minval, maxval) for minval, maxval
+                      in zip(pybasin_params.param_bounds_min,
+                             pybasin_params.param_bounds_max)]
             opt_results = opt.minimize(update_model_params_and_run_model,
                                        model_scenario_params,
                                        args=args,
@@ -1502,16 +1527,20 @@ for well_number, well in enumerate(wells):
                                        bounds=bounds)
 
         else:
-             opt_results = opt.minimize(update_model_params_and_run_model,
-                                        model_scenario_params,
-                                        args=args,
-                                        method=pybasin_params.opt_method)
+
+            # unconstrained calibration
+            opt_results = opt.minimize(update_model_params_and_run_model,
+                                    model_scenario_params,
+                                    args=args,
+                                    method=pybasin_params.opt_method)
 
         print 'final optimized parameter values:'
         print pybasin_params.params_to_change
         print opt_results.x
 
+        # copy calibrated parameter values
         model_scenario_params = opt_results.x
+
         # run the model once more with final param values
         (model_run_data,
          T_model_data, T_gof,
@@ -1520,21 +1549,21 @@ for well_number, well in enumerate(wells):
          aft_age_gof, aft_age_error, AFT_data,
          ahe_age_gof, ahe_age_error,
          AHe_model_data) = update_model_params_and_run_model(
-            model_scenario_params,
-            pybasin_params.params_to_change,
-            model_results_df,
-            model_results_df2,
-            well_number, well, well_strat, well_strat_orig,
-            strat_info_mod, pybasin_params,
-            surface_temp, litho_props,
-            csv_output_dir,
-            output_dir,
-            model_scenario_number,
-            False,
-            pybasin_params.calibration_target,
-            record_data,
-            pybasin_params.param_bounds_min,
-            pybasin_params.param_bounds_max)
+             model_scenario_params,
+             pybasin_params.params_to_change,
+             model_results_df,
+             model_results_df2,
+             well_number, well, well_strat, well_strat_orig,
+             strat_info_mod, pybasin_params,
+             surface_temp, litho_props,
+             csv_output_dir,
+             output_dir,
+             model_scenario_number,
+             False,
+             pybasin_params.calibration_target,
+             record_data,
+             pybasin_params.param_bounds_min,
+             pybasin_params.param_bounds_max)
 
         model_run_data_fig = model_run_data
 
@@ -1570,15 +1599,15 @@ for well_number, well in enumerate(wells):
             well_txt = wells[0]
         else:
             well_txt = '%s-%s' % (wells[0], wells[-1])
+
         fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
                           % (today_str, well_txt,
                              n_scenarios))
         print 'saving model results .csv file %s' % fn
         model_results_df.to_csv(fn, index_label='model_scenario_number')
 
-
     else:
-        # go through all model scenarios:
+        # go through model scenarios specified in the model_scenarios.py file:
         for well_scenario_no, model_scenario_params \
                 in enumerate(model_scenario_param_list):
 
@@ -1626,9 +1655,9 @@ for well_number, well in enumerate(wells):
                  ahe_age_gof, ahe_age_error,
                  AHe_model_data) = update_model_params_and_run_model(
                     model_scenario_params,
-                    pybasin_params.params_to_change, model_results_df,
+                    params_to_change, model_results_df,
                     model_results_df2,
-                    well_number, well, well_strat,
+                    well_number, well, well_strat, well_strat_orig,
                     strat_info_mod, pybasin_params,
                     surface_temp, litho_props,
                     csv_output_dir,

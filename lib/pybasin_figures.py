@@ -573,25 +573,28 @@ def model_vs_data_figure(model_run_data,
         leg_items.append(leg_violin)
         leg_labels.append('age distribution AFT/AHe data')
 
-        if single_grain_aft_ages != []:
+        # show single grain AFT ages, without errorbar
+        for sample_no in xrange(len(single_grain_aft_ages)):
+            x = single_grain_aft_ages[sample_no]
 
-            # show single grain AFT ages, without errorbar
-            for sample_no in xrange(len(single_grain_aft_ages)):
-                x = single_grain_aft_ages[sample_no]
+            if x is not None:
                 y = np.ones_like(x) * aft_age_depth[sample_no]
                 leg_sg = ax_afta.scatter(x, y, color='black', s=5, marker='o')
+                if len(leg_labels) == 0 or 'single grain' not in leg_labels[-1]:
+                    leg_items.append(leg_sg)
+                    leg_labels.append('single grain AFT ages')
 
-            leg_items.append(leg_sg)
-            leg_labels.append('single grain AFT ages')
+        ind_ca = np.array([a is None for a in single_grain_aft_ages])
 
-        else:
+        if True in ind_ca:
             # show central ages
-            leg_data = ax_afta.errorbar(aft_age, aft_age_depth,
-                             xerr=[aft_age_stderr_min * 1.96,
-                                   aft_age_stderr_plus * 1.96],
-                             **erb_props)
-
+            leg_data = ax_afta.errorbar(aft_age[ind_ca], aft_age_depth[ind_ca],
+                                        xerr=[aft_age_stderr_min[ind_ca] * 1.96,
+                                              aft_age_stderr_plus[ind_ca] * 1.96],
+                                        **erb_props)
+            #if len(leg_labels) == 0 or 'AFT age' not in leg_labels[-1]:
             data_label.append('AFT age')
+
             #leg_items.append(leg_ca)
             #leg_labels.append('single grain AFT ages')
 

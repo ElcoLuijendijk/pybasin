@@ -20,8 +20,8 @@ datafile_output_dir = '../../heavy_data/AFT_benchmarks'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
-simulate_AHe = True
-simulate_VR = True
+simulate_AHe = False
+simulate_VR = False
 simulate_salinity = False
 
 # option to calculate AHe ages for all nodes rather than just the samples
@@ -35,9 +35,6 @@ save_model_run_data = False
 # option to generate 1 figure for each model run:
 make_model_data_fig = True
 
-# black and white figure
-model_data_fig_bw = False
-
 # variable to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
 # to show evolution of temperature or salinity over time
@@ -45,6 +42,53 @@ contour_variable = 'temperature'
 
 # type of figure file to save (pdf, png or jpg):
 fig_adj = 'png'
+
+
+###################
+# model_calibration
+###################
+
+# turn model calibration on or off:
+calibrate_model_params = True
+
+# calibration method, see scipy optimize documentation for list of available methods:
+# http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
+opt_method = 'Nelder-Mead'
+
+# list the parameters that should be updated by either the automatic
+# calibration function or the grid model space search
+# chooose any combination of 'exhumation_magnitude', 'exhumation_start',
+# 'exhumation_duration', 'basal_heat_flow',
+# or fission track annealing params:
+# 'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha'
+#params_to_change = ['exhumation_magnitude',
+#                    'exhumation_start',
+#                    'exhumation_duration',
+#                    'basal_heat_flow']
+params_to_change = ['AFT_C0', 'AFT_C1',
+                    'AFT_C2', 'AFT_C3',
+                    'AFT_alpha']
+
+# initial values for model parameters
+start_param_values = [0.39528, 0.01073, -65.12969, -7.91715, 0.04672]
+#start_param_values = [2000.0, 10.0, 7.0]
+
+# read initial params from file
+load_initial_params = False
+initial_params_file = 'initial_param_values.csv'
+
+# min. and max bounds for parameters
+# set to None for unconstrained calibration
+#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
+#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+param_bounds_min = None
+param_bounds_max = None
+
+# list of variables to calibrate model to
+# choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
+# for temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He age, respectively
+calibration_target = ['AFT_age']
 
 #################
 # goodness of fit
@@ -64,7 +108,7 @@ provenance_time_nt = 100
 # value for all strat. periods
 heatflow_ages = np.array([0, 90.0, 120.0])
 # heatflow_history: heat flow in W/m^2
-heatflow_history = np.array([61.0, 80.0, 61.0]) * 1e-3
+heatflow_history = np.array([70.0, 70.0, 70.0]) * 1e-3
 
 # optimize heat flow:
 optimize_heatflow = False
@@ -129,13 +173,23 @@ use_caxis_correction = False
 # options for kinetic params: 
 # 'Clwt' : Chloride wt fractions 
 # 'Dpar' : Dpar / etch pit size 
-annealing_kinetic_param = 'Dpar'
+annealing_kinetic_param = 'Clwt'
 # end member values for kinetic parameters (if no value given in input data)
-#annealing_kinetics_values = np.array([1.5, 1.8])
-annealing_kinetics_values = np.array([1.2, 2.2])
+# min and max Corrigan (1993): 0 - 1.25 Cl wt %
+# +- 2 stdev = 0 - 0.84 Cl wt%
+annealing_kinetics_values = np.array([0.0, 0.0084])
 
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
+
+# empirical coefficients AFT annealing equation
+# default values from Ketcham et al. (2007) American Mineralogist
+# fanning curvelinear model values in Table 5
+alpha = 0.04672
+C0 = 0.39528
+C1 = 0.01073
+C2 = -65.12969
+C3 = -7.91715
 
 ###################################################
 # compaction
