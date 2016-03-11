@@ -1942,9 +1942,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                          litho_props.ix['water', 'density'])
         hp_df.ix[ix] = hf_param_df.ix[ix, 'HP'] * (1.0 - porosity_df.ix[ix])
 
-    ##############################################
-    # set up arrays for forward model of heat flow
-    ##############################################
+    ############################################################
+    # set up arrays for forward model of heat flow and salinity
+    ############################################################
 
     # calculate timesteps
     if (np.min(durations) * 1e6 / 2.0) < pybasin_params.max_hf_timestep:
@@ -2035,6 +2035,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         z_nodes[timestep:(timestep + nt_heatflow), 2::2] = zs_bottom
 
         timestep += nt_heatflow
+
+
+    if pybasin_params.simulate_salinity is True:
+        Q_solute = np.zeros_like(porosity_nodes)
+        fixed_lower_salinity = pybasin_params.fixed_lower_bnd_salinity
 
     thickness_all = np.diff(z_nodes, axis=1)
 
@@ -2142,6 +2147,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         porosity_nodes[timestep:end_step, active_nodes[timestep]] = phi_active
 
         timestep += nt_heatflow
+
+    # calculate tortuosity, required for salt diffusion coefficient
+    if pybasin_params.simulate_salinity is True:
+        tortuosity_nodes = porosity_nodes**pybasin_params.tortuosity_factor
+        tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
     # check to remove 0 depth nodes after erosion phases
     for nti in xrange(nt_total):
@@ -2277,28 +2287,19 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         if pybasin_params.simulate_salinity is True:
 
-            Q_solute = np.zeros_like(porosity_nodes[timestep, active_cells_i])
-
-            fixed_lower_salinity = pybasin_params.fixed_lower_bnd_salinity
-
             if timestep == 0:
                 C_init = C_nodes[timestep, active_nodes_i]
             else:
                 C_init = C_nodes[timestep-1, active_nodes_i]
 
-            #Ks_nodes = np.zeros_like(porosity_nodes)
-            #tortuosity_factor = -1/3.
-            #Dw = 20.3e-10
-
-            tortuosity_nodes = porosity_nodes**pybasin_params.tortuosity_factor
-            tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
-
             if pybasin_params.constant_diffusivity is False:
-                Dw = calculate_diffusion_coeff(T_nodes[timestep, active_nodes_i], C_init)
+                Dw = calculate_diffusion_coeff(T_nodes[timestep,
+                                                       active_nodes_i], C_init)
             else:
                 Dw = pybasin_params.Dw
 
-            Ks_nodes = porosity_nodes[timestep, active_nodes_i] / tortuosity_nodes[timestep, active_nodes_i] * Dw
+            Ks_nodes = porosity_nodes[timestep, active_nodes_i] / \
+                       tortuosity_nodes[timestep, active_nodes_i] * Dw
 
             Ks_cells = (Ks_nodes[1:] + Ks_nodes[:-1]) / 2.0
 
@@ -2309,23 +2310,20 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     dt_hf * year,
                     Ks_cells,
                     porosity_nodes[timestep, active_nodes_i],
-                    Q_solute,
+                    Q_solute[timestep, active_nodes_i],
                     None,
                     None,
                     surface_salinity_array[timestep],
                     fixed_lower_salinity)
 
-            #pdb.set_trace()
-
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
-            print 'error, nan values in T array'
 
             for cs, ac, rho in zip(cell_strat, active_cells[timestep],
                                    rho_nodes[timestep]):
 
                 print cs, ac, rho
 
-            pdb.set_trace()
+            raise ValueError('error, nan values in T array')
 
         if timestep in cumulative_steps:
 

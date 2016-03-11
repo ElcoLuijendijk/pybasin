@@ -31,7 +31,14 @@ exhumation_magnitudes = [None]
 # exhumation (Ma), second is duration of exhumation (My)
 # example to test 2 scenarios, with exhumation starting at 10 Ma and 7.5 Ma
 # and duration of 5 My and 2.5 My:
-exhumation_starts_and_durations = [[None, None]]
+#exhumation_starts_and_durations = [[None, None]]
 
+exhumation_starts = [None]
+exhumation_durations = [None]
 
-
+AFT_C0 = [None]
+AFT_C1 = [None]
+AFT_C2 = [None]
+AFT_C3 = [None]
+AFT_C4 = [None]
+AFT_alpha = [None]

@@ -767,11 +767,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df.ix[model_scenario_number, 'vr_surface'] = \
                 vr_nodes[-1, active_nodes[-1]][0]
 
-    #
-    calculate_thermochron_for_all_nodes = \
-        pybasin_params.calculate_thermochron_for_all_nodes
-    if pybasin_params.make_model_data_fig is True:
-        calculate_thermochron_for_all_nodes = True
+    if (pybasin_params.simulate_AFT is True
+            or pybasin_params.simulate_AHe is True):
+        calculate_thermochron_for_all_nodes = \
+            pybasin_params.calculate_thermochron_for_all_nodes
+        if pybasin_params.make_model_data_fig is True:
+            calculate_thermochron_for_all_nodes = True
 
     ##############################################################
     # simulate apatite fission track ages and length distributions
@@ -1010,11 +1011,10 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     else:
         AHe_model_data = None
 
-    model_run_data = [
-        time_array_bp,
-        surface_temp_array, basal_hf_array,
-        z_nodes, active_nodes, T_nodes,
-        node_strat, node_age]
+    model_run_data = [time_array_bp,
+                      surface_temp_array, basal_hf_array,
+                      z_nodes, active_nodes, T_nodes,
+                      node_strat, node_age]
 
     return (model_run_data,
             T_model_data, T_gof,
@@ -1682,7 +1682,7 @@ for well_number, well in enumerate(wells):
             #    z_nodes, active_nodes, T_nodes,
             #    node_strat, node_age]
 
-            model_run_data_fig = model_run_data
+            model_run_data_fig = list(model_run_data)
 
             model_run_data_fig.append(T_model_data)
             model_run_data_fig.append(C_data)

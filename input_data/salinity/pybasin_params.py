@@ -48,6 +48,52 @@ fig_adj = 'png'
 # temperature, vitrinite reflectance and apatite fission track age data
 gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0]
 
+###################
+# model_calibration
+###################
+
+# turn model calibration on or off:
+calibrate_model_params = False
+
+# calibration method, see scipy optimize documentation for list of available methods:
+# http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
+opt_method = 'Nelder-Mead'
+
+# list the parameters that should be updated by either the automatic
+# calibration function or the grid model space search
+# chooose any combination of 'exhumation_magnitude', 'exhumation_start',
+# 'exhumation_duration', 'basal_heat_flow',
+# or fission track annealing params:
+# 'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha'
+#params_to_change = ['exhumation_magnitude',
+#                    'exhumation_start',
+#                    'exhumation_duration',
+#                    'basal_heat_flow']
+params_to_change = ['AFT_C0', 'AFT_C1',
+                    'AFT_C2', 'AFT_C3',
+                    'AFT_alpha']
+
+# initial values for model parameters
+start_param_values = [0.39528, 0.01073, -65.12969, -7.91715, 0.04672]
+#start_param_values = [2000.0, 10.0, 7.0]
+
+# read initial params from file
+load_initial_params = False
+initial_params_file = 'initial_param_values.csv'
+
+# min. and max bounds for parameters
+# set to None for unconstrained calibration
+#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
+#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+param_bounds_min = None
+param_bounds_max = None
+
+# list of variables to calibrate model to
+# choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
+# for temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He age, respectively
+calibration_target = ['AFT_age']
+
 ##############################################
 # sediment provenance parameters, used for AFT
 ##############################################
@@ -159,6 +205,15 @@ annealing_kinetics_values = np.array([1.2, 2.2])
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
 
+# empirical coefficients AFT annealing equation
+# default values from Ketcham et al. (2007) American Mineralogist
+# fanning curvelinear model values in Table 5
+alpha = 0.04672
+C0 = 0.39528
+C1 = 0.01073
+C2 = -65.12969
+C3 = -7.91715
+
 ###################################################
 # compaction
 # (see input data for porosity vs depth parameters)
@@ -184,7 +239,7 @@ Dw = 20.3e-10
 
 fixed_lower_bnd_salinity = 0.30
 
-constant_diffusivity = True
+constant_diffusivity = False
 
 salinity_seawater = 0.035
 salinity_freshwater = 0.0001
