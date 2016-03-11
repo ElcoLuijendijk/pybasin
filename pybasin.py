@@ -767,6 +767,28 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df.ix[model_scenario_number, 'vr_surface'] = \
                 vr_nodes[-1, active_nodes[-1]][0]
 
+    if pybasin_params.simulate_salinity is True:
+        # store depth to 1 g/L aand 0.035 kg/kg salinity
+
+        # calculate density from salinity and temperature
+
+        density = pybasin_lib.equations_of_state_batzle1992(
+            np.zeros_like(T_nodes[-1, active_nodes[-1]]),
+            T_nodes[-1, active_nodes[-1]],
+            C_nodes[-1, active_nodes[-1]])
+
+        C_nodes_gl = C_nodes[-1, active_nodes[-1]] * density
+        depth_to_1g_per_l = np.interp([1.0], C_nodes_gl,
+                                      z_nodes[-1, active_nodes[-1]])
+        depth_to_seawater_salinity = np.interp([pybasin_params.salinity_seawater],
+                                               C_nodes[-1, active_nodes[-1]],
+                                               z_nodes[-1, active_nodes[-1]])
+
+        model_results_df.ix[model_scenario_number, 'depth_to_C=1gL-1'] = \
+            depth_to_1g_per_l
+        model_results_df.ix[model_scenario_number, 'depth_to_C=0.035kg/kg'] = \
+            depth_to_seawater_salinity
+
     if (pybasin_params.simulate_AFT is True
             or pybasin_params.simulate_AHe is True):
         calculate_thermochron_for_all_nodes = \
@@ -1709,8 +1731,6 @@ for well_number, well in enumerate(wells):
              surface_temp_array, basal_hf_array,
              z_nodes, active_nodes, T_nodes,
              node_strat, node_age) = model_run_data
-
-
 
             l = len(z_nodes[-1, active_nodes[-1]]) - 1
             dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \

@@ -139,23 +139,14 @@ exhumation_period_ends = np.array([70.0])
 # exhumed thickness
 exhumed_thicknesses = np.array([1.0])
 
-# determine last deposited unit before unconformity:
-exhumed_strat_units = ['SLDNA']
-
 # determine last deposited unit before unfconformity:
-# list of 'normal' stratigrpahic thicknesses
+# list of 'normal' stratigraphic thicknesses
 # exhumation will start at the lowest missing unit
 exhumed_strat_units = [['ATAL']]
 
 # thicknesses
 original_thicknesses = [[0.0]]
 
-# or set pre-exhumation thickness of particular unit, if known
-# exhumation will then be calculated to match the present-day thickness
-# of this unit in each well
-# set to None if you do not use this feature
-#pre_exhumation_units = [None, 'AT', None, None]
-#pre_exhumation_thicknesses = np.array([0.0, 1200.0, 0.0, 0.0])
 
 ###########################################
 # max thickness of strat units
@@ -163,25 +154,6 @@ original_thicknesses = [[0.0]]
 # to keep the modeled temperatures accurate
 ###########################################
 max_thickness = 100.0
-
-#################################################################
-# change thickness of strat units
-# use this to simulate fault movement
-#################################################################
-# well ids of wells that are drilled across faults:
-change_thickness_wells = ['HSW-01', 'ALM-01',]
-# stratigraphic units to change thickness of:
-change_thickness_units = ['ATWD', 'ATBR2']
-# time steps (in strat units) for thickness changes
-# if a sequence of time steps is given the changes are distributed evenly
-change_thickness_timing = [['ATWD', 'ATBR2', 'ATBRU', 'SL'],
-                          ['ATBR2', 'NL', 'NU']]
-# change in thickness (m) for each time step:
-# 0 means that the unit is at the present-day thickness
-# positive numbers mean that the thickness of the unit increases over time
-# negative that the thickness decreases
-change_thickness_value = [[300, 600, 500, 0],
-                          [210, 210, 0]]
 
 ############################################
 # Apatite fission track model params:

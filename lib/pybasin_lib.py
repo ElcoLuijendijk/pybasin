@@ -1772,6 +1772,42 @@ def calculate_viscosity_np(C, T):
     return viscosity
 
 
+def equations_of_state_batzle1992(P, T, C):
+
+    """
+    Calculate density using equation of state provided by
+    Batzle and Wang (1992) Geophysics 57 (11): 1396-1408
+
+    Parameters
+    ----------
+    P : float or array
+        pressure (Pa)
+    T : float or array
+        temperature (degrees C)
+    C : float or array
+        solute concentration (kg / kg)
+
+    Returns
+    -------
+    rho_b : float or array
+        water density (kg m^-3)
+
+    """
+
+    rho_w = 1 + 1e-6 * (-80*T - 3.3 * T**2 + 0.00175 * T**3 + 489 * P
+                        - 2 * T * P + 0.016 * T**2 * P - 1.3e-5 * T**3 * P
+                        - 0.333 * P**2 - 0.002 * T * P**2)
+
+    rho_b = rho_w + C * (0.668 + 0.44 * C + 1e-6 * (300 * P - 2400 * P * C
+                                                    + T * (80 + 3 * T
+                                                           - 3300 * C
+                                                           - 13 * P
+                                                           + 47 * P * C)))
+    # convert to kg/m3
+    rho_b = rho_b * 1000.0
+
+    return rho_b
+
 def calculate_diffusion_coeff(T_cal, C):
     """
      taken from paper written by (Simpson and Carr, 1958)
