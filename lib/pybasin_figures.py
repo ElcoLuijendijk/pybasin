@@ -637,12 +637,12 @@ def model_vs_data_figure(model_run_data,
         ahe_age_max = np.max(ahe_age_max_grains, axis=1)
 
         ax_ahe.fill_betweenx(z_nodes[-1, active_nodes[-1]],
-                                               ahe_age_min, ahe_age_max,
-                                               color='lightgrey')
+                             ahe_age_min, ahe_age_max,
+                             color='lightgrey')
         leg_model_range = mpatches.Patch(color='lightgrey')
         leg_strat, = ax_ahe.plot(node_age[active_nodes[-1]],
-                                z_nodes[-1, active_nodes[-1]],
-                                color='green', lw=1.5, ls='--', zorder=101)
+                                 z_nodes[-1, active_nodes[-1]],
+                                 color='green', lw=1.5, ls='--', zorder=101)
         leg_items.append(leg_strat)
         leg_labels.append('age of deposition')
 
@@ -659,7 +659,9 @@ def model_vs_data_figure(model_run_data,
 
     if AHe_data is not None:
         for ahe_ages_sample, ahe_sample_depth, ahe_ages_sample_SE in \
-                zip(ahe_ages_all_samples, ahe_sample_depths, ahe_ages_all_samples_SE):
+                zip(ahe_ages_all_samples,
+                    ahe_sample_depths,
+                    ahe_ages_all_samples_SE):
 
             #show AHe ages:
             depths = np.ones(len(ahe_ages_sample)) * ahe_sample_depth
@@ -736,7 +738,8 @@ def model_vs_data_figure(model_run_data,
     #
     max_time = time_array_bp.max() / 1e6 * 1.1
 
-    if AFT_data is not None and show_provenance_hist is True and simulated_AFT_data is not None:
+    if (AFT_data is not None and show_provenance_hist is True
+            and simulated_AFT_data is not None):
         start_times = np.array([ai[0]
                                 for a in aft_node_times_burial
                                 for ai in a])
@@ -840,13 +843,15 @@ def model_vs_data_figure(model_run_data,
 
     if AFT_data is not None and np.isnan(aft_age_GOF) == False:
         ax_afta.text(0.5, 1.03,
-                     'GOF=%0.2f\nerror=%0.2f My' % (aft_age_GOF, aft_age_error),
+                     'GOF=%0.2f\nerror=%0.2f My'
+                     % (aft_age_GOF, aft_age_error),
                      transform=ax_afta.transAxes,
                      **textprops)
 
     if AHe_data is not None and np.isnan(ahe_age_gof) == False:
         ax_ahe.text(0.5, 1.03,
-                    'GOF=%0.2f\nerror=%0.2f My' % (ahe_age_gof, ahe_age_error),
+                    'GOF=%0.2f\nerror=%0.2f My'
+                    % (ahe_age_gof, ahe_age_error),
                     transform=ax_ahe.transAxes,
                     **textprops)
 
