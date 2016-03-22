@@ -230,7 +230,10 @@ def add_exhumation_phases(well_strat,
                           exhumed_thicknesses,
                           original_thicknesses,
                           max_thickness,
-                          strat_info_mod):
+                          strat_info_mod,
+                          two_stage_exh=False,
+                          exhumation_time_factor=0.5,
+                          exhumation_rate_factor=0.5):
     
     """
     add exhumation phases to well stratigraphy dataframe
@@ -401,7 +404,7 @@ def add_exhumation_phases(well_strat,
             youngest_units = [youngest_unit in w_unit for w_unit in wsl]
             n_youngest_units = np.sum(np.array(youngest_units))
 
-            # update ages youngest preserved units if poartly preserved and
+            # update ages youngest preserved units if partly preserved and
             # partly eroded:
             if df_ex.ix[youngest_unit, 'duration_non_preserved_units'] > 0:
                 start_y = well_strat.ix[youngest_units, 'age_bottom'].max()
@@ -469,6 +472,70 @@ def add_exhumation_phases(well_strat,
                             df_ex.ix[eroded_unit, 'thickness_additional_units'])
                         deposition_codes.append(-1)
 
+    if two_stage_exh is True:
+        # experimental: go through exhumation duration list and
+        # adjust duration to implement two-stage cooling
+        ind_exh = np.array(deposition_codes) == -1
+        new_units_start_mod = np.array(new_units_start_list, dtype=float)[ind_exh]
+        new_units_end_mod = np.array(new_units_end_list, dtype=float)[ind_exh]
+        duration_exh = np.array(new_units_start_list, dtype=float)[ind_exh] \
+                       - np.array(new_units_end_list, dtype=float)[ind_exh]
+        duration_exh_total = np.sum(duration_exh)
+
+        # time_factor = 0.5 -> determines point of separation between slow and fast exhumation
+
+        # determines relative exhumation rate compared to second segment
+
+
+        # find first and second exhumation segments:
+        end_exhumation_segment1 = int(np.round(len(duration_exh) * (1 - exhumation_time_factor)))
+        duration_exh_new = duration_exh.copy()
+
+        # adjust duration of first exhumation segment
+        a = np.sum(duration_exh_new[:end_exhumation_segment1]) / duration_exh_total
+        duration_exh_new[:end_exhumation_segment1] *= exhumation_rate_factor / a
+
+        # change number and time of exhumation 2nd segment
+        ne_left = len(duration_exh_new[end_exhumation_segment1:])
+        time_left = duration_exh_total -  np.sum(duration_exh_new[:end_exhumation_segment1])
+        time_taken = duration_exh_new[end_exhumation_segment1:].sum()
+        #time_change = duration_exh_total - np.sum(duration_exh_new)
+
+        # adjust duration exhumation 2nd segment
+        duration_exh_new[end_exhumation_segment1:] *= time_left / time_taken
+
+        if np.abs(np.sum(duration_exh_new) - duration_exh_total) > 0.0001:
+            msg = 'error, distributing exhumation in 2 segments resulted ' \
+                  'in change of duration total exhumation'
+            raise ValueError(msg)
+
+        # recalculate start and end of exhumation phases
+        new_units_start_mod2 = new_units_start_mod.copy()
+        new_units_end_mod2 = new_units_end_mod.copy()
+        for i in range(1, len(new_units_start_mod)+1):
+            if i > 1:
+                new_units_start_mod2[-i] = new_units_end_mod2[-(i-1)]
+            new_units_end_mod2[-i] = new_units_start_mod2[-i] - duration_exh_new[-i]
+
+        print 'old exhumation starts and ends'
+        print new_units_start_mod
+        print new_units_end_mod
+        print 'modified 2-stage exhumation starts and ends:'
+        print new_units_start_mod2
+        print new_units_end_mod2
+
+        new_units_start3 = np.array(new_units_start_list)
+        new_units_end3 = np.array(new_units_end_list)
+
+        new_units_start3[ind_exh] = new_units_start_mod2
+        new_units_end3[ind_exh] = new_units_end_mod2
+
+        # replace old start and end values
+        new_units_start_list = list(new_units_start3)
+        new_units_end_list = list(new_units_end3)
+
+
+
     # set up new dataframe with new units and exhumation phases
     exhumation_df = pd.DataFrame(index=new_units_strat_list,
                                  columns=well_strat.columns,
@@ -487,6 +554,8 @@ def add_exhumation_phases(well_strat,
 
     # sort new dataframe to have correct sequence:
     output_df = output_df.sort(['age_bottom'])
+
+    #pdb.set_trace()
 
     return output_df
 
@@ -1076,7 +1145,10 @@ def get_geo_history(well_strat, strat_info_mod,
                     exhumed_strat_units,
                     exhumed_thicknesses,
                     original_thicknesses,
-                    max_thickness):
+                    max_thickness,
+                    two_stage_exh=False,
+                    exhumation_time_factor=0.5,
+                    exhumation_rate_factor=0.5):
 
     """
     set up a geohistory dataframe from an input file containing well stratigraphy
@@ -1133,7 +1205,10 @@ def get_geo_history(well_strat, strat_info_mod,
             exhumed_thicknesses,
             original_thicknesses,
             max_thickness,
-            strat_info_mod)
+            strat_info_mod,
+            two_stage_exh=True,
+            exhumation_time_factor=exhumation_time_factor,
+            exhumation_rate_factor=exhumation_rate_factor)
 
     exhumed_units = [g for g in geohist_df.index if g[0] == '+']
 
@@ -1860,7 +1935,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         pybasin_params.exhumed_strat_units,
         pybasin_params.exhumed_thicknesses,
         pybasin_params.original_thicknesses,
-        pybasin_params.max_thickness)
+        pybasin_params.max_thickness,
+        two_stage_exh=pybasin_params.two_stage_exhumation,
+        exhumation_time_factor=pybasin_params.exhumation_time_factor,
+        exhumation_rate_factor=pybasin_params.exhumation_rate_factor)
 
     if save_csv_files is True:
         # save geohistory dataframe as .csv file

@@ -146,7 +146,7 @@ def model_vs_data_figure(model_run_data,
      surface_temp_array, basal_hf_array,
      z_nodes, active_nodes, T_nodes,
      node_strat, node_age,
-     T_data, C_data, VR_data, AFT_data, AHe_data] = \
+     T_data, C_data, VR_model_data, AFT_data, AHe_data] = \
         model_run_data
 
     if T_data is not None:
@@ -160,12 +160,12 @@ def model_vs_data_figure(model_run_data,
          salinity_depth, salinity_data, salinity_data_unc,
          salinity_RMSE] = C_data
 
-    if VR_data is not None:
+    if VR_model_data is not None:
         [vr_nodes,
          vr_depth,
-         vr_data,
-         vr_data_sigma,
-         vr_GOF] = VR_data
+         vr_obs,
+         vr_obs_sigma,
+         vr_GOF] = VR_model_data
 
     if AFT_data != None:
         [simulated_AFT_data,
@@ -246,8 +246,8 @@ def model_vs_data_figure(model_run_data,
     max_depth = z_nodes.max() * 1.1
 
     # skip VR, AFT and AHe panels if no data
-    if VR_data is not None and len(vr_data) == 0:
-        VR_data = None
+    if VR_model_data is not None and len(vr_obs) == 0:
+        VR_model_data = None
     if AFT_data is not None and len(aft_age) == 0:
         AFT_data = None
     if AHe_data is not None and len(ahe_ages_all_samples) == 0:
@@ -258,7 +258,7 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(3)
 
-    if VR_data is not None:
+    if VR_model_data is not None:
         vr_panel_ind = ncols
         ncols += 1
         width_ratios.append(3)
@@ -290,7 +290,7 @@ def model_vs_data_figure(model_run_data,
     if C_data is not None:
         ax_c = fig.add_subplot(gs[1, C_panel_ind])
         all_panels.append(ax_c)
-    if VR_data is not None:
+    if VR_model_data is not None:
         ax_vr = fig.add_subplot(gs[1, vr_panel_ind])
         all_panels.append(ax_vr)
     if AFT_data is not None:
@@ -356,8 +356,7 @@ def model_vs_data_figure(model_run_data,
                   **line_props)
 
     ts = 1.0e5
-    xi = np.arange(np.min(time_array_bp), np.max(time_array_bp) + ts, ts) \
-        / 1.0e6
+
 
     if z_nodes.max() < 1000:
         ys = 1.0
@@ -378,6 +377,11 @@ def model_vs_data_figure(model_run_data,
     mean_timestep = np.mean(-np.diff(time_array_bp))
     time_int_grid = int(np.round(ts / mean_timestep))
 
+    ntsx = len(time_2d[::time_int_grid])
+
+    xi = np.linspace(np.min(time_array_bp), np.max(time_array_bp), ntsx) \
+        / 1.0e6
+
     x = time_2d[::time_int_grid].ravel()
     y = z_nodes[::time_int_grid].ravel()
     z = cnt_var_mask[::time_int_grid].ravel()
@@ -396,7 +400,10 @@ def model_vs_data_figure(model_run_data,
         z_1d = cnt_var_mask[tsi * time_int_grid]
         ind_nan = np.isnan(z_1d) == False
         z_interpolated = np.interp(yi, y_1d[ind_nan], z_1d[ind_nan])
-        zi[:, -tsi] = z_interpolated
+        try:
+            zi[:, -tsi] = z_interpolated
+        except IndexError:
+            pdb.set_trace()
 
     if gridding_ok is True:
         # find max depth at each timestep
@@ -517,14 +524,14 @@ def model_vs_data_figure(model_run_data,
         data_label.append('salinity')
 
     # plot vitrinite
-    if VR_data is not None and vr_nodes is not None and len(vr_data) > 0:
+    if VR_model_data is not None and vr_nodes is not None and len(vr_obs) > 0:
         leg_model, = ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
                                 z_nodes[-1, active_nodes[-1]],
                                 **line_props)
 
-        #if VR_data is not None and len(vr_data) > 0:
-        leg_data = ax_vr.errorbar(vr_data, vr_depth,
-                                  xerr=vr_data_sigma,
+        #if VR_model_data is not None and len(vr_data) > 0:
+        leg_data = ax_vr.errorbar(vr_obs, vr_depth,
+                                  xerr=vr_obs_sigma,
                                   **erb_props)
 
         model_label.append('VR')
@@ -711,7 +718,7 @@ def model_vs_data_figure(model_run_data,
 
     if C_data is not None:
         ax_c.set_xlabel('Salinity (kg/kg)')
-    if VR_data is not None:
+    if VR_model_data is not None:
         ax_vr.set_xlabel('VR (Ro)')
     if AFT_data is not None:
         ax_afta.set_xlabel('AFT age (Ma)')
@@ -766,13 +773,13 @@ def model_vs_data_figure(model_run_data,
         max_C = salinity_data.max()
         ax_c.set_xlim(0, max_C * 1.1)
 
-    if VR_data is not None:
+    if VR_model_data is not None:
         if vr_nodes is not None:
             max_VR = vr_nodes.max()
         else:
             max_VR = 1.5
-        if len(vr_data) > 0 and vr_data.max() > max_VR:
-            max_VR = vr_data.max()
+        if len(vr_obs) > 0 and vr_obs.max() > max_VR:
+            max_VR = vr_obs.max()
         ax_vr.set_xlim(0.1, max_VR * 1.1)
 
     thermochron_age_max = max_time
@@ -803,7 +810,7 @@ def model_vs_data_figure(model_run_data,
 
     # remove last tick label to avoid overlap
     ax_temp.set_xticks(ax_temp.get_xticks()[:-1])
-    if VR_data is not None:
+    if VR_model_data is not None:
         ax_vr.set_xticks(ax_vr.get_xticks()[:-1])
     if AFT_data is not None:
         ax_afta.set_xticks(ax_afta.get_xticks()[:-1])
@@ -835,7 +842,7 @@ def model_vs_data_figure(model_run_data,
                      transform=ax_temp.transAxes,
                      **textprops)
 
-    if VR_data is not None and np.isnan(vr_GOF) == False:
+    if VR_model_data is not None and np.isnan(vr_GOF) == False:
         ax_vr.text(0.5, 1.03,
                    'GOF=%0.2f' % vr_GOF,
                    transform=ax_vr.transAxes,

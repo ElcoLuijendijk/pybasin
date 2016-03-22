@@ -152,7 +152,12 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
                                 kinetic_parameter='Clwt',
                                 kinetic_value=0.0,
                                 rmr0_min=0,
-                                rmr0_max=0.85):
+                                rmr0_max=0.85,
+                                alpha=0.04672,
+                                C0=0.39528,
+                                C1=0.01073,
+                                C2=-65.12969,
+                                C3=-7.91715):
 
     """
     calculate He diffusivity as a function of radiation damage
@@ -211,7 +216,10 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
-        rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa, nsteps)
+        rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa,
+                                                            alpha, C0, C1, C2, C3, nsteps)
+        #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
+        #    dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
         rm = rmf
         rc = rcf
 

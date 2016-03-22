@@ -37,8 +37,8 @@ basal_heat_flow_scenario_period = 'all'
 # basal heat flow scenarios to try, heat flow in mW m^-2
 # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
 #basal_heat_flow_scenarios = [50e-3, 70e-3, 90e-3]
-#basal_heat_flow_scenarios = np.arange(40, 105, 5.0) * 1e-3
-basal_heat_flow_scenarios = [65.0 * 1e-3]
+basal_heat_flow_scenarios = np.arange(45, 90, 5.0) * 1e-3
+#basal_heat_flow_scenarios = [65.0 * 1e-3]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
@@ -47,8 +47,9 @@ exhumation_scenarios_period = 'molasse_exhumation'
 # exhumation (m) for each model scenario
 # example for testing exhumation of 500, 1000 and 1500 m:
 # exhumation_magnitudes = [500, 1000, 1500]
-#exhumation_magnitudes = np.arange(0., 5000, 500)
-exhumation_magnitudes = [1000.0, 2000.0, 3000.0]
+exhumation_magnitudes = np.arange(0., 5000, 500)
+#exhumation_magnitudes = [1000.0, 2000.0, 3000.0]
+#exhumation_magnitudes = [5000.0]
 
 # exhumation phase start and duration
 # list of lists or list of tuples. first value of inner list or tuple is start of
@@ -64,8 +65,19 @@ exhumation_magnitudes = [1000.0, 2000.0, 3000.0]
 #                                   [8.0, 1.0],
 #                                   [4.0, 1.0]]
 #exhumation_starts_and_durations = [[10.0, 7.0]]
-#exhumation_starts = np.arange(1.0, 14.0, 2.0)
+exhumation_starts = np.arange(1.0, 12.0, 2.0)
 #exhumation_durations = np.arange(1.0, 13.0, 2.0)
 #exhumation_durations = np.arange(0.1, 1.0, 0.1)
-exhumation_starts = [9.0]
-exhumation_durations = [7.0]
+#exhumation_starts = [12.0]
+exhumation_durations = [14.0]
+
+exhumation_time_factors = [0.2, 0.5, 0.8]
+exhumation_rate_factors = [0.2, 0.5, 0.8]
+
+# AFT annealing eq. parameters, see Ketcham et al. (2007) Am. Min.
+AFT_C0 = [None]
+AFT_C1 = [None]
+AFT_C2 = [None]
+AFT_C3 = [None]
+AFT_C4 = [None]
+AFT_alpha = [None]

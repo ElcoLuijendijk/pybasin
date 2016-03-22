@@ -36,7 +36,7 @@ save_model_run_data = False
 ################
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = True
+make_model_data_fig = False
 
 # black and white figure
 #model_data_fig_bw = False
@@ -55,7 +55,7 @@ fig_adj = 'png'
 ###################
 
 # turn model calibration on or off:
-calibrate_model_params = True
+calibrate_model_params = False
 
 # calibration method, see scipy optimize documentation for list of available methods:
 # http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
@@ -79,8 +79,10 @@ load_initial_params = True
 initial_params_file = 'initial_param_values.csv'
 
 # min. and max bounds for parameters
-param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
-param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
+#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+param_bounds_min = None
+param_bounds_max = None
 #param_bounds_min = [0.0, 1.0, 0.1]
 #param_bounds_max = [6000.0, 13.0, 3.23]
 
@@ -89,8 +91,6 @@ param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
 # for temperature, vitrinite reflectance, apatite fission track age and
 # apatite (U-Th)/He age, respectively
 calibration_target = ['AFT_age', 'AHe']
-
-
 
 
 #################
@@ -172,6 +172,18 @@ original_thicknesses = [[3000.0],
 # set to None if you do not use this feature
 #pre_exhumation_units = [None, 'AT', None, None]
 #pre_exhumation_thicknesses = np.array([0.0, 1200.0, 0.0, 0.0])
+
+# support for two-stage exhumation history, enables fast and slow exhumation segments
+# switch for two-stage exhumation
+two_stage_exhumation = True
+# fraction of total duration of exhumation phase that separates the first and second segment
+exhumation_time_factor = 0.9
+# fraction of exhumation that takes place in the first of two segments
+exhumation_rate_factor = 0.75
+
+# parameter to automatically reduce exhumation duration if end of
+# exhumation is < 0 Ma
+correct_exhumation_duration = True
 
 ###########################################
 # max thickness of strat units
