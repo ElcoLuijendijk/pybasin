@@ -2373,8 +2373,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             time_all += nt_heatflow * dt_hf
             timestep += nt_heatflow
 
-
-
         # overwrite with specified surface salinity in case this information is passed to this function
         if surface_salinity_well is not None:
             for i in surface_salinity_well.index:
@@ -2386,9 +2384,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     print 'updating surface salinity bnd, ', surface_salinity_well
                     surface_salinity_array[ind_t] = surface_salinity_well.loc[i, 'surface_salinity']
 
-        pdb.set_trace()
-
-       # interpolate surface salinity
+        # interpolate surface salinity
         #surface_salinity_array = np.interp(time_array_bp,
         #                                   Cs['age'].values * 1.0e6,
         #                                   Cs['surface_salinity'])
