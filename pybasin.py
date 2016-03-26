@@ -647,7 +647,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
 def run_model_and_compare_to_data(well_number, well, well_strat,
                                   strat_info_mod, pybasin_params,
-                                  surface_temp, litho_props,
+                                  surface_temp, surface_salinity_well,
+                                  litho_props,
                                   csv_output_dir,
                                   model_scenario_number,
                                   model_results_df,
@@ -661,7 +662,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     model_result_vars = \
         pybasin_lib.run_burial_hist_model(well_number, well, well_strat,
                                           strat_info_mod, pybasin_params,
-                                          surface_temp, litho_props,
+                                          surface_temp, surface_salinity_well,
+                                          litho_props,
                                           csv_output_dir,
                                           model_scenario_number)
 
@@ -1056,7 +1058,8 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
                                       well_number, well, well_strat,
                                       well_strat_orig,
                                       strat_info_mod, pybasin_params,
-                                      surface_temp, litho_props,
+                                      surface_temp, surface_salinity_well,
+                                      litho_props,
                                       csv_output_dir,
                                       output_dir,
                                       model_scenario_number,
@@ -1202,7 +1205,8 @@ def update_model_params_and_run_model(model_scenario_params, params_to_change,
      AHe_model_data, model_results_df) = \
         run_model_and_compare_to_data(well_number, well, well_strat,
                                       strat_info_mod, pybasin_params,
-                                      surface_temp, litho_props,
+                                      surface_temp, surface_salinity_well,
+                                      litho_props,
                                       csv_output_dir,
                                       model_scenario_number,
                                       model_results_df,
@@ -1349,6 +1353,10 @@ well_strats = pd.read_csv(os.path.join(input_dir, 'well_stratigraphy.csv'))
 
 # surface temperature history
 surface_temp = pd.read_csv(os.path.join(input_dir, 'surface_temperature.csv'))
+
+#
+if pybasin_params.simulate_salinity is True:
+   df_sal = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
 
 # lithology properties
 litho_props = pd.read_csv(os.path.join(input_dir, 'lithology_properties.csv'))
@@ -1523,6 +1531,23 @@ for well_number, well in enumerate(wells):
     # copy original well strat file
     well_strat_orig = well_strat.copy()
 
+    # read well specific surface salinity bnd condition
+    if (pybasin_params.simulate_salinity is True
+            and pybasin_params.well_specific_surface_salinity_bnd is True):
+
+        if ('surface_salinity_%s' % well) in df_sal.columns:
+            print 'using surface salinity bnd for well %s from file' % well
+            cols = ['age_start', 'age_end', 'surface_salinity_%s' % well]
+            surface_salinity_well = df_sal[cols]
+            surface_salinity_well['surface_salinity'] = \
+                surface_salinity_well['surface_salinity_%s' % well]
+        else:
+            surface_salinity_well = None
+        #else:
+        #    print 'could not find well %s in surface salintiy bnd condition file' % well
+        #    cols = ['age_start', 'age_end', 'surface_salinity']
+        #    surface_salinity_well = df_sal[cols]
+
     if pybasin_params.calibrate_model_params is True:
 
         return_objective_function = True
@@ -1571,7 +1596,8 @@ for well_number, well in enumerate(wells):
                 model_results_df2,
                 well_number, well, well_strat.copy(), well_strat_orig,
                 strat_info_mod, pybasin_params,
-                surface_temp, litho_props,
+                surface_temp, surface_salinity_well,
+                litho_props,
                 csv_output_dir,
                 output_dir,
                 model_scenario_number,
@@ -1628,7 +1654,8 @@ for well_number, well in enumerate(wells):
              model_results_df2,
              well_number, well, well_strat, well_strat_orig,
              strat_info_mod, pybasin_params,
-             surface_temp, litho_props,
+             surface_temp, surface_salinity_well,
+             litho_props,
              csv_output_dir,
              output_dir,
              model_scenario_number,
@@ -1744,7 +1771,8 @@ for well_number, well in enumerate(wells):
                 model_results_df2,
                 well_number, well, well_strat, well_strat_orig,
                 strat_info_mod, pybasin_params,
-                surface_temp, litho_props,
+                surface_temp, surface_salinity_well,
+                litho_props,
                 csv_output_dir,
                 output_dir,
                 model_scenario_number,

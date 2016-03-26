@@ -518,6 +518,7 @@ def model_vs_data_figure(model_run_data,
 
         model_label.append('salinity')
 
+    #pdb.set_trace()
     if C_data is not None and len(salinity_data) > 0:
         leg_data = ax_c.scatter(salinity_data, salinity_depth,
                                 **scatter_props)
@@ -769,7 +770,7 @@ def model_vs_data_figure(model_run_data,
         max_C = C_nodes[-1].max()
 
 
-    if C_data is not None and salinity_data.max() > max_C:
+    if C_data is not None and len(salinity_data) > 0 and salinity_data.max() > max_C:
         max_C = salinity_data.max()
         ax_c.set_xlim(0, max_C * 1.1)
 

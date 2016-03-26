@@ -17,92 +17,140 @@ import matplotlib.cm
 import matplotlib.pyplot as pl
 import useful_functions
 
-x_datas = ['cooling', 'exhumation_start', 'exhumation_duration']
-y_datas = ['aft_age_gof', 'ahe_gof']
-markers = ['o', 's']
-colors = ['lightblue', 'gray']
-
 degree_symbol = unichr(176)
 s = 15
 alpha = 0.5
-
 gof_cutoff = 0.7
-
 default_heat_flow = 0.065
 
-fn_adj = 'cooling_vs_aft'
 
-model_result_fn = 'model_output/MB/final_results_18feb2016_v2/' \
-                  'model_results_merged_mod.csv'
+#x_datas = ['cooling', 'exhumation_start']
+x_data = 'cooling'
+x_label = 'Cooling (%s C)' % degree_symbol
+xticks = [0, 25, 50, 75, 100, 125, 150, 175]
+fn_adj = 'cooling_vs_thermochron'
 
-df_all = pd.read_csv(model_result_fn)
+#x_data = 'exhumation_start'
+#x_label = 'Start of cooling (Ma)'
+#xticks = [0, 2.5, 5.0, 7.5, 10.0, 12.5]
+#fn_adj = 'exh_start_vs_thermochron'
 
-wells = np.unique(df_all['well'].dropna())
-nwells = len(wells)
+x_data = 'exhumation_time_factor'
+x_label = 'Cooling (%s C)' % degree_symbol
+xticks = [0, 25, 50, 75, 100, 125, 150, 175]
+fn_adj = 'cooling_vs_thermochron'
 
-ncols = 3
-nrows = len(wells)
 
-width = 8.0
-height = width * float(nrows)/ncols
+x_datas = ['cooling', 'exhumation_start',
+           'exhumation_time_factor', 'exhumation_rate_factor']
+x_labels = ['Cooling (%s C)' % degree_symbol, 'Start of cooling (Ma)',
+            'exhumation time factor', 'exhumation rate factor']
+xticks_all = [[0, 25, 50, 75, 100, 125, 150, 175],
+              [0, 2.5, 5.0, 7.5, 10.0, 12.5],
+              [0.0, 0.25, 0.5, 0.75, 1.0],
+              [0.0, 0.25, 0.5, 0.75, 1.0]]
+fn_adjs = ['cooling_vs_thermochron',
+           'exh_start_vs_thermochron',
+           'exh_time_factor_vs_thermochron',
+           'exhumation rate factor']
 
-fig, panels_all = pl.subplots(nrows, ncols, figsize=(width, height), sharey=True, sharex=False)
+for x_data, x_label, xticks, fn_adj in zip(x_datas, x_labels,
+                                           xticks_all, fn_adjs):
 
-panels = panels_all.ravel()
+    #
+    #x_label = 'Duration of cooling (My)'
+    y_datas = ['aft_age_gof', 'ahe_gof']
+    markers = ['o', 's']
+    colors = ['lightblue', 'gray']
 
-vmin = 0
-vmax = 1.0
+    model_result_fn = 'model_output/MB/final_results_23mar2016_2stage_cooling/' \
+                      'model_results_merged_mod.csv'
 
-plot_count = 0
+    df_all = pd.read_csv(model_result_fn)
 
-for well in wells:
+    wells = np.unique(df_all['well'].dropna())
+    nwells = len(wells)
 
-    print well
+    ncols = 4
+    nrows = int(np.ceil(len(wells) / float(ncols)))
 
-    df = df_all[df_all['well'] == well]
+    width = 8.0
+    height = width * float(nrows)/ncols
 
-    panels[plot_count].set_ylabel('Goodness of fit')
-    panels[plot_count].set_ylim(0, 1)
-    panels[plot_count].set_title(well)
+    fig, panels_all = pl.subplots(nrows, ncols, figsize=(width, height),
+                                  sharey=True, sharex=False)
 
-    for col_no, x_data in enumerate(x_datas):
+    panels = panels_all.ravel()
+
+    vmin = 0
+    vmax = 1.0
+
+    plot_count = 0
+
+    for plot_count, well in enumerate(wells):
+
+        print well
+
+        df = df_all[df_all['well'] == well]
+
+        leg_ydatas = []
+
         for y_data, marker, color in zip(y_datas, markers, colors):
-            panels[plot_count].scatter(df[x_data], df[y_data],
-                                       marker=marker, facecolor=color,
-                                       s=s, lw=0.5, alpha=alpha)
+            ly = panels[plot_count].scatter(df[x_data], df[y_data],
+                                            marker=marker, facecolor=color,
+                                            s=s, lw=0.5, alpha=alpha)
+            leg_ydatas.append(ly)
+
         panels[plot_count].set_xlim(0, df[x_data].max() * 1.1)
 
-        plot_count += 1
+        panels[plot_count].set_title(well)
 
-for panel in panels:
-    panel.xaxis.grid()
-    panel.yaxis.set_ticks_position('left')
-    panel.xaxis.set_ticks_position('bottom')
-    panel.spines['right'].set_visible(False)
-    panel.spines['top'].set_visible(False)
-    panel.axhline(y=0.7, color='gray', ls='--', lw=1.0, zorder=0)
+    for i in range(nrows):
+        panels[i * ncols].set_ylabel('Goodness of fit')
 
-for col_no, x_data in enumerate(x_datas[::-1]):
+    for panel, well in zip(panels, wells):
+        panel.xaxis.grid()
+        panel.yaxis.set_ticks_position('left')
+        panel.xaxis.set_ticks_position('bottom')
+        panel.spines['right'].set_visible(False)
+        panel.spines['top'].set_visible(False)
+        leg_gf = panel.axhline(y=0.5, color='black', ls='--', lw=1.0, zorder=0)
+        panels[plot_count].set_ylim(0, 1.02)
 
-    if 'cooling' in x_data:
-        x_label = 'Cooling (%s C)' % degree_symbol
-    elif 'start' in x_data:
-        x_label = 'Start of cooling (Ma)'
-    elif 'duration' in x_data:
-        x_label = 'Duration of cooling (My)'
-    else:
-        x_label = x_data
+        xmin, xmax = panel.get_xlim()
+        #x_int = 25.0
+        #xticks = np.arange(0, xmax+x_int, x_int).astype(int)
 
-    panels[-(col_no + 1)].set_xlabel(x_label)
+        panel.set_xticks(xticks)
+        panel.set_xlim(0, xticks[-1])
 
-fig_dir = os.path.join(os.path.dirname(model_result_fn), 'model_data_fig')
-if not os.path.exists(fig_dir):
-    os.mkdir(fig_dir)
+    if len(panels) > len(wells):
+        for panel in panels[len(wells):]:
+            panel.axis('off')
 
-base_fn = os.path.basename(model_result_fn)
-base_fn_new = base_fn.split('.csv')[0] + '_%s.png' % fn_adj
-fn = os.path.join(fig_dir, base_fn_new)
+    for col_no in range(ncols):
 
-fig.savefig(fn, dpi=200)
+        panels[-(col_no + 1)].set_xlabel(x_label)
+
+    legs = leg_ydatas + [leg_gf]
+    labels = ['model fit, AFT data', 'model fit, AHe data', 'good fit']
+    #fig.legend(legs, labels, loc='lower right', fontsize='small')
+    panels[len(wells)].legend(legs, labels, bbox_to_anchor=(1.05, 1),
+                              fontsize='small', frameon=False,
+                              handlelength=3)
+
+    fig_dir = os.path.join(os.path.dirname(model_result_fn), 'model_data_fig')
+    if not os.path.exists(fig_dir):
+        os.mkdir(fig_dir)
+
+    base_fn = os.path.basename(model_result_fn)
+    base_fn_new = base_fn.split('.csv')[0] + '_%s.png' % fn_adj
+    fn = os.path.join(fig_dir, base_fn_new)
+
+    fig.tight_layout()
+
+    print 'saving %s' % fn
+
+    fig.savefig(fn, dpi=200)
 
 print 'done'

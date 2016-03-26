@@ -24,27 +24,32 @@ y_data2 = 'vr_gof'
 z_data = None
 
 # minimum value for gof for acceptable model fits
-gof_cutoff = 0.5
+gof_cutoff = 0.7
 
 # best estimate of heat flow if no temperature data are available
 default_heat_flow = 0.065
 
 #
-default_exhumation = 2000.0
+default_exhumation = 1500.0
 
 # read model result data
-model_result_fn = "model_output/MB/final_results_1mar2016_rdaam/model_results_merged_mod.csv"
+model_result_fn = "model_output/MB/final_results_23mar2016_2stage_cooling/" \
+                  "model_results_merged_mod.csv"
 df = pd.read_csv(model_result_fn)
 
 # calculate overall thermochron gof
 df['thermochron_gof'] = df['aft_age_gof']
+
 ind = (df['ahe_gof'] < df['thermochron_gof']) & (np.isnan(df['ahe_gof']) == False)
+df['thermochron_gof'][ind] = df['ahe_gof'][ind]
+
+ind = df['aft_age_gof'].isnull()
 df['thermochron_gof'][ind] = df['ahe_gof'][ind]
 
 # calculate exhumation rate and drop samples with > 2 km / My cooling
 df['exhumation_rate'] = df['exhumation_magnitude'] / df['exhumation_duration']
-max_relaistic_exhumation_rate = 2000.0
-ind = df['exhumation_rate'] < max_relaistic_exhumation_rate
+max_realistic_exhumation_rate = 1500.0
+ind = df['exhumation_rate'] < max_realistic_exhumation_rate
 df = df[ind]
 
 #
@@ -80,16 +85,21 @@ for well in wells:
     if True in df['vr_gof'][ind].notnull().values:
         dfs.ix[well, 'gof_vr_best'] = np.max(df['vr_gof'][ind])
 
-        ind_vr_max = (df['well'] == well) & (df['vr_gof'] == dfs.ix[well, 'gof_vr_best'])
+        ind_vr_max = \
+            (df['well'] == well) & (df['vr_gof'] == dfs.ix[well, 'gof_vr_best'])
         dfs.ix[well, 'cooling_vr_best'] = df['cooling'][ind_vr_max].values[0]
 
         ind_vr = (df['well'] == well) & (df['vr_gof'] >= gof_cutoff)
         dfs.ix[well, 'cooling_vr_min'] = np.min(df['cooling'][ind_vr])
         dfs.ix[well, 'cooling_vr_max'] = np.max(df['cooling'][ind_vr])
-        dfs.ix[well, 'exhumation_vr_min'] = np.min(df['exhumation_magnitude'][ind_vr])
-        dfs.ix[well, 'exhumation_vr_max'] = np.max(df['exhumation_magnitude'][ind_vr])
-        dfs.ix[well, 'heat_flow_vr_min'] = np.min(df['basal_heat_flow'][ind_vr])
-        dfs.ix[well, 'heat_flow_vr_max'] = np.max(df['basal_heat_flow'][ind_vr])
+        dfs.ix[well, 'exhumation_vr_min'] = \
+            np.min(df['exhumation_magnitude'][ind_vr])
+        dfs.ix[well, 'exhumation_vr_max'] = \
+            np.max(df['exhumation_magnitude'][ind_vr])
+        dfs.ix[well, 'heat_flow_vr_min'] = \
+            np.min(df['basal_heat_flow'][ind_vr])
+        dfs.ix[well, 'heat_flow_vr_max'] = \
+            np.max(df['basal_heat_flow'][ind_vr])
 
     # min, max and best values of cooling/exhumation acc to AFT age data
     ind_aft = (df['well'] == well) & (df['aft_age_gof'] >= gof_cutoff)
@@ -98,22 +108,30 @@ for well in wells:
         dfs.ix[well, 'gof_aft_best'] = np.max(df['aft_age_gof'][ind])
                 
         ind_aft_max = (df['well'] == well) & (df['aft_age_gof'] == dfs.ix[well, 'gof_aft_best'])
-        dfs.ix[well, 'cooling_aft_best'] = df['cooling'][ind_aft_max].values[0]
-        dfs.ix[well, 'exhumation_aft_best'] = df['exhumation_magnitude'][ind_aft_max].values[0]
-        dfs.ix[well, 'heat_flow_aft_best'] = df['basal_heat_flow'][ind_aft_max].values[0]
+        dfs.ix[well, 'cooling_aft_best'] = \
+            df['cooling'][ind_aft_max].values[0]
+        dfs.ix[well, 'exhumation_aft_best'] = \
+            df['exhumation_magnitude'][ind_aft_max].values[0]
+        dfs.ix[well, 'heat_flow_aft_best'] = \
+            df['basal_heat_flow'][ind_aft_max].values[0]
 
         dfs.ix[well, 'cooling_aft_min'] = np.min(df['cooling'][ind_aft])
         dfs.ix[well, 'cooling_aft_max'] = np.max(df['cooling'][ind_aft])
-        dfs.ix[well, 'exhumation_aft_min'] = np.min(df['exhumation_magnitude'][ind_aft])
-        dfs.ix[well, 'exhumation_aft_max'] = np.max(df['exhumation_magnitude'][ind_aft])
-        dfs.ix[well, 'heat_flow_aft_min'] = np.min(df['basal_heat_flow'][ind_aft])
-        dfs.ix[well, 'heat_flow_aft_max'] = np.max(df['basal_heat_flow'][ind_aft])
+        dfs.ix[well, 'exhumation_aft_min'] = \
+            np.min(df['exhumation_magnitude'][ind_aft])
+        dfs.ix[well, 'exhumation_aft_max'] = \
+            np.max(df['exhumation_magnitude'][ind_aft])
+        dfs.ix[well, 'heat_flow_aft_min'] = \
+            np.min(df['basal_heat_flow'][ind_aft])
+        dfs.ix[well, 'heat_flow_aft_max'] = \
+            np.max(df['basal_heat_flow'][ind_aft])
 
         # find value of heat flow for best GOF assuming exhumation is known:
-        ind_aft_exh = (df['well'] == well) & (df['exhumation_magnitude'] == default_exhumation)
+        ind_aft_exh = (df['well'] == well) & (df['exhumation_magnitude'] == default_heat_flow)
         if True in ind_aft_exh.values:
             ind_aft_exh_max_rel = np.argmax(df['aft_age_gof'][ind_aft_exh])
-            dfs.ix[well, 'gof_aft_exh%0.0f_best' % default_exhumation] = np.max(df['aft_age_gof'][ind_aft_exh])
+            dfs.ix[well, 'gof_aft_exh%0.0f_best' % default_exhumation] = \
+                np.max(df['aft_age_gof'][ind_aft_exh])
             dfs.ix[well, 'heat_flow_aft_exh%0.0f_best' % default_exhumation] = df.ix[ind_aft_exh_max_rel, 'basal_heat_flow']
 
             ind_default_exhumation = ind_aft & (df['exhumation_magnitude'] == default_exhumation)
@@ -177,8 +195,18 @@ for well in wells:
             dfs.ix[well, 'gof_thermochron_exh%0.0f_best' % default_exhumation] = np.max(df['thermochron_gof'][ind_thermochron_exh])
             dfs.ix[well, 'heat_flow_thermochron_exh%0.0f_best' % default_exhumation] = df.ix[ind_thermochron_exh_max_rel, 'basal_heat_flow']
             ind_default_exhumation = ind_thermochron & (df['exhumation_magnitude'] == default_exhumation)
-            dfs.ix[well, 'heat_flow_thermochron_exh%0.0f_min' % default_exhumation] = np.min(df['basal_heat_flow'][ind_default_exhumation ])
-            dfs.ix[well, 'heat_flow_thermochron_exh%0.0f_max' % default_exhumation] = np.max(df['basal_heat_flow'][ind_default_exhumation ])
+            dfs.ix[well, 'heat_flow_thermochron_exh%0.0f_min' % default_exhumation] = np.min(df['basal_heat_flow'][ind_default_exhumation])
+            dfs.ix[well, 'heat_flow_thermochron_exh%0.0f_max' % default_exhumation] = np.max(df['basal_heat_flow'][ind_default_exhumation])
+
+        # find value of exhumation for best GOF assuming heat flow is known:
+        ind_thermochron_exh = (df['well'] == well) & (df['basal_heat_flow'] == default_heat_flow)
+        if True in ind_thermochron_exh.values:
+            ind_thermochron_exh_max_rel = np.argmax(df['thermochron_gof'][ind_thermochron_exh])
+            dfs.ix[well, 'gof_thermochron_hf%0.3f_best' % default_heat_flow] = np.max(df['thermochron_gof'][ind_thermochron_exh])
+            dfs.ix[well, 'exhumation_thermochron_hf%0.3f_best' % default_heat_flow] = df.ix[ind_thermochron_exh_max_rel, 'exhumation_magnitude']
+            ind_default_heat_flow = ind_thermochron & (df['basal_heat_flow'] == default_heat_flow)
+            dfs.ix[well, 'exhumation_thermochron_hf%0.3f_min' % default_heat_flow] = np.min(df['exhumation_magnitude'][ind_default_heat_flow])
+            dfs.ix[well, 'exhumation_thermochron_hf%0.3f_max' % default_heat_flow] = np.max(df['exhumation_magnitude'][ind_default_heat_flow])
 
 # save summary
 summary_fn = model_result_fn.split('.csv')[0] + '_cooling_and_exhumation_summary_cutoff%0.2f.csv' % gof_cutoff

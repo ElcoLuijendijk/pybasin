@@ -148,6 +148,18 @@ exhumed_strat_units = [['ATAL']]
 original_thicknesses = [[0.0]]
 
 
+# support for two-stage exhumation history, enables fast and slow exhumation segments
+# switch for two-stage exhumation
+two_stage_exhumation = False
+# fraction of total duration of exhumation phase that separates the first and second segment
+exhumation_time_factor = 0.5
+# fraction of exhumation that takes place in the first of two segments
+exhumation_rate_factor = 0.5
+
+# parameter to automatically reduce exhumation duration if end of
+# exhumation is < 0 Ma
+correct_exhumation_duration = True
+
 ###########################################
 # max thickness of strat units
 # units that exceed this are subdivided
@@ -215,3 +227,6 @@ constant_diffusivity = False
 
 salinity_seawater = 0.035
 salinity_freshwater = 0.0001
+
+# read surface salinity bnd condition for each well from a separate .csv file
+well_specific_surface_salinity_bnd = True

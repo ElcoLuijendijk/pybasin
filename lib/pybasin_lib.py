@@ -677,10 +677,7 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
             print 'adding row info for eroded unit %s' % row
             row_name = row.split('_a_')[0][1:]
         else:
-            print 'warning, cannot find row item %s in data .csv file' % row
-            print 'most likely the names in the well strat file do not ' \
-                  'match the names in the stratigraphy data file'
-            msg = 'warning, cannot find row item %s in data .csv file. ' \
+            msg = 'cannot find row item %s in data .csv file. ' \
                   'most likely the names in the well strat file do not ' \
                   'match the names in the stratigraphy data file' % row
 
@@ -1067,6 +1064,7 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
 
     if check is False:
         print 'warning, solution is ', check
+        pdb.set_trace()
 
     return T_new, A
 
@@ -1133,6 +1131,7 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
 
     if check is False:
         print 'warning, solution is ', check
+        pdb.set_trace()
 
     return C_new, A
 
@@ -1883,7 +1882,7 @@ def equations_of_state_batzle1992(P, T, C):
 
     return rho_b
 
-def calculate_diffusion_coeff(T_cal, C):
+def calculate_diffusion_coeff(T_degC, C):
     """
      taken from paper written by (Simpson and Carr, 1958)
     :param T_cal:Temperature in degree
@@ -1896,19 +1895,28 @@ def calculate_diffusion_coeff(T_cal, C):
 
     C_ppm = C / 1.0e6
 
-    T_cal += 273.15
+    T_cal = T_degC + 273.15
     D_ref = 2.03 * 10 ** -9
     T_ref = 298.15
     viscosity_ref = 0.890
-    viscosity_cal = calculate_viscosity_np(C_ppm, T_cal)
+
+    # convert <=0 T to 0, otherwise viscosity algorithm fails
+    T_degC[T_degC < 0] = 0
+    C_ppm[C_ppm < 0] = 0
+
+    viscosity_cal = calculate_viscosity_np(C_ppm, T_degC)
     D_cal = ((D_ref * viscosity_ref) / T_ref) * (T_cal / viscosity_cal)
+
+    if np.any(np.isnan(D_cal)) == True:
+        print 'warning, nan value for diffusion coefficient'
+        pdb.set_trace()
 
     return D_cal
 
 
 def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
-                          Ts, litho_props,
+                          Ts, surface_salinity_well, litho_props,
                           output_dir, model_scenario_number,
                           save_csv_files=False):
     """
@@ -2071,7 +2079,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     if np.min(nt_heatflows) <= 0:
         msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
-        % (np.argmin(nt_heatflows), len(nt_heatflows))
+            % (np.argmin(nt_heatflows), len(nt_heatflows))
         raise ValueError(msg)
 
     nt_total = nt_heatflows.sum()
@@ -2315,36 +2323,70 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         # unconformities specified in input data
 
         # generate time array
+
         surface_salinity_array = np.zeros(nt_total)
-        marine_stages = geohist_df['marine'].values[1:][::-1]
+        marine_stages = geohist_df['marine'].values[::-1]
+        stages = geohist_df.index.values[::-1]
+
+        # remove first unit, since model starts with this already deposited
+        marine_stages = marine_stages[1:]
+        stages = stages[1:]
 
         timestep = 0
         time_all = 0
 
-        for stage, marine_stage, nt_heatflow, dt_hf in zip(geohist_df.index,
-                                                           marine_stages,
-                                                           nt_heatflows,
-                                                           dt_hfs):
+        for i_stage, stage, marine_stage, nt_heatflow, dt_hf in zip(itertools.count(),
+                                                                    stages,
+                                                                    marine_stages,
+                                                                    nt_heatflows,
+                                                                    dt_hfs):
 
-            if marine_stage is True:
+            if marine_stage is True or marine_stage == 1.0:
                 salinity_stage = pybasin_params.salinity_seawater
-            elif marine_stage is False:
+            elif marine_stage is False or marine_stage == 0.0:
                 salinity_stage = pybasin_params.salinity_freshwater
             else:
                 #hiatus or unconformity
                 if stage[0] == '~':
-                    # hiatus, use marine salinity for now
-                    salinity_stage = pybasin_params.salinity_seawater
+                    # hiatus, use salinity of previous step
+                    if i_stage > 0:
+                        salinity_stage = surface_salinity_array[timestep-1]
+                    else:
+                        salinity_stage = pybasin_params.salinity_seawater
                 elif stage[0] == '-':
                     # exhumation, assume basin was exposed
                     salinity_stage = pybasin_params.salinity_freshwater
+                    #pdb.set_trace()
                 else:
-                    # exhumation, assume basin was exposed
-                    salinity_stage = pybasin_params.salinity_freshwater
+                    # undetermined
+                    if i_stage > 0:
+                        salinity_stage = surface_salinity_array[timestep-1]
+                    else:
+                        salinity_stage = pybasin_params.salinity_seawater
+            #if stage[0] == '-':
+            #    # exhumation, assume basin was exposed
+            #    salinity_stage = pybasin_params.salinity_freshwater
+            #    pdb.set_trace()
 
             surface_salinity_array[timestep:(timestep + nt_heatflow)] = salinity_stage
+
             time_all += nt_heatflow * dt_hf
             timestep += nt_heatflow
+
+
+
+        # overwrite with specified surface salinity in case this information is passed to this function
+        if surface_salinity_well is not None:
+            for i in surface_salinity_well.index:
+
+                ind_t = ((time_array_bp <= surface_salinity_well.loc[i, 'age_start'] * 1.0e6)
+                         & (time_array_bp >= surface_salinity_well.loc[i, 'age_end'] * 1.0e6))
+
+                if True in ind_t:
+                    print 'updating surface salinity bnd, ', surface_salinity_well
+                    surface_salinity_array[ind_t] = surface_salinity_well.loc[i, 'surface_salinity']
+
+        pdb.set_trace()
 
        # interpolate surface salinity
         #surface_salinity_array = np.interp(time_array_bp,

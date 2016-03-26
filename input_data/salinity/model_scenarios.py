@@ -24,7 +24,7 @@ exhumation_scenarios_period = 'late_cretaceous_exhumation'
 # example for testing exhumation of 500, 1000 and 1500 m:
 # exhumation_magnitudes = [500, 1000, 1500]
 #exhumation_magnitudes = np.arange(0., 5000, 500)
-exhumation_magnitudes = [0, 500.0]
+exhumation_magnitudes = [500.0]
 
 # exhumation phase start and duration
 # list of lists or list of tuples. first value of inner list or tuple is start of
@@ -35,6 +35,9 @@ exhumation_magnitudes = [0, 500.0]
 
 exhumation_starts = [None]
 exhumation_durations = [None]
+
+exhumation_time_factors = [None]
+exhumation_rate_factors = [None]
 
 AFT_C0 = [None]
 AFT_C1 = [None]
