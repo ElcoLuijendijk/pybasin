@@ -66,7 +66,8 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
     return T_gof, T_rmse
 
 
-def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes):
+def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes,
+                             vr_unc_sigma=0.05):
 
     vr_data_well['simulated_vr'] = \
         np.interp(vr_data_well['depth'],
@@ -76,7 +77,7 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes):
     # calculate model error vitrinite data
     #vr_data_well['VR_unc_1sigma'] = vr_data_well['VR_std']
     ind = vr_data_well['VR_unc_1sigma'].isnull()
-    vr_data_well['VR_unc_1sigma'][ind] = pybasin_params.vr_unc_sigma
+    vr_data_well['VR_unc_1sigma'][ind] = vr_unc_sigma
     vr_data_well['residual'] = (vr_data_well['VR']
                                 - vr_data_well['simulated_vr'])
     vr_data_well['residual_norm'] = (vr_data_well['residual']
@@ -929,9 +930,11 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # interpolate vitrinite reflectance data
         if True in ind.values:
 
-            vr_rmse, vr_gof = model_data_comparison_VR(vr_data_well,
-                                                       z_nodes, vr_nodes,
-                                                       active_nodes)
+            vr_rmse, vr_gof = model_data_comparison_VR(
+                vr_data_well,
+                z_nodes, vr_nodes,
+                active_nodes,
+                vr_unc_sigma=pybasin_params.vr_unc_sigma)
 
     # calculate model error AFT data
     aft_age_gof = np.nan
