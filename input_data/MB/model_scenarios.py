@@ -27,9 +27,6 @@ wells = ['Huenenberg',
          'RV05', 'RV10b', 'RV15', 'RV20', 'RV25', 'RV30c',
          'Weggis', 'Entlebuch']
 
-#wells = ['RH30b']
-#wells = ['RH30a', 'RH30b']
-#wells = ['Huenenberg']
 # strat period for which to change the basal heat flow
 # must match a period of heatflow_periods in the param file
 basal_heat_flow_scenario_period = 'all'
