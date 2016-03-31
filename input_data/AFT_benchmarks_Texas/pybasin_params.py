@@ -14,9 +14,9 @@ print 'AFT benchmark input'
 print '-' * 10
 
 # location of input data .csv files
-input_dir = 'input_data/AFT_benchmarks'
-output_dir = 'model_output/AFT_benchmarks'
-datafile_output_dir = '../../heavy_data/AFT_benchmarks'
+input_dir = 'input_data/AFT_benchmarks_Texas'
+output_dir = 'model_output/AFT_benchmarks_Texas'
+datafile_output_dir = '../../heavy_data/AFT_benchmarks_Texas'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
@@ -30,7 +30,11 @@ simulate_salinity = False
 calculate_thermochron_for_all_nodes = False
 
 # option to save model run data (approx 10-20 MB per model run)
-save_model_run_data = False
+save_model_run_data = True
+
+################
+# figure options
+################
 
 # option to generate 1 figure for each model run:
 make_model_data_fig = True
@@ -49,7 +53,7 @@ fig_adj = 'png'
 ###################
 
 # turn model calibration on or off:
-calibrate_model_params = True
+calibrate_model_params = False
 
 # calibration method, see scipy optimize documentation for list of available methods:
 # http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
@@ -123,7 +127,7 @@ resample_AFT_timesteps = 10
 # exhumation scenarios
 #############################
 # name of exhumation phase
-exhumation_phase_ids = ['late_miocene_exhumation']
+exhumation_phase_ids = ['dummy_exhumation']
 # start (Ma)
 exhumation_period_starts = np.array([10.0])
 # end of exhumation phase (Ma)
@@ -151,6 +155,18 @@ original_thicknesses = [[2000.0]]
 # set to None if you do not use this feature
 #pre_exhumation_units = [None, 'AT', None, None]
 #pre_exhumation_thicknesses = np.array([0.0, 1200.0, 0.0, 0.0])
+
+# support for two-stage exhumation history, enables fast and slow exhumation segments
+# switch for two-stage exhumation
+two_stage_exhumation = False
+# fraction of total duration of exhumation phase that separates the first and second segment
+exhumation_time_factor = 0.5
+# fraction of exhumation that takes place in the first of two segments
+exhumation_rate_factor = 0.75
+
+# parameter to automatically reduce exhumation duration if end of
+# exhumation is < 0 Ma
+correct_exhumation_duration = True
 
 ###########################################
 # max thickness of strat units

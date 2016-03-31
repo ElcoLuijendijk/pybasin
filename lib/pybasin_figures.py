@@ -183,7 +183,9 @@ def model_vs_data_figure(model_run_data,
          aft_age_bins,
          aft_age_pdfs,
          aft_age_GOF,
-         aft_age_error] = AFT_data
+         aft_age_error,
+         aft_sample_times,
+         aft_sample_temps] = AFT_data
 
     if AHe_data is not None:
         [ahe_sample_depths,
@@ -202,7 +204,8 @@ def model_vs_data_figure(model_run_data,
     if AFT_data is not None and simulated_AFT_data is not None:
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
-         aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+         aft_node_times_burial, aft_node_zs,
+         aft_node_times, aft_node_temps) = simulated_AFT_data
 
         _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
 

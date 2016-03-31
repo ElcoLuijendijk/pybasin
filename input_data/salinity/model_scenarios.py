@@ -36,8 +36,8 @@ exhumation_magnitudes = [500.0]
 exhumation_starts = [None]
 exhumation_durations = [None]
 
-exhumation_time_factors = [None]
-exhumation_rate_factors = [None]
+exhumation_segment_factors = [None]
+exhumation_duration_factors = [None]
 
 AFT_C0 = [None]
 AFT_C1 = [None]

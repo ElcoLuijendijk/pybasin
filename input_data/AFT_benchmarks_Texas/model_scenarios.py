@@ -21,7 +21,7 @@ basal_heat_flow_scenarios = [73.0 * 1e-3]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
-exhumation_scenarios_period = 'late_miocene_exhumation'
+exhumation_scenarios_period = 'dummy_exhumation'
 
 # magnitude of exhumation (m) for each model scenario
 # example for testing exhumation of 500, 1000 and 1500 m:
@@ -33,8 +33,11 @@ exhumation_magnitudes = [0.0]
 #exhumation_starts = np.arange(1.0, 14.0, 2.0)
 #exhumation_durations = np.arange(1.0, 13.0, 2.0)
 #exhumation_durations = np.arange(0.1, 1.0, 0.1)
-exhumation_starts = [10.0]
-exhumation_durations = [10.0]
+exhumation_starts = [None]
+exhumation_durations = [None]
+
+exhumation_time_factors = [None]
+exhumation_rate_factors = [None]
 
 # AFT annealing eq. parameters, see Ketcham et al. (2007) Am. Min.
 AFT_C0 = [None]

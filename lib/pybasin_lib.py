@@ -232,8 +232,8 @@ def add_exhumation_phases(well_strat,
                           max_thickness,
                           strat_info_mod,
                           two_stage_exh=False,
-                          exhumation_time_factor=0.5,
-                          exhumation_rate_factor=0.5):
+                          exhumation_segment_factor=0.5,
+                          exhumation_duration_factor=0.5):
     
     """
     add exhumation phases to well stratigraphy dataframe
@@ -488,16 +488,16 @@ def add_exhumation_phases(well_strat,
 
 
         # find first and second exhumation segments:
-        end_exhumation_segment1 = int(np.round(len(duration_exh) * (1 - exhumation_time_factor)))
+        end_exhumation_segment1 = int(np.round(len(duration_exh) * exhumation_segment_factor))
         duration_exh_new = duration_exh.copy()
 
         # adjust duration of first exhumation segment
         a = np.sum(duration_exh_new[:end_exhumation_segment1]) / duration_exh_total
-        duration_exh_new[:end_exhumation_segment1] *= exhumation_rate_factor / a
+        duration_exh_new[:end_exhumation_segment1] *= exhumation_duration_factor / a
 
         # change number and time of exhumation 2nd segment
         ne_left = len(duration_exh_new[end_exhumation_segment1:])
-        time_left = duration_exh_total -  np.sum(duration_exh_new[:end_exhumation_segment1])
+        time_left = duration_exh_total - np.sum(duration_exh_new[:end_exhumation_segment1])
         time_taken = duration_exh_new[end_exhumation_segment1:].sum()
         #time_change = duration_exh_total - np.sum(duration_exh_new)
 
@@ -1146,8 +1146,8 @@ def get_geo_history(well_strat, strat_info_mod,
                     original_thicknesses,
                     max_thickness,
                     two_stage_exh=False,
-                    exhumation_time_factor=0.5,
-                    exhumation_rate_factor=0.5):
+                    exhumation_segment_factor=0.5,
+                    exhumation_duration_factor=0.5):
 
     """
     set up a geohistory dataframe from an input file containing well stratigraphy
@@ -1206,8 +1206,8 @@ def get_geo_history(well_strat, strat_info_mod,
             max_thickness,
             strat_info_mod,
             two_stage_exh=True,
-            exhumation_time_factor=exhumation_time_factor,
-            exhumation_rate_factor=exhumation_rate_factor)
+            exhumation_segment_factor=exhumation_segment_factor,
+            exhumation_duration_factor=exhumation_duration_factor)
 
     exhumed_units = [g for g in geohist_df.index if g[0] == '+']
 
@@ -1738,7 +1738,8 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
 
     return (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
             aft_ln_mean_nodes, aft_ln_std_nodes,
-            aft_node_times_burial, aft_node_zs)
+            aft_node_times_burial, aft_node_zs,
+            aft_node_times, aft_node_temps)
 
 
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
@@ -1945,8 +1946,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         pybasin_params.original_thicknesses,
         pybasin_params.max_thickness,
         two_stage_exh=pybasin_params.two_stage_exhumation,
-        exhumation_time_factor=pybasin_params.exhumation_time_factor,
-        exhumation_rate_factor=pybasin_params.exhumation_rate_factor)
+        exhumation_segment_factor=pybasin_params.exhumation_segment_factor,
+        exhumation_duration_factor=pybasin_params.exhumation_duration_factor)
 
     if save_csv_files is True:
         # save geohistory dataframe as .csv file

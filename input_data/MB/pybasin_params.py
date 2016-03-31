@@ -176,10 +176,14 @@ original_thicknesses = [[3000.0],
 # support for two-stage exhumation history, enables fast and slow exhumation segments
 # switch for two-stage exhumation
 two_stage_exhumation = True
-# fraction of total duration of exhumation phase that separates the first and second segment
-exhumation_time_factor = 0.9
-# fraction of exhumation that takes place in the first of two segments
-exhumation_rate_factor = 0.75
+# fraction of total exhumation phase that separates the first and second segment
+# ie, exhumation segment factor of 0.9 means that 90% of the total exhumation
+# takes place in the first of 2 segments
+exhumation_segment_factor = 0.9
+# duration of first segment compared to the second segment
+# exhumation_rate_factor of 0.75 means the first segment takes up 75% of the
+# total duration of exhumation
+exhumation_duration_factor = 0.75
 
 # parameter to automatically reduce exhumation duration if end of
 # exhumation is < 0 Ma
@@ -241,6 +245,12 @@ C0 = 0.39528
 C1 = 0.01073
 C2 = -65.12969
 C3 = -7.91715
+
+# (U-Th)/He params:
+decay_constant_238U = 4.916e-18
+decay_constant_232Th = 1.57e-18
+decay_constant_235U = 3.12e-17
+
 
 ###################################################
 # compaction

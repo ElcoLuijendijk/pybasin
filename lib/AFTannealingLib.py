@@ -466,6 +466,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            binsize=0.25,
                            rmr0_min=0,
                            rmr0_max=0.85,
+                           kappa=None,
                            min_length=2.18,
                            surpress_resampling=False,
                            use_fortran_algorithm=True,
@@ -546,8 +547,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         reduced track length (um)
     rc:
         c-axis corrected reduced track length (um)
-    r_cmod:
-     
     rho_age:
         
     dt:
@@ -573,7 +572,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         doi:10.2138/am.2007.2281.
     
     """
-    
+
+    Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
     
     ####################################################################
     print '-' * 20    
@@ -583,7 +583,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
            temperature_input.min(), temperature_input.max())
     
     # convert temperature units from degr. C to Kelvin:
-    print 'converting temperature input to Kelvin'
     temperature = temperature_input + 273.15
 
     ##########################################################
@@ -592,7 +591,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if verbose is True:
         print 'resampling time steps'
     if surpress_resampling is False:
-        timesteps, temperature = resample_time_temp_input(timesteps, temperature)
+        timesteps, temperature = resample_time_temp_input(timesteps,
+                                                          temperature)
     
     delta_T = temperature[1:] - temperature[:-1]
     if (abs(delta_T)).max() > 3.5 and surpress_resampling == False:
@@ -601,7 +601,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         print '\n'
         print 'x' * 30
         print 'warning %0.2f degr. change in T in timestep %s of %s My'\
-                    % ((abs(delta_T)).max(), max_loc, time[max_loc])
+                    % ((abs(delta_T)).max(), max_loc, timesteps[max_loc])
         print temperature
         print 'x' * 30+'\n'
         sys.exit()
@@ -611,13 +611,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     #####################################
     nsteps = len(temperature)
     r_standard = 0.893
-    if apply_c_axis_correction is True:
-        #print 'simulating c-axis projected AFT lengths'
-        pass
-    else:
-        #print 'simulating non c-axis projected AFT lengths'
-        pass
-    
+
     ###########################################################
     # calculate evolution of a fissions track over time,  and 
     # record final (last timestep) reduced length (r)
@@ -641,7 +635,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     else:
         print 'using rmr0 as kinetic parameter'
         rmr0 = kinetic_value
-        kappa = 1.04 - rmr0
+        if kappa is None:
+            kappa = 1.04 - rmr0
 
     print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
 
@@ -670,10 +665,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         rc = rcf
 
     else:
-        print 'use python reduced track ln function:'
-        # warning, reduced length is not correct
-        # check against fortran function
-
+        if verbose is True:
+            print 'use python reduced track length function instead of fortran:'
         # python reduced track length function:
         r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                  C0=C0, C1=C1, C2=C2, C3=C3,
@@ -726,8 +719,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     l = np.where(l < min_length, 0, 1) * l
    
     # calculate track length standard deviation,
-    # using eqs. from fig 1 in Ketcham's (2000)
-    if apply_c_axis_correction == True:
+    # using eqs. from fig 1 in Ketcham (2000)
+    if apply_c_axis_correction is True:
         l_std = 0.008452 * l ** 2 - 0.2442 * l + 2.312
         l_std[np.where(l_std > 3.)] = 3.
     else:
@@ -747,14 +740,14 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     #####################################################
     # correct for uranium decay and observation frequency
     #####################################################
-    for j in xrange(0, int(20/binsize)):
+    for j in xrange(0, int(20 / binsize)):
         track_ln_prob[:, j] = track_ln_prob[:, j] * w * rho
     
     # sum probability density,  and normalize
     if verbose is True:
         print 'sum probability density,  and normalize'
-    track_length_pdf = np.zeros((20/binsize))
-    for j in xrange(0, int(20/binsize)):
+    track_length_pdf = np.zeros((20 / binsize))
+    for j in xrange(0, int(20 / binsize)):
         track_length_pdf[j] = track_ln_prob[:, j].sum()
     track_length_pdf = track_length_pdf/track_length_pdf[:].sum()
     if verbose is True:
@@ -766,7 +759,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if verbose is True:
         print 'calculate mean and std of track length from PDF'
     l_mean = 0
-    for j in xrange(0, int(20/binsize)):
+    for j in xrange(0, int(20 / binsize)):
         l_mean += (((j * binsize)+(0.5 * binsize)) * track_length_pdf[j])
     dummy = 0
     for j in xrange(len(track_length_pdf)):
@@ -775,8 +768,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     l_median = (track_length_pdf[:].argmax() * binsize)
     
     print 'mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f'\
-        %(l_mean, l_mean_std, l_median)
-    if np.isnan(l_mean) == True:
+        % (l_mean, l_mean_std, l_median)
+    if np.isnan(l_mean) is True:
         print 'warning, track length calculation failed'
         if verbose is True:
             pdb.set_trace()
@@ -796,7 +789,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     rc_mid[1:] = (rc[1:] + rc[:-1]) * 0.5
     
     # calculate fission track age density:
-    #rho_age = calculate_normalized_density(rc_mid)
     rho_age = calculate_normalized_density(rc_mid) * w
     
     if verbose is True:
@@ -811,14 +803,14 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
     aft_age_corrected = aft_age_uncorrected / rho_s
 
-    Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
     aft_age_myr = aft_age_corrected / Myr
+
     print 'AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s'\
         % (aft_age_myr, rho_age.mean(), rho_s)
 
     if aft_age_corrected == 0:
         track_length_pdf[:] = 0
         l_mean = 0
-        l_std = 0
+        l_mean_std = 0
 
     return track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc, rho_age, dt
