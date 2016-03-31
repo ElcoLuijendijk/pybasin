@@ -325,10 +325,10 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
                 age_error += age_error_min + age_error_max
                 #aft_data_well.ix[sample_ix, 'age_error'] = age_error
 
-        ahe_samples_well.ix[ahe_sample_ix, 'mean_GOF_all_grains'] = np.mean(np.array(grain_pdfs))
-        ahe_samples_well.ix[ahe_sample_ix, 'min_GOF_all_grains'] = np.min(np.array(grain_pdfs))
-        ahe_samples_well.ix[ahe_sample_ix, 'max_GOF_all_grains'] = np.max(np.array(grain_pdfs))
-        ahe_samples_well.ix[ahe_sample_ix, 'ahe_error'] = age_error
+            ahe_samples_well.ix[ahe_sample_ix, 'mean_GOF_all_grains'] = np.mean(np.array(grain_pdfs))
+            ahe_samples_well.ix[ahe_sample_ix, 'min_GOF_all_grains'] = np.min(np.array(grain_pdfs))
+            ahe_samples_well.ix[ahe_sample_ix, 'max_GOF_all_grains'] = np.max(np.array(grain_pdfs))
+            ahe_samples_well.ix[ahe_sample_ix, 'ahe_error'] = age_error
 
         ahe_age_pdfs_all_samples.append(ahe_age_pdfs)
 

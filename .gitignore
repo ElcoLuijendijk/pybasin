@@ -8,3 +8,4 @@ default_input_folder.txt
 initial*.csv
 *benchmark*
 log/*
+*.pck
