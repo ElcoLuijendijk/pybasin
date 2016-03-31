@@ -7,3 +7,4 @@ default_input_folder.txt
 *backup*
 initial*.csv
 *benchmark*
+log/*
