@@ -1851,7 +1851,7 @@ def equations_of_state_batzle1992(P, T, C):
 
     """
     Calculate density using equation of state provided by
-    Batzle and Wang (1992) Geophysics 57 (11): 1396-1408
+    Batzle and Wang (1992) Geophysics 57 (11): 1396-1408, eq. 27a and 27b
 
     Parameters
     ----------
@@ -1869,6 +1869,9 @@ def equations_of_state_batzle1992(P, T, C):
 
     """
 
+    # convert pressure to MPa
+    P *= 1.0e-6
+
     rho_w = 1 + 1e-6 * (-80*T - 3.3 * T**2 + 0.00175 * T**3 + 489 * P
                         - 2 * T * P + 0.016 * T**2 * P - 1.3e-5 * T**3 * P
                         - 0.333 * P**2 - 0.002 * T * P**2)
@@ -1882,6 +1885,7 @@ def equations_of_state_batzle1992(P, T, C):
     rho_b = rho_b * 1000.0
 
     return rho_b
+
 
 def calculate_diffusion_coeff(T_degC, C):
     """
@@ -1909,8 +1913,7 @@ def calculate_diffusion_coeff(T_degC, C):
     D_cal = ((D_ref * viscosity_ref) / T_ref) * (T_cal / viscosity_cal)
 
     if np.any(np.isnan(D_cal)) == True:
-        print 'warning, nan value for diffusion coefficient'
-        pdb.set_trace()
+        raise ValueError('error, nan value for diffusion coefficient')
 
     return D_cal
 
@@ -2280,11 +2283,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     for nti in xrange(nt_total):
 
         ind0 = np.where(np.diff(
-            z_nodes[nti, active_nodes[nti]])==0)[0]
+            z_nodes[nti, active_nodes[nti]]) == 0)[0]
 
         if len(ind0) > 0:
             active_nodes[nti,
-                         np.diff(z_nodes[nti])==0] = False
+                         np.diff(z_nodes[nti]) == 0] = False
             active_cells[nti] = active_nodes[nti, :-1]
 
     # check grid nodes
@@ -2399,6 +2402,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         #for ni in xrange(nt_total):
         #    sal_nodes[ni, :] = surface_temp_array[ni]
 
+        # set up arrays to store salt flux over time at top and bottom nodes
+        q_solute_top = np.zeros(nt_total)
+        q_solute_bottom = np.zeros(nt_total)
+
     # go through all geological timesteps and model heat flow:
     print '-' * 10
     if pybasin_params.simulate_salinity is True:
@@ -2469,6 +2476,29 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     surface_salinity_array[timestep],
                     fixed_lower_salinity)
 
+            # calculate density
+            P = z_nodes[timestep, active_nodes_i] \
+                * (porosity_nodes[timestep, active_nodes_i] * 1025.0
+                   + ((1.0 - porosity_nodes[timestep, active_nodes_i])
+                      * 2650.0))
+            density = equations_of_state_batzle1992(
+                P, T_nodes[timestep, active_nodes_i],
+                C_nodes[timestep, active_nodes_i])
+
+            # calculate solute flux at top node
+            dC_top = (C_nodes[timestep, active_nodes_i][1]
+                      - C_nodes[timestep, active_nodes_i][0])
+            dx_top = (z_nodes[timestep, active_nodes_i][1] -
+                      z_nodes[timestep, active_nodes_i][0])
+            q_solute_top[timestep] = density[0] * Ks_cells[0] * dC_top / dx_top
+
+            dC_bottom = (C_nodes[timestep, active_nodes_i][-1]
+                      - C_nodes[timestep, active_nodes_i][-2])
+            dx_bottom = (z_nodes[timestep, active_nodes_i][-1] -
+                      z_nodes[timestep, active_nodes_i][-2])
+            q_solute_bottom[timestep] = density[-1] * Ks_cells[-1] \
+                                        * dC_bottom / dx_bottom
+
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
 
             for cs, ac, rho in zip(cell_strat, active_cells[timestep],
@@ -2501,6 +2531,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         return_params += [C_nodes,
                           surface_salinity_array,
                           pybasin_params.fixed_lower_bnd_salinity,
-                          Dw]
+                          Dw, q_solute_top, q_solute_bottom]
 
     return return_params

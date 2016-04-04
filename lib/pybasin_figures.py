@@ -158,7 +158,7 @@ def model_vs_data_figure(model_run_data,
     if C_data is not None:
         [C_nodes, surface_salinity_array, salinity_lwr_bnd,
          salinity_depth, salinity_data, salinity_data_unc,
-         salinity_RMSE] = C_data
+         salinity_RMSE, q_solute_bottom, q_solute_top] = C_data
 
     if VR_model_data is not None:
         [vr_nodes,
@@ -516,8 +516,8 @@ def model_vs_data_figure(model_run_data,
     # plot modeled salinity
     if C_data is not None and C_nodes is not None:
         leg_model, = ax_c.plot(C_nodes[-1, active_nodes[-1]],
-                              z_nodes[-1, active_nodes[-1]],
-                              **line_props)
+                               z_nodes[-1, active_nodes[-1]],
+                               **line_props)
 
         model_label.append('salinity')
 
@@ -773,8 +773,9 @@ def model_vs_data_figure(model_run_data,
         max_C = C_nodes[-1].max()
 
 
-    if C_data is not None and len(salinity_data) > 0 and salinity_data.max() > max_C:
-        max_C = salinity_data.max()
+    if C_data is not None and len(salinity_data) > 0:
+        if salinity_data.max() > max_C:
+            max_C = salinity_data.max()
         ax_c.set_xlim(0, max_C * 1.1)
 
     if VR_model_data is not None:

@@ -338,12 +338,12 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
     if 'mean_GOF_all_grains' in ahe_samples_well.columns:
         ahe_age_gof = ahe_samples_well['mean_GOF_all_grains'].mean()
     else:
-        ahe_age_gof = None
+        ahe_age_gof = np.nan
 
     if 'ahe_error' in ahe_samples_well.columns:
         ahe_age_error = ahe_samples_well.ix[ahe_sample_ix, 'ahe_error'].mean()
     else:
-        ahe_age_error = -99999.9
+        ahe_age_error = 99999.9
 
     return (ahe_age_gof, ahe_age_error, ahe_ages_all_samples, ahe_ages_all_samples_SE,
             ahe_age_bin, ahe_age_pdfs_all_samples)
@@ -697,7 +697,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          node_strat, node_age,
          prov_start_nodes, prov_end_nodes,
          C_nodes, surface_salinity_array,
-         salinity_lwr_bnd, Dw] = model_result_vars
+         salinity_lwr_bnd, Dw, q_solute_bottom, q_solute_top] \
+            = model_result_vars
 
     # find out if exhumation end has changed
     exhumed_units = [unit[0] == '-' for unit in geohist_df.index]
@@ -1043,7 +1044,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                   salinity_data_well['depth'].values,
                   salinity_data_well['salinity'].values,
                   salinity_data_well['salinity_unc_1sigma'].values,
-                  salinity_rmse]
+                  salinity_rmse,
+                  q_solute_bottom, q_solute_top]
     else:
         C_data = None
 
@@ -1259,6 +1261,33 @@ def update_model_params_and_run_model(model_scenario_params,
                 ahe_age_gof
             model_results_df.ix[model_scenario_number, 'ahe_error'] = \
                 ahe_age_error
+
+                        # calculate cumlative salt loss due to diffusion
+        if pybasin_params.simulate_salinity is True:
+            (C_nodes, surface_salinity_array, salinity_lwr_bnd,
+             salinity_well_depth,
+             salinity_well,
+             salinity_well_sigma,
+             salinity_rmse,
+             q_solute_bottom, q_solute_top) = C_data
+
+            (time_array_bp,
+             surface_temp_array, basal_hf_array,
+             z_nodes, active_nodes, T_nodes,
+             node_strat, node_age) = model_run_data
+
+            duration = -np.diff(time_array_bp)
+            duration = np.append(duration, time_array_bp[-1])
+            duration *= 365.25 * 24 * 60 * 60
+            total_solute_flux_top = q_solute_top * duration
+            total_solute_flux_bottom = q_solute_bottom * duration
+
+            model_results_df.loc[model_scenario_number,
+                                 'cumalative_solute_flux_top_kg_m-2'] = \
+                np.sum(total_solute_flux_top)
+            model_results_df.loc[model_scenario_number,
+                                 'cumalative_solute_flux_bottom_kg_m-2'] = \
+                np.sum(total_solute_flux_bottom)
 
     if return_objective_function is True:
         # save calibration step input & results:
@@ -1816,6 +1845,12 @@ def main():
                                index=np.arange(n_nodes_est))
             dfc['well'] = well
 
+            if pybasin_params.simulate_salinity is True:
+                n_ts_est = int(strat_info_mod['age_bottom'].max() * 1e6 / pybasin_params.max_hf_timestep * 3)
+                dfqs = pd.DataFrame(columns=['well'],
+                                    index=np.arange(n_ts_est))
+                dfqs['well'] = well
+
             # go through model scenarios specified in the model_scenarios.py file:
             for well_scenario_no, model_scenario_params \
                     in enumerate(model_scenario_param_list):
@@ -1910,58 +1945,77 @@ def main():
                 today = datetime.datetime.now()
                 today_str = '%i-%i-%i' % (today.day, today.month, today.year)
 
-                if pybasin_params.save_model_run_data is True:
-                    # save salinity and T data
-                    (time_array_bp,
-                     surface_temp_array, basal_hf_array,
-                     z_nodes, active_nodes, T_nodes,
-                     node_strat, node_age) = model_run_data
+                # save salinity and T data
+                (time_array_bp,
+                 surface_temp_array, basal_hf_array,
+                 z_nodes, active_nodes, T_nodes,
+                 node_strat, node_age) = model_run_data
 
-                    l = len(z_nodes[-1, active_nodes[-1]]) - 1
-                    dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
-                        z_nodes[-1, active_nodes[-1]]
-                    dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
-                        T_nodes[-1, active_nodes[-1]]
+                l = len(z_nodes[-1, active_nodes[-1]]) - 1
+                dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
+                    z_nodes[-1, active_nodes[-1]]
+                dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
+                    T_nodes[-1, active_nodes[-1]]
 
-                    if pybasin_params.simulate_salinity is True:
-                        (C_nodes, surface_salinity_array, salinity_lwr_bnd,
-                         salinity_well_depth,
-                         salinity_well,
-                         salinity_well_sigma,
-                         salinity_rmse) = C_data
-                        dfc.loc[:l, 'salinity_s%i' % model_scenario_number] = \
-                            C_nodes[-1, active_nodes[-1]]
+                if pybasin_params.simulate_salinity is True:
+                    (C_nodes, surface_salinity_array, salinity_lwr_bnd,
+                     salinity_well_depth,
+                     salinity_well,
+                     salinity_well_sigma,
+                     salinity_rmse,
+                     q_solute_bottom, q_solute_top) = C_data
+                    dfc.loc[:l, 'salinity_s%i' % model_scenario_number] = \
+                        C_nodes[-1, active_nodes[-1]]
 
-                    if pybasin_params.simulate_VR is True:
-                        [vr_nodes,
-                         vr_depth,
-                         vr_obs,
-                         vr_obs_sigma,
-                         vr_GOF] = VR_model_data
-                        l = len(vr_depth) - 1
-                        dfc.loc[:l, 'VR_depth_s%i' % model_scenario_number] = vr_depth
-                        dfc.loc[:l, 'VR_s%i' % model_scenario_number] = vr_nodes
+                    # save solute flux data
+                    columns= ['solute_flux_top_kg_m-2_s-1',
+                              'solute_flux_bottom_kg_m-2_s-1']
 
-                    #if pybasin_params.simulate_AFT is True:
-                    #    simulated_AFT_data = AFT_data[0]
-                    #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                    #     aft_ln_mean_nodes, aft_ln_std_nodes,
-                    #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+                    lqs = len(time_array_bp) - 1
 
-                        #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
-                    #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
-                        #dfc.loc[:l, 'AFT_depth_s%i' % model_scenario_number] = \
-                        #    z_nodes[-1, active_nodes[-1]]
-                        #dfc.loc[:l, 'AFT_age_min_s%i' % model_scenario_number] = \
-                        #    aft_age_nodes_min
-                        #dfc.loc[:l, 'AFT_age_max_s%i' % model_scenario_number] = \
-                        #    aft_age_nodes_max
-
-                    # save depth vs T and salinity data
+                    dfqs.loc[:lqs, 'solute_flux_top_kg_m-2_s-1_s%i'
+                             % model_scenario_number] = q_solute_top
+                    dfqs.loc[:lqs, 'solute_flux_bottom_kg_m-2_s-1_s%i'
+                             % model_scenario_number] = q_solute_bottom
+                    dfqs.loc[:lqs, 'time_yr_s%i' % model_scenario_number] = \
+                        time_array_bp
                     fn = os.path.join(fig_output_dir,
-                                      'model_run_data_%s_%s_ms%i.csv'
+                                      'solute_flux_data_%s_%s_ms%i.csv'
                                       % (well, today_str, n_scenarios))
-                    dfc.to_csv(fn, index=False)
+                    print 'saving solute flux data to %s' % fn
+                    dfqs.to_csv(fn, index=False)
+
+
+                if pybasin_params.simulate_VR is True:
+                    [vr_nodes,
+                     vr_depth,
+                     vr_obs,
+                     vr_obs_sigma,
+                     vr_GOF] = VR_model_data
+                    l = len(vr_depth) - 1
+                    dfc.loc[:l, 'VR_depth_s%i' % model_scenario_number] = vr_depth
+                    dfc.loc[:l, 'VR_s%i' % model_scenario_number] = vr_nodes
+
+                #if pybasin_params.simulate_AFT is True:
+                #    simulated_AFT_data = AFT_data[0]
+                #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+                #     aft_ln_mean_nodes, aft_ln_std_nodes,
+                #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+
+                    #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
+                #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
+                    #dfc.loc[:l, 'AFT_depth_s%i' % model_scenario_number] = \
+                    #    z_nodes[-1, active_nodes[-1]]
+                    #dfc.loc[:l, 'AFT_age_min_s%i' % model_scenario_number] = \
+                    #    aft_age_nodes_min
+                    #dfc.loc[:l, 'AFT_age_max_s%i' % model_scenario_number] = \
+                    #    aft_age_nodes_max
+
+                # save depth vs T and salinity data
+                fn = os.path.join(fig_output_dir,
+                                  'model_run_data_%s_%s_ms%i.csv'
+                                  % (well, today_str, n_scenarios))
+                dfc.to_csv(fn, index=False)
 
                 if pybasin_params.save_model_run_data is True:
 
