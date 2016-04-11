@@ -207,12 +207,13 @@ def subdivide_strat_units(input_df, max_thickness):
             subdiv_df.ix[unit, 'age_top'] = subdiv_age_end[i]
             subdiv_df.ix[unit, 'depth_bottom'] = subdiv_bottom[i]
             subdiv_df.ix[unit, 'depth_top'] = subdiv_top[i]
-    else:
-        print 'errror, something wrong with input strat data '
-        pdb.set_trace()
 
-    # merge original and subdivided dataframes
-    output_df = pd.concat((input_df, subdiv_df))
+        # merge original and subdivided dataframes
+        output_df = pd.concat((input_df, subdiv_df))
+
+    else:
+        print 'all strat units < min thickness'
+        output_df = input_df
 
     # sort geohistory to time
     output_df = output_df.sort(['age_bottom'])
@@ -250,6 +251,17 @@ def add_exhumation_phases(well_strat,
     deposition_codes = []
 
     oldest_unit = well_strat['age_bottom'].max()
+
+    # check if any exhumation phase is younger than oldest unit
+    exhumation_active = False
+    for exhumation_period_start in exhumation_period_starts:
+        if exhumation_period_start < oldest_unit:
+            exhumation_active = True
+
+    if exhumation_active is False:
+        print 'no exhumation phase found that is younger than oldest strat. ' \
+              'unit for this well'
+        return well_strat
 
     # add exhumation phases
     for (exhumation_phase_id, exhumation_period_start, exhumation_period_end,
@@ -1048,7 +1060,8 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
         T_new = np.linalg.solve(A, b)
     except:
         print 'error, solving matrix for temperature diffusion eq. failed'
-        pdb.set_trace()
+        raise ValueError('error, solving matrix for temperature diffusion eq. failed')
+        #pdb.set_trace()
 
     # TODO check other linear solvers, such as CG:
     # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
@@ -1063,8 +1076,8 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
         print 'solution is correct = ', check
 
     if check is False:
-        print 'warning, solution is ', check
-        pdb.set_trace()
+        msg = 'error, solution is ', check
+        raise ValueError(msg)
 
     return T_new, A
 
@@ -1114,8 +1127,8 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
     try:
         C_new = np.linalg.solve(A, b)
     except:
-        print 'error, solving matrix for salinity diffusion eq. failed'
-        pdb.set_trace()
+        msg = 'error, solving matrix for salinity diffusion eq. failed'
+        raise ValueError(msg)
 
     # TODO check other linear solvers, such as CG:
     # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
@@ -1130,8 +1143,8 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
         print 'solution is correct = ', check
 
     if check is False:
-        print 'warning, solution is ', check
-        pdb.set_trace()
+        msg = 'warning, solution is ', check
+        raise ValueError(msg)
 
     return C_new, A
 
@@ -1166,6 +1179,28 @@ def get_geo_history(well_strat, strat_info_mod,
     # get present day thickness
     well_strat['present-day_thickness'] = \
         well_strat['depth_bottom'] - well_strat['depth_top']
+
+    thickness_ok = False
+    thickness_count = 0
+    # check present day thicknesses and increase thickness of strat units
+    # with thickness < 1
+    min_thickness = 5.0
+
+    while thickness_ok is False and thickness_count < 100:
+        ind = well_strat['present-day_thickness'] < min_thickness
+        if np.any(ind.values == True):
+            print 'found unit with thickness < %0.1f m, adding %0.1f m' \
+                  % (min_thickness, min_thickness)
+            ind_start = well_strat.loc[ind, 'present-day_thickness'].index
+            well_strat.loc[ind_start[0]:, 'depth_bottom'] += min_thickness
+            well_strat.loc[ind_start[0]:, 'depth_top'][1:] += min_thickness
+
+            well_strat['present-day_thickness'] = \
+                well_strat['depth_bottom'] - well_strat['depth_top']
+        else:
+            thickness_ok = True
+
+        thickness_count += 1
 
     # generate new columns to copy data from strat dataframe
     for col in strat_info_mod.columns:
@@ -1505,8 +1540,8 @@ def generate_thermal_histories(resample_t, n_nodes,
 
             # check if combined time is ok
             if np.max(np.diff(combined_times)) >= 0:
-                print 'warning, backwards time in provenance history!'
-                pdb.set_trace()
+                msg = 'error, backwards time in provenance history!'
+                raise ValueError(msg)
 
             t_scenarios.append(combined_times.max() - combined_times)
             T_scenarios.append(combined_T)
@@ -1580,8 +1615,8 @@ def generate_burial_histories(n_nodes,
 
             # check if combined time is ok
             if np.max(np.diff(combined_times)) >= 0:
-                print 'warning, backwards time in provenance history!'
-                pdb.set_trace()
+                msg = 'warning, backwards time in provenance history!'
+                raise ValueError(msg)
 
             t_scenarios.append(combined_times)
             z_scenarios.append(combined_z)
@@ -1996,7 +2031,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             active_fm[start_age] = active_bool
         except TypeError, msg:
             print msg
-            pdb.set_trace()
+            raise TypeError(msg)
 
     active_fm[end_age] = active_fm[start_age]
 
@@ -2385,8 +2420,25 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                          & (time_array_bp >= surface_salinity_well.loc[i, 'age_end'] * 1.0e6))
 
                 if True in ind_t:
-                    print 'updating surface salinity bnd, ', surface_salinity_well
-                    surface_salinity_array[ind_t] = surface_salinity_well.loc[i, 'surface_salinity']
+                    #
+                    if 'terrestrial' in surface_salinity_well.loc[i, 'surface_salinity']:
+                        target_salinity = pybasin_params.salinity_freshwater
+                    elif 'marine' in surface_salinity_well.loc[i, 'surface_salinity']:
+                        target_salinity = pybasin_params.salinity_seawater
+                    elif 'Brackish' in surface_salinity_well.loc[i, 'surface_salinity'] or \
+                                    'brackish' in surface_salinity_well.loc[i, 'surface_salinity']:
+                        target_salinity = (pybasin_params.salinity_seawater + pybasin_params.salinity_seawater) / 2.0
+                    else:
+                        msg = 'error, could not read surface salinity for well %s: ' % well
+                        msg += str(surface_salinity_well.loc[i, 'surface_salinity'])
+                        raise ValueError(msg)
+
+                    print 'updating surface salinity bnd, ' \
+                          '%0.2f Ma - %0.2f Ma to %0.5f kg/kg' \
+                          % (surface_salinity_well.loc[i, 'age_start'],
+                             surface_salinity_well.loc[i, 'age_end'],
+                             target_salinity)
+                    surface_salinity_array[ind_t] = target_salinity
 
         # interpolate surface salinity
         #surface_salinity_array = np.interp(time_array_bp,

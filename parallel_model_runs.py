@@ -12,6 +12,7 @@ import os
 import subprocess
 import time
 import numpy as np
+import pandas as pd
 from subprocess import Popen
 
 log_folder = 'log'
@@ -20,21 +21,24 @@ if os.path.exists(log_folder) is False:
     os.makedirs(log_folder)
     print 'created folder %s to store model output' % log_folder
 
-wait_time = 2.0
+wait_time = 0.5
 
-ncores = 38
+ncores = 15
 
 # Rigi dataset: 27 outcrop samples, 2 boreholes, plus Entlebuch for reference:
-locations = ['Huenenberg',
-             'MRP025', 'MRP170', 'MRP172', 'MRP174',
-             'RH10', 'RH12', 'RH15', 'RH17', 'RH20', 'RH23', 'RH30a', 'RH30b',
-             'RH35', 'RH40', 'RH45', 'RH50', 'RH60c', 'RH65', 'RH70',
-             'RV05', 'RV10b', 'RV15', 'RV20', 'RV25',
-             'RV30a', 'RV30b', 'RV30c',
-             'Weggis', 'Entlebuch']
+#locations = ['Huenenberg',
+#             'MRP025', 'MRP170', 'MRP172', 'MRP174',
+#             'RH10', 'RH12', 'RH15', 'RH17', 'RH20', 'RH23', 'RH30a', 'RH30b',
+#             'RH35', 'RH40', 'RH45', 'RH50', 'RH60c', 'RH65', 'RH70',
+#             'RV05', 'RV10b', 'RV15', 'RV20', 'RV25',
+#             'RV30a', 'RV30b', 'RV30c',
+#             'Weggis', 'Entlebuch']
 
 #locations = ['RH17', 'RV05', 'RV10b', 'RV30a', 'RV30b']
 #locations = ['RH30a', 'RH30b']
+
+df_loc = pd.read_csv('parallel_run_wells.csv')
+locations = list(np.unique(df_loc['well']))
 
 n_batches = int(np.ceil(len(locations) / float(ncores)))
 

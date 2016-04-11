@@ -755,12 +755,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     # record max temperature and depth
     model_results_df.ix[model_scenario_number,
-                     'max_temperature'] = T_nodes.max()
+                        'max_temperature'] = T_nodes.max()
     model_results_df.ix[model_scenario_number,
-                     'max_present_temperature'] = \
+                        'max_present_temperature'] = \
         T_nodes[-1, active_nodes[-1]].max()
     model_results_df.ix[model_scenario_number,
-                     'max_depth'] = z_nodes.max()
+                        'max_depth'] = z_nodes.max()
 
     vr_nodes = None
 
@@ -1358,16 +1358,24 @@ def read_model_input_data(input_dir, pybasin_params):
     well_strats = pd.read_csv(os.path.join(input_dir, 'well_stratigraphy.csv'))
 
     # surface temperature history
-    surface_temp = pd.read_csv(os.path.join(input_dir, 'surface_temperature.csv'))
+    surface_temp = pd.read_csv(os.path.join(input_dir,
+                                            'surface_temperature.csv'))
 
     #
     if pybasin_params.simulate_salinity is True:
-       df_sal = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
+        #df_sal = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
+        df_sal_inp = pd.read_csv(os.path.join(input_dir,
+                                           'surface_salinity.csv'))
+        df_sal_inp = df_sal_inp.set_index('well')
+        df_sal = df_sal_inp.transpose()
+        df_sal['age_start'] = pd.to_numeric(df_sal['age_start'])
+        df_sal['age_end'] = pd.to_numeric(df_sal['age_end'])
     else:
         df_sal = None
 
     # lithology properties
-    litho_props = pd.read_csv(os.path.join(input_dir, 'lithology_properties.csv'))
+    litho_props = pd.read_csv(os.path.join(input_dir,
+                                           'lithology_properties.csv'))
     litho_props = litho_props.set_index('lithology')
 
     # present-day temperature data
@@ -1375,13 +1383,15 @@ def read_model_input_data(input_dir, pybasin_params):
 
     if pybasin_params.simulate_VR is True:
         # vitrinite reflectance data
-        vr_data_df = pd.read_csv(os.path.join(input_dir, 'vitrinite_reflectance.csv'))
+        vr_data_df = pd.read_csv(os.path.join(input_dir,
+                                              'vitrinite_reflectance.csv'))
     else:
         vr_data_df = None
 
     # fission track data
     if pybasin_params.simulate_AFT is True:
-        aft_samples_raw = pd.read_csv(os.path.join(input_dir, 'aft_samples.csv'))
+        aft_samples_raw = pd.read_csv(os.path.join(input_dir,
+                                                   'aft_samples.csv'))
 
         # filter out samples with low grain count
         ind = ((aft_samples_raw['n_grains'] > pybasin_params.min_grain_no)
@@ -1408,7 +1418,8 @@ def read_model_input_data(input_dir, pybasin_params):
         #Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
 
         # and read salinity data
-        salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'))
+        salinity_data = pd.read_csv(os.path.join(input_dir,
+                                                 'salinity_data.csv'))
 
     else:
         salinity_data = None
@@ -1481,12 +1492,13 @@ def select_well_strat(well, well_strats):
 
 def select_well_salinity_bnd(well, salinity_bnd_df):
 
-    if ('surface_salinity_%s' % well) in salinity_bnd_df.columns:
+    if well in salinity_bnd_df.columns:
         print 'using surface salinity bnd for well %s from file' % well
-        cols = ['age_start', 'age_end', 'surface_salinity_%s' % well]
+        #cols = ['age_start', 'age_end', 'surface_salinity_%s' % well]
+        cols = ['age_start', 'age_end', well]
         surface_salinity_well = salinity_bnd_df[cols]
         surface_salinity_well['surface_salinity'] = \
-            surface_salinity_well['surface_salinity_%s' % well]
+            surface_salinity_well[well]
     else:
         surface_salinity_well = None
 
@@ -1579,7 +1591,7 @@ def main():
     print 'running model input data from folder %s' % model_input_subfolder
 
     # import model parameter and model functions scripts
-    sys.path.append(model_input_subfolder)
+    sys.path.insert(0, model_input_subfolder)
     import pybasin_params
     import model_scenarios
 
@@ -1623,12 +1635,18 @@ def main():
     model_scenario_param_list, params_to_change = setup_model_scenarios(model_scenarios,
                                                       pybasin_params.correct_exhumation_duration)
 
-
     # check sys arguments to run a particular well
     if len(sys.argv) > 1:
         wells = sys.argv[1:]
     else:
         wells = model_scenarios.wells
+
+    # option to run all wells found in wells_stratigraphy.csv input file
+    if 'all' in wells:
+        wells = np.unique(well_strats['well']).tolist()
+        if model_scenarios.start_well is not None:
+            ind = wells.index(model_scenarios.start_well)
+            wells = wells[ind:]
 
     print 'running the following wells: ', wells
 
