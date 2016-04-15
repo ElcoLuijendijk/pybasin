@@ -36,8 +36,8 @@ exhumation_magnitudes = [0.0]
 exhumation_starts = [None]
 exhumation_durations = [None]
 
-exhumation_time_factors = [None]
-exhumation_rate_factors = [None]
+exhumation_segment_factors = [None]
+exhumation_duration_factors = [None]
 
 # AFT annealing eq. parameters, see Ketcham et al. (2007) Am. Min.
 AFT_C0 = [None]

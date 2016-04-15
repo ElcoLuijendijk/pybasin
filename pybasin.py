@@ -1591,7 +1591,7 @@ def main():
     print 'running model input data from folder %s' % model_input_subfolder
 
     # import model parameter and model functions scripts
-    sys.path.insert(0, model_input_subfolder)
+    sys.path.insert(1, model_input_subfolder)
     import pybasin_params
     import model_scenarios
 
@@ -2011,8 +2011,8 @@ def main():
                      vr_obs_sigma,
                      vr_GOF] = VR_model_data
                     l = len(vr_depth) - 1
-                    dfc.loc[:l, 'VR_depth_s%i' % model_scenario_number] = vr_depth
-                    dfc.loc[:l, 'VR_s%i' % model_scenario_number] = vr_nodes
+                    #dfc.loc[:l, 'VR_depth_s%i' % model_scenario_number] = vr_depth
+                    #dfc.loc[:l, 'VR_s%i' % model_scenario_number] = vr_nodes
 
                 #if pybasin_params.simulate_AFT is True:
                 #    simulated_AFT_data = AFT_data[0]

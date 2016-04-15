@@ -108,7 +108,7 @@ provenance_time_nt = 100
 # value for all strat. periods
 heatflow_ages = np.array([0.0, 10.0, 90.0, 120.0])
 # heatflow_history: heat flow in W/m^2
-heatflow_history = np.array([61.0, 61.0, 80.0, 61.0]) * 1e-3
+heatflow_history = np.array([65.0, 65.0, 80.0, 65.0]) * 1e-3
 
 # optimize heat flow:
 optimize_heatflow = False
@@ -146,6 +146,18 @@ original_thicknesses = [[750.0, 400.0]]
 #pre_exhumation_units = [None, 'AT', None, None]
 #pre_exhumation_thicknesses = np.array([0.0, 1200.0, 0.0, 0.0])
 
+# support for two-stage exhumation history, enables fast and slow exhumation segments
+# switch for two-stage exhumation
+two_stage_exhumation = False
+# fraction of total duration of exhumation phase that separates the first and second segment
+exhumation_segment_factor = 0.5
+# fraction of exhumation that takes place in the first of two segments
+exhumation_duration_factor = 0.5
+
+# parameter to automatically reduce exhumation duration if end of
+# exhumation is < 0 Ma
+correct_exhumation_duration = True
+
 ###########################################
 # max thickness of strat units
 # units that exceed this are subdivided
@@ -178,18 +190,25 @@ binsize = 0.25
 # empirical coefficients AFT annealing equation
 # default values from Ketcham et al. (2007) American Mineralogist
 # fanning curvelinear model values in Table 5
-alpha = 0.04672
-C0 = 0.39528
-C1 = 0.01073
-C2 = -65.12969
-C3 = -7.91715
+#alpha = 0.04672
+#C0 = 0.39528
+#C1 = 0.01073
+#C2 = -65.12969
+#C3 = -7.91715
 
 # calibrated values for Frio pseudo-borehole data by Corrigan (1993):
-#alpha = 0.0570171869542
-#C0 = 0.465675271105
-#C1 = 0.00893230883784
-#C2 = -75.4037631023
-#C3 = -8.20203665287
+alpha = 0.0570171869542
+C0 = 0.465675271105
+C1 = 0.00893230883784
+C2 = -75.4037631023
+C3 = -8.20203665287
+
+##################
+# (U-Th)/He params
+##################
+decay_constant_238U = 4.916e-18
+decay_constant_232Th = 1.57e-18
+decay_constant_235U = 3.12e-17
 
 
 ###################################################

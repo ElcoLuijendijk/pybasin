@@ -116,16 +116,16 @@ def calculate_normalized_density(r, r_crit=0.765, rmin=0.5275,
     return rho
 
 
-def caxis_project_reduced_lengths(r, p1=-1.499, p2=4.150, p3=-1.656):
-    
+def caxis_project_reduced_lengths(rc, p1=-1.499, p2=4.150, p3=-1.656):
+
     """
     convert reduced lengths to c-axis projected reduced lengths
     see fig 8 in ketcham et al.,  1999
     
     Parameters
     ----------
-    r
-        reduced fisssion track length
+    rc
+        reduced fisssion track length, c-axis projected
     p1
         default = -1.499
     p2
@@ -142,7 +142,7 @@ def caxis_project_reduced_lengths(r, p1=-1.499, p2=4.150, p3=-1.656):
     
     """
     
-    return p1 * (r ** 2) + p2 * r + p3
+    return p1 * (rc ** 2) + p2 * rc + p3
 
 
 def get_initial_track_length(kinetic_parameter, kinetic_value,

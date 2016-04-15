@@ -122,7 +122,7 @@ heatflow_history = np.array([65.0, 65.0]) * 1e-3
 optimize_heatflow = False
 
 # max size of heatflow timestep (in yrs)
-max_hf_timestep = 100000.0
+max_hf_timestep = 10000.0
 
 # resample timesteps for AFT calculation, number of timesteps that
 resample_AFT_timesteps = 10
@@ -165,7 +165,7 @@ correct_exhumation_duration = True
 # units that exceed this are subdivided
 # to keep the modeled temperatures accurate
 ###########################################
-max_thickness = 100.0
+max_thickness = 80.0
 
 ############################################
 # Apatite fission track model params:

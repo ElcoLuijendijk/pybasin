@@ -37,7 +37,7 @@ save_model_run_data = True
 ################
 
 # option to generate 1 figure for each model run:
-make_model_data_fig = True
+make_model_data_fig = False
 
 # variable to show color contours for in burial history panel
 # choose either 'temperature' or 'salinity'
@@ -160,9 +160,9 @@ original_thicknesses = [[2000.0]]
 # switch for two-stage exhumation
 two_stage_exhumation = False
 # fraction of total duration of exhumation phase that separates the first and second segment
-exhumation_time_factor = 0.5
+exhumation_segment_factor = 0.5
 # fraction of exhumation that takes place in the first of two segments
-exhumation_rate_factor = 0.75
+exhumation_duration_factor = 0.5
 
 # parameter to automatically reduce exhumation duration if end of
 # exhumation is < 0 Ma
@@ -206,6 +206,21 @@ C0 = 0.39528
 C1 = 0.01073
 C2 = -65.12969
 C3 = -7.91715
+
+# calibrated values for Frio pseudo-borehole data by Corrigan (1993):
+alpha = 0.0570171869542
+C0 = 0.465675271105
+C1 = 0.00893230883784
+C2 = -75.4037631023
+C3 = -8.20203665287
+
+##################
+# (U-Th)/He params
+##################
+decay_constant_238U = 4.916e-18
+decay_constant_232Th = 1.57e-18
+decay_constant_235U = 3.12e-17
+
 
 ###################################################
 # compaction
