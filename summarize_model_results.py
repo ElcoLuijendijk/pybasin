@@ -24,7 +24,7 @@ y_data2 = 'vr_gof'
 z_data = None
 
 # minimum value for gof for acceptable model fits
-gof_cutoff = 0.7
+gof_cutoff = 0.5
 
 # best estimate of heat flow if no temperature data are available
 default_heat_flow = 0.065
@@ -33,8 +33,7 @@ default_heat_flow = 0.065
 default_exhumation = 1500.0
 
 # read model result data
-model_result_fn = "model_output/MB/final_results_23mar2016_2stage_cooling/" \
-                  "model_results_merged_mod.csv"
+model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/5apr2016_results_two_stage_cooling/model_results_merged_mod.csv"
 df = pd.read_csv(model_result_fn)
 
 # calculate overall thermochron gof

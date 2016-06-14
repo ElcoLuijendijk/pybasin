@@ -1162,17 +1162,31 @@ def update_model_params_and_run_model(model_scenario_params,
         pybasin_params.exhumation_period_starts[exhumation_phase_id] = \
             exhumation_start
         print 'start of exhumation = %0.2f Ma' % exhumation_start
-    if exhumation_duration is not None:
-        # check if exhumation duration exceeds starting age of exhumation
-        if (exhumation_duration
-              > pybasin_params.exhumation_period_starts[exhumation_phase_id]):
-            exhumation_duration = \
-                (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-                 - (pybasin_params.max_hf_timestep * 3) / 1e6)
-        pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
+
+    # calculate exhumation duraiton from standard param file if it is unchanged
+    if exhumation_duration is None:
+        exhumation_duration_temp = pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.exhumation_period_ends[exhumation_phase_id]
+    else:
+        exhumation_duration_temp = exhumation_duration
+
+    # check if exhumation duration exceeds starting age of exhumation
+    if (exhumation_duration_temp
+          > pybasin_params.exhumation_period_starts[exhumation_phase_id]):
+        exhumation_duration_temp = \
             (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-             - exhumation_duration)
-        print 'duration of exhumation = %0.2f My' % exhumation_duration
+             - (pybasin_params.max_hf_timestep * 3) / 1e6)
+
+    # and check for 0 duration of exhumation
+
+    pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
+        (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+         - exhumation_duration_temp)
+    if exhumation_duration is not None:
+        exhumation_duration = exhumation_duration_temp
+
+
+    print 'adjusted duration of exhumation = %0.2f My' \
+          % exhumation_duration_temp
 
     if exhumation_segment_factor is not None:
         pybasin_params.exhumation_segment_factor = exhumation_segment_factor
@@ -1314,12 +1328,16 @@ def update_model_params_and_run_model(model_scenario_params,
     if return_objective_function is True:
         objective_function = 0
 
-        if 'AFT_age' in calibration_target:
+        if 'AFT_age' in calibration_target and np.isnan(aft_age_error) == False:
             objective_function += aft_age_error
-        if 'AHe' in calibration_target:
+        if 'AHe' in calibration_target and np.isnan(ahe_age_error) == False:
             objective_function += ahe_age_error
 
         print 'objective function = %0.2f\n' % objective_function
+
+        if np.isnan(objective_function) == True:
+            msg = 'error, nan objective function'
+            raise ValueError(msg)
 
         #model_results_df2.cols = model_results_df.cols
         ind = model_results_df2.index.max() + 1
@@ -1718,6 +1736,9 @@ def main():
 
                 # copy initial parameters from best model run
                 max_ind = np.argmax(df_init_well['obj_function'])
+
+                print 'using initial parameters from best gof run:', \
+                    df_init_well.loc[max_ind]
 
                 model_scenario_params = []
 

@@ -123,7 +123,9 @@ for well in wells:
             # place second y axis and dataset below first
             #panel.set_zorder(panelr.get_zorder()+1) # put ax in front of ax2
             #panel.patch.set_visible(False) # hide the 'canvas'
-
+        
+        # http://stackoverflow.com/questions/9103166/multiple-axis-in-matplotlib-with-different-scales
+        
         panel.yaxis.grid()
 
         panel.set_xlabel(x_data.replace('_', ' '))

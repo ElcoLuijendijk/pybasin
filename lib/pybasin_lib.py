@@ -461,6 +461,21 @@ def add_exhumation_phases(well_strat,
                         (ex_units_start
                          - df_ex.ix[eroded_unit, 'exhumation_units_duration'])
 
+                    #
+                    ind = ex_units_end < 0
+                    if True in ind:
+                        print 'warning, negative value in exhumation timing', \
+                            ex_units_end[ind]
+                        print 'setting to zero'
+                        ex_units_end[ind] = 0.0
+
+                    ind = ex_units_start < ex_units_end
+                    if True in ind:
+                        print 'warning, negative duration of exhumation timestep', \
+                            ex_units_start[ind], ex_units_end[ind]
+                        print 'setting to zero'
+                        raise ValueError
+
                     for n_unit, unit_start, unit_end, ex_start, ex_end in zip(
                             itertools.count(),
                             new_units_start,
@@ -535,6 +550,10 @@ def add_exhumation_phases(well_strat,
         print 'modified 2-stage exhumation starts and ends:'
         print new_units_start_mod2
         print new_units_end_mod2
+
+        if len(new_units_end_mod2) > 0 and np.min(new_units_end_mod2) < 0:
+            msg = 'warning, negative value in exhumation time'
+            raise ValueError(msg)
 
         new_units_start3 = np.array(new_units_start_list)
         new_units_end3 = np.array(new_units_end_list)
@@ -1160,7 +1179,8 @@ def get_geo_history(well_strat, strat_info_mod,
                     max_thickness,
                     two_stage_exh=False,
                     exhumation_segment_factor=0.5,
-                    exhumation_duration_factor=0.5):
+                    exhumation_duration_factor=0.5,
+                    min_exh_thickness=5.0):
 
     """
     set up a geohistory dataframe from an input file containing well stratigraphy
@@ -1169,6 +1189,15 @@ def get_geo_history(well_strat, strat_info_mod,
     :param well_strat:
     :return:
     """
+
+    # check for exhumation thickness, if less than 1 grid cell set to 0
+    if np.min(exhumed_thicknesses) < min_exh_thickness:
+        print 'warning, exhumed thicknesses of one or more phases does not ' \
+              'exceed %0.2e m' % min_exh_thickness
+        print 'exhumed thicknesses: ', exhumed_thicknesses
+        ind = exhumed_thicknesses < min_exh_thickness
+        exhumed_thicknesses[ind] = 0
+        print 'modified exhumed thicknesses: ', exhumed_thicknesses
 
     ############################
     # reconstruct burial history
@@ -1311,6 +1340,10 @@ def get_geo_history(well_strat, strat_info_mod,
         if strat[0] == '~':
             geohist_df.ix[strat, 'present-day_thickness'] = 0
             geohist_df.ix[strat, 'matrix_thickness'] = 0
+
+    print geohist_df[['age_bottom', 'age_top']]
+    pdb.set_trace()
+
 
     return geohist_df
 
@@ -2116,6 +2149,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     nt_heatflows = np.array([int(np.round(duration * 1e6 / dt))
                              for duration in durations])
 
+    if np.sum(nt_heatflows) > 1e6:
+        print 'warning, more than 1e6 timesteps'
+        raise ValueError
+
     if np.min(nt_heatflows) <= 0:
         msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
             % (np.argmin(nt_heatflows), len(nt_heatflows))
@@ -2269,8 +2306,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         timestep += nt_heatflow
 
     # populate thermal parameter arrays:
-    print 'setting grid node thermal params (rho, c, HP, phi)'
+    print 'setting grid node thermal params (rho, c, HP, phi), ' \
+          '%i timesteps' % np.sum(nt_heatflows)
     timestep = 0
+
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
 
@@ -2315,6 +2354,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
     # check to remove 0 depth nodes after erosion phases
+    print 'find 0 thickness nodes after erosion phase'
     for nti in xrange(nt_total):
 
         ind0 = np.where(np.diff(
@@ -2329,6 +2369,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     active_grid_nodes_sum = np.sum(active_nodes, axis=1)
 
     # generate time array
+    print 'generate time array'
     time_array = np.zeros(nt_total)
     timestep = 0
     time_all = 0
@@ -2343,6 +2384,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     time_array_bp = time_array.max() - time_array
 
     # interpolate surface temperature
+    print 'interpolate surface temperature'
     surface_temp_array = np.interp(time_array_bp,
                                    Ts['age'].values * 1.0e6,
                                    Ts['surface_temperature'])
@@ -2353,6 +2395,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         T_nodes[ni, :] = surface_temp_array[ni]
 
     # interpolate basal heat flow
+    print 'interpolate basal heat flow'
     basal_hf_array = np.interp(time_array_bp,
                                pybasin_params.heatflow_ages * 1.0e6,
                                pybasin_params.heatflow_history)
