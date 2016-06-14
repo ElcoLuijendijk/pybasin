@@ -1729,7 +1729,9 @@ def main():
                     if i == 0:
                         df_init_well['obj_function'] = df_init_well[obj_col]
                     else:
-                        ind = df_init_well[obj_col] < df_init_well['obj_function']
+                        ind = (df_init_well[obj_col] < df_init_well['obj_function']) \
+                              & (df_init_well[obj_col].isnull() == False) \
+                              | (df_init_well['obj_function'].isnull())
                         if True in ind.values:
                             df_init_well.loc[ind, 'obj_function'] = \
                                 df_init_well.loc[ind, obj_col]
@@ -1737,13 +1739,17 @@ def main():
                 # copy initial parameters from best model run
                 max_ind = np.argmax(df_init_well['obj_function'])
 
-                print 'using initial parameters from best gof run:', \
-                    df_init_well.loc[max_ind]
+                try:
+                    print 'using initial parameters from best gof run:', \
+                        df_init_well.loc[max_ind]
+                except:
+                    pdb.set_trace()
 
                 model_scenario_params = []
 
                 for param_change in pybasin_params.params_to_change:
-                    model_scenario_params.append(df_init_well.loc[max_ind, param_change])
+                    model_scenario_params.append(
+                        df_init_well.loc[max_ind, param_change])
 
             else:
                 # get initial param values from pybasin_params.py file
