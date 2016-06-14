@@ -234,7 +234,8 @@ def add_exhumation_phases(well_strat,
                           strat_info_mod,
                           two_stage_exh=False,
                           exhumation_segment_factor=0.5,
-                          exhumation_duration_factor=0.5):
+                          exhumation_duration_factor=0.5,
+                          min_exh_duration=0.1):
     
     """
     add exhumation phases to well stratigraphy dataframe
@@ -473,8 +474,8 @@ def add_exhumation_phases(well_strat,
                     if True in ind:
                         print 'warning, negative duration of exhumation timestep', \
                             ex_units_start[ind], ex_units_end[ind]
-                        print 'setting to zero'
-                        raise ValueError
+                        print 'setting duration to %0.2e' % min_exh_duration
+                        ex_units_end[ind] = ex_units_start[ind] - min_exh_duration
 
                     for n_unit, unit_start, unit_end, ex_start, ex_end in zip(
                             itertools.count(),
@@ -552,8 +553,8 @@ def add_exhumation_phases(well_strat,
         print new_units_end_mod2
 
         if len(new_units_end_mod2) > 0 and np.min(new_units_end_mod2) < 0:
-            msg = 'warning, negative value in exhumation time'
-            raise ValueError(msg)
+            msg = 'warning, negative value in exhumation time %0.2e' % np.min(new_units_end_mod2)
+            print msg
 
         new_units_start3 = np.array(new_units_start_list)
         new_units_end3 = np.array(new_units_end_list)
@@ -1341,9 +1342,7 @@ def get_geo_history(well_strat, strat_info_mod,
             geohist_df.ix[strat, 'present-day_thickness'] = 0
             geohist_df.ix[strat, 'matrix_thickness'] = 0
 
-    print geohist_df[['age_bottom', 'age_top']]
-    pdb.set_trace()
-
+    #print geohist_df[['age_bottom', 'age_top']]
 
     return geohist_df
 
