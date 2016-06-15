@@ -361,6 +361,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
 
     elif method is 'RDAAM':
         print 'using RDAAM model to calculate helium diffusivity'
+        print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % (U238, U235, Th232, radius)
         Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius)
 
     elif method is 'Wolf1996':
@@ -376,10 +377,10 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
         Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
     else:
-        print 'error, cannot determine method for calculating helium diffusivity'
-        print 'choose either "Wolf1996", "Farley2000", or "RDAAM"'
-        print 'current method = ', method
-        pdb.set_trace()
+        msg = 'error, cannot determine method for calculating helium ' \
+              'diffusivity, choose "Wolf1996", "Farley2000", ' \
+              'or "RDAAM", current method = %s' % method
+        raise ValueError(msg)
 
     He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0,
                                                   decay_constant=decay_constant,

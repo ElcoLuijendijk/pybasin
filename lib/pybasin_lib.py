@@ -198,8 +198,8 @@ def subdivide_strat_units(input_df, max_thickness):
             try:
                 subdiv_df.ix[unit, input_df.columns] = input_df.ix[orig_unit, input_df.columns]
             except KeyError, msg:
-                print 'error: ', msg
-                pdb.set_trace()
+                msg += ', error in processing subidivision of strat units'
+                raise KeyError(msg)
 
         for i, unit in enumerate(subdiv_units):
             subdiv_df.ix[unit, 'present-day_thickness'] = subdiv_th[i]
@@ -2469,7 +2469,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                         target_salinity = pybasin_params.salinity_seawater
                     elif 'Brackish' in surface_salinity_well.loc[i, 'surface_salinity'] or \
                                     'brackish' in surface_salinity_well.loc[i, 'surface_salinity']:
-                        target_salinity = (pybasin_params.salinity_seawater + pybasin_params.salinity_seawater) / 2.0
+                        target_salinity = (pybasin_params.salinity_seawater
+                                           + pybasin_params.salinity_seawater) / 2.0
                     else:
                         msg = 'error, could not read surface salinity for well %s: ' % well
                         msg += str(surface_salinity_well.loc[i, 'surface_salinity'])

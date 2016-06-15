@@ -1171,12 +1171,10 @@ def update_model_params_and_run_model(model_scenario_params,
 
     # check if exhumation duration exceeds starting age of exhumation
     if (exhumation_duration_temp
-          > pybasin_params.exhumation_period_starts[exhumation_phase_id]):
+          >= (pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.max_hf_timestep) / 1e6):
         exhumation_duration_temp = \
             (pybasin_params.exhumation_period_starts[exhumation_phase_id]
              - (pybasin_params.max_hf_timestep * 3) / 1e6)
-
-    # and check for 0 duration of exhumation
 
     pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
         (pybasin_params.exhumation_period_starts[exhumation_phase_id]
@@ -1739,11 +1737,8 @@ def main():
                 # copy initial parameters from best model run
                 max_ind = np.argmax(df_init_well['obj_function'])
 
-                try:
-                    print 'using initial parameters from best gof run:', \
+                print 'using initial parameters from best gof run:', \
                         df_init_well.loc[max_ind]
-                except:
-                    pdb.set_trace()
 
                 model_scenario_params = []
 
@@ -1996,11 +1991,13 @@ def main():
                  z_nodes, active_nodes, T_nodes,
                  node_strat, node_age) = model_run_data
 
-                l = len(z_nodes[-1, active_nodes[-1]]) - 1
-                dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
-                    z_nodes[-1, active_nodes[-1]]
-                dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
-                    T_nodes[-1, active_nodes[-1]]
+                #l = len(z_nodes[-1, active_nodes[-1]]) - 1
+                #dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
+                #    z_nodes[-1, active_nodes[-1]]
+                #dfc['depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
+
+                #dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
+                #    T_nodes[-1, active_nodes[-1]]
 
                 if pybasin_params.simulate_salinity is True:
                     (C_nodes, surface_salinity_array, salinity_lwr_bnd,
@@ -2057,10 +2054,10 @@ def main():
                     #    aft_age_nodes_max
 
                 # save depth vs T and salinity data
-                fn = os.path.join(fig_output_dir,
-                                  'model_run_data_%s_%s_ms%i.csv'
-                                  % (well, today_str, n_scenarios))
-                dfc.to_csv(fn, index=False)
+                #fn = os.path.join(fig_output_dir,
+                #                  'model_run_data_%s_%s_ms%i.csv'
+                #                  % (well, today_str, n_scenarios))
+                #dfc.to_csv(fn, index=False)
 
                 if pybasin_params.save_model_run_data is True:
 

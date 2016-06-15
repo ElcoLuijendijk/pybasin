@@ -25,7 +25,7 @@ if os.path.exists(log_folder) is False:
 
 wait_time = 0.5
 
-ncores = 15
+ncores = 31
 
 # Rigi dataset: 27 outcrop samples, 2 boreholes, plus Entlebuch for reference:
 #locations = ['Huenenberg',
