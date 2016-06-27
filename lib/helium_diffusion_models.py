@@ -361,7 +361,8 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
 
     elif method is 'RDAAM':
         print 'using RDAAM model to calculate helium diffusivity'
-        print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % (U238, U235, Th232, radius)
+        print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % \
+              (U238, U235, Th232, radius)
         Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius)
 
     elif method is 'Wolf1996':

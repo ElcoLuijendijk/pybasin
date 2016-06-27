@@ -386,7 +386,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    calculate_thermochron_for_all_nodes=False,
                                    C0=0.39528, C1=0.01073,
                                    C2=-65.12969, C3=-7.91715,
-                                   alpha=0.04672):
+                                   alpha=0.04672,
+                                   location_has_AFT=True):
 
     """
 
@@ -424,6 +425,11 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     nt = T_nodes.shape[0]
     n_aft_samples = len(aft_data_well)
+
+    if n_aft_samples == 0:
+        return (None, None, None, None, None, None, None, None, None,
+                simulated_AFT_data)
+
 
     # get T history for samples only
     T_samples = np.zeros((nt, n_aft_samples))
@@ -505,7 +511,9 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                                    prov_start_nodes,
                                    prov_end_nodes,
                                    surface_temp,
-                                   calculate_thermochron_for_all_nodes=False):
+                                   calculate_thermochron_for_all_nodes=False,
+                                   U_default=50.0, Th_default=50.0,
+                                   radius_default=75.0):
 
     """
 
@@ -526,6 +534,13 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
         ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
         U_nodes = np.zeros((n_nodes, 2))
         Th_nodes = np.zeros((n_nodes, 2))
+
+        # fill with default values
+        # TODO: specify default values in input file
+        U_nodes[:, :] = U_default
+        Th_nodes[:, :] = Th_default
+        ahe_grain_radius_nodes[:, :] = radius_default
+
         Ur0_max = 0
         Ur0_min = 99999
 
@@ -583,6 +598,14 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
     nt = T_nodes.shape[0]
     n_ahe_samples = len(ahe_samples_well)
+
+    if n_ahe_samples == 0:
+        return (None,
+                None,
+                None,
+                ahe_node_times_burial,
+                ahe_node_zs,
+                simulated_AHe_data)
 
     # get T history for samples only
     T_ahe_samples = np.zeros((nt, n_ahe_samples))
@@ -775,7 +798,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         vr_data_well = vr_data_df[ind]
 
         # interpolate vitrinite reflectance data
-        if True in ind.values:
+        if True in ind.values \
+                or pybasin_params.calculate_thermochron_for_all_nodes is True:
             print 'calculating vitrinite reflectance for n=%i nodes' \
                   % n_nodes
 
@@ -784,9 +808,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                                 time_array,
                                                 n_nodes)
 
-            # store surface VR value
+            # store surface and bottom VR value
             model_results_df.ix[model_scenario_number, 'vr_surface'] = \
                 vr_nodes[-1, active_nodes[-1]][0]
+            model_results_df.ix[model_scenario_number, 'vr_bottom'] = \
+                vr_nodes[-1, active_nodes[-1]][-1]
+
 
     if pybasin_params.simulate_salinity is True:
         # store depth to 1 g/L aand 0.035 kg/kg salinity
@@ -831,34 +858,51 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         aft_data_well = aft_samples[ind]
 
         if True in ind.values:
-
             location_has_AFT = True
 
-            (modeled_aft_age_samples,
-             modeled_aft_age_samples_min,
-             modeled_aft_age_samples_max,
-             aft_ln_mean_samples,
-             aft_ln_std_samples,
-             aft_sample_times_burial,
-             aft_sample_zs,
-             aft_sample_times, aft_sample_temps,
-             simulated_AFT_data) = assemble_data_and_simulate_aft(
-                pybasin_params.resample_AFT_timesteps,
-                pybasin_params.provenance_time_nt,
-                n_nodes, time_array_bp,
-                z_nodes, T_nodes, active_nodes,
-                prov_start_nodes, prov_end_nodes,
-                pybasin_params.annealing_kinetics_values,
-                pybasin_params.annealing_kinetic_param,
-                surface_temp,
-                aft_data_well,
-                calculate_thermochron_for_all_nodes=
-                calculate_thermochron_for_all_nodes,
-                C0=pybasin_params.C0,
-                C1=pybasin_params.C1,
-                C2=pybasin_params.C2,
-                C3=pybasin_params.C3,
-                alpha=pybasin_params.alpha)
+        (modeled_aft_age_samples,
+         modeled_aft_age_samples_min,
+         modeled_aft_age_samples_max,
+         aft_ln_mean_samples,
+         aft_ln_std_samples,
+         aft_sample_times_burial,
+         aft_sample_zs,
+         aft_sample_times, aft_sample_temps,
+         simulated_AFT_data) = assemble_data_and_simulate_aft(
+            pybasin_params.resample_AFT_timesteps,
+            pybasin_params.provenance_time_nt,
+            n_nodes, time_array_bp,
+            z_nodes, T_nodes, active_nodes,
+            prov_start_nodes, prov_end_nodes,
+            pybasin_params.annealing_kinetics_values,
+            pybasin_params.annealing_kinetic_param,
+            surface_temp,
+            aft_data_well,
+            calculate_thermochron_for_all_nodes=
+            calculate_thermochron_for_all_nodes,
+            C0=pybasin_params.C0,
+            C1=pybasin_params.C1,
+            C2=pybasin_params.C2,
+            C3=pybasin_params.C3,
+            alpha=pybasin_params.alpha,
+            location_has_AFT=location_has_AFT)
+
+        # store surface and bottom VR value
+        if simulated_AFT_data is not None:
+
+            (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+             aft_ln_mean_nodes, aft_ln_std_nodes,
+             aft_node_times_burial, aft_node_zs,
+             aft_node_times, aft_node_temps) = simulated_AFT_data
+
+            model_results_df.ix[model_scenario_number, 'aft_age_surface_min'] = \
+                aft_age_nodes[active_nodes[-1]][0].min()
+            model_results_df.ix[model_scenario_number, 'aft_age_surface_max'] = \
+                aft_age_nodes[active_nodes[-1]][0].max()
+            model_results_df.ix[model_scenario_number, 'aft_age_bottom_min'] = \
+                aft_age_nodes[active_nodes[-1]][-1].min()
+            model_results_df.ix[model_scenario_number, 'aft_age_bottom_max'] = \
+                aft_age_nodes[ active_nodes[-1]][-1].max()
 
     #################################
     # simulate apatite (U-Th)/He ages
@@ -878,33 +922,33 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
             location_has_AHe = True
 
-            decay_constant_238U = pybasin_params.decay_constant_238U
-            decay_constant_235U = pybasin_params.decay_constant_235U
-            decay_constant_232Th = pybasin_params.decay_constant_232Th
+        decay_constant_238U = pybasin_params.decay_constant_238U
+        decay_constant_235U = pybasin_params.decay_constant_235U
+        decay_constant_232Th = pybasin_params.decay_constant_232Th
 
-            (modeled_ahe_age_samples,
-             modeled_ahe_age_samples_min,
-             modeled_ahe_age_samples_max,
-             ahe_node_times_burial,
-             ahe_node_zs,
-             simulated_AHe_data) = assemble_data_and_simulate_AHe(
-                ahe_samples_well,
-                ahe_data,
-                decay_constant_238U,
-                decay_constant_235U,
-                decay_constant_232Th,
-                n_nodes,
-                resample_t,
-                nt_prov,
-                time_array_bp,
-                z_nodes,
-                T_nodes,
-                active_nodes,
-                prov_start_nodes,
-                prov_end_nodes,
-                surface_temp,
-                calculate_thermochron_for_all_nodes=
-                calculate_thermochron_for_all_nodes)
+        (modeled_ahe_age_samples,
+         modeled_ahe_age_samples_min,
+         modeled_ahe_age_samples_max,
+         ahe_node_times_burial,
+         ahe_node_zs,
+         simulated_AHe_data) = assemble_data_and_simulate_AHe(
+            ahe_samples_well,
+            ahe_data,
+            decay_constant_238U,
+            decay_constant_235U,
+            decay_constant_232Th,
+            n_nodes,
+            resample_t,
+            nt_prov,
+            time_array_bp,
+            z_nodes,
+            T_nodes,
+            active_nodes,
+            prov_start_nodes,
+            prov_end_nodes,
+            surface_temp,
+            calculate_thermochron_for_all_nodes=
+            calculate_thermochron_for_all_nodes)
 
     ##################################
     # calculate model goodness of fit:
