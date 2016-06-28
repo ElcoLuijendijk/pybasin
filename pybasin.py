@@ -1158,7 +1158,8 @@ def update_model_params_and_run_model(model_scenario_params,
                                None,
                                None, None, None, None, None)
 
-    if param_bounds_min is not None and param_bounds_max is not None:
+    if pybasin_params.calibrate_model_params is True \
+            and param_bounds_min is not None and param_bounds_max is not None:
         for i in range(len(model_scenario_params)):
             if model_scenario_params[i] > param_bounds_max[i]:
                 model_scenario_params[i] = param_bounds_max[i]

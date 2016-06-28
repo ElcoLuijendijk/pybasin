@@ -440,7 +440,7 @@ def model_vs_data_figure(model_run_data,
 
     if (AFT_data is not None or AHe_data is not None) and show_provenance_hist is True:
 
-        if simulated_AFT_data is not None:
+        if AFT_data is not None:
             burial = aft_node_times_burial
             depths = aft_node_zs
         else:
