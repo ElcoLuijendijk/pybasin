@@ -90,6 +90,8 @@ for j, inp_file in enumerate(locations):
         threads_occupied -= 1
 
         processes.pop(0)
+        fouts[0].close()
+        fouts.pop(0)
 
         print '=' * 10
         print 'another process done, %i open' % (len(processes))
@@ -106,7 +108,8 @@ while len(processes) > 0:
     print 'another process done, %i open' % (len(processes))
 
 # close output files
-for fout in fouts:
-    fout.close()
+if len(fouts) > 0:
+    for fout in fouts:
+        fout.close()
 
 print 'done'

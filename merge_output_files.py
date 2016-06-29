@@ -1,13 +1,19 @@
+"""
+read all output .csv files in a folder and merge these
+"""
+
 import os
 import pandas as pd
 
 __author__ = 'elco'
 
-folder = '/home/elco/python_scripts/pybasin/model_output/MB/5apr2016_results_two_stage_cooling'
+folder = '/home/elco/python_scripts/pybasin/model_output/MB/15jun2016_calibration_2stage'
 
 files = os.listdir(folder)
 
-csv_files = [os.path.join(folder, file) for file in files if file[-4:] == '.csv']
+csv_files = [os.path.join(folder, file) for file in files
+             if (file[-4:] == '.csv' and 'model_results' in file
+                 and 'merged' not in file)]
 
 df = pd.read_csv(csv_files[0])
 dfo = df
