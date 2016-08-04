@@ -25,7 +25,7 @@ except ImportError:
     print 'use slower python implementation of AFT annealing module instead'
     print 'compile the fortran module by running the following command ' \
           'in the source directory of this module:'
-    print 'f2py -c calculate_reduced_AFT_lengths.f ' \
+    print 'f2py -c calculate_reduced_AFT_lengths.f90 ' \
           '-m calculate_reduced_AFT_lengths'
 
 
@@ -390,26 +390,47 @@ def calculate_reduced_track_lengths(dts, temperatures,
 
 
 def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
-    
+
     """
     correct modeled reduced track lengths for annealing resistance
-    
+
     input parameters:
     rc                  c-axis projected reduced track length
     rmr0                annealing kinetics parameter
     kappa               annealing kinetics parameter
-    
+
     returns:
     rc_corrected        corrected reduced track length
     """
-    
-    return ((rc - rmr0) / (1.0-rmr0)) ** kappa
+
+    rc_mod = ((rc - rmr0) / (1.0-rmr0)) ** kappa
+
+    return rc_mod
 
 
-def resample_time_temp_input(timesteps, temperature, max_temp_change = 3.5):
+def kinetic_modifier_reduced_lengths_inverse(rc_mod, rmr0, kappa):
 
     """
+    correct modeled reduced track lengths for annealing resistance
 
+    input parameters:
+    rc                  c-axis projected reduced track length
+    rmr0                annealing kinetics parameter
+    kappa               annealing kinetics parameter
+
+    returns:
+    rc_corrected        corrected reduced track length
+    """
+
+    rc = rc_mod ** (1.0/kappa) * (1.0 - rmr0) + rmr0
+
+    return rc
+
+
+
+def resample_time_temp_input(timesteps, temperature, max_temp_change=3.5):
+
+    """
     check if no >3.5 degrees temperature change per timestep, 
     and resample using linear interpolation if yes
     
@@ -426,6 +447,7 @@ def resample_time_temp_input(timesteps, temperature, max_temp_change = 3.5):
     -------
     time_new
     temperature_new
+
     """
     
     time_new = timesteps.copy()
@@ -657,27 +679,36 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
-        rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
+        rcf = calculate_reduced_AFT_lengths.reduced_ln(
             dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
         #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
         #    dts, temperature, rmr0, kappa, nsteps)
+        rmf = caxis_project_reduced_lengths(rcf)
+
+        # correct 0 length tracks:
+        rmf[rmf < 0] = 0.0
+
         rm = rmf
         rc = rcf
 
     else:
         if verbose is True:
-            print 'use python reduced track length function instead of fortran:'
+            print 'use python reduced track length function instead of fortran'
         # python reduced track length function:
         r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                  C0=C0, C1=C1, C2=C2, C3=C3,
                                                  alpha=alpha)
         rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
         rmp = caxis_project_reduced_lengths(rcp)
+        # correct 0 length tracks:
+        rmp[rmp < 0] = 0.0
         rm = rmp
         rc = rcp
 
     print 'final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1])
-        
+
+    #pdb.set_trace()
+
     ##########################################################
     # calculate weighting factor to correct for uranium decay 
     # (eq. 6 in Ketcham,  2000)

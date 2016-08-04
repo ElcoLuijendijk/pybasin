@@ -12,6 +12,11 @@ Elco Luijendijk, Goettingen University
 
 import sys
 import os
+
+# make sure multi-threading for numpy is turned off (this slows down the heat
+# flow solution a lot...)
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+
 import pdb
 import datetime
 import pickle
@@ -31,6 +36,7 @@ try:
     import helium_diffusion_models as he
 except ImportError:
     print 'warning, failed to import AHe module'
+
 
 
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
@@ -101,6 +107,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
     single_grain_aft_ages_se_min = []
     single_grain_aft_ages_se_plus = []
 
+    # go through all samples
     for sample in aft_data_well['sample']:
 
         if sample in aft_ages['sample'].values:
@@ -140,6 +147,14 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             single_grain_aft_ages_se_min.append(None)
             single_grain_aft_ages_se_plus.append(None)
 
+            # calculate error for completely reset samples
+            # (ie 0 age with SE of 0)
+            if aft_data_well.loc[ind_sample, 'AFT_age'].values == 0 \
+                    and aft_data_well.loc[ind_sample, 'AFT_age_stderr_plus'].values == 0:
+
+                age_bin = np.array([0, 1e-3, 1e3])
+                age_pdf = np.array([1.0, 0.0, 0.0])
+
         age_bins.append(age_bin)
         age_pdfs.append(age_pdf)
 
@@ -157,25 +172,28 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             # TODO: find more elegant solution for 0.0 simulated AFT age
             # and check if GOF for AFT ages of 0.0 Ma are correct
-            if aft_data_well.ix[sample_ix, 'simulated_AFT_min'] == 0:
+            if aft_data_well.loc[sample_ix, 'simulated_AFT_min'] == 0:
                 start_ind = 0
             else:
                 start_ind = np.where(
-                    aft_data_well.ix[sample_ix, 'simulated_AFT_min']
+                    aft_data_well.loc[sample_ix, 'simulated_AFT_min']
                     >= age_bin)[0][-1]
 
-            if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
-                end_ind = 0
-            else:
-                # np.where(0.0 >= age_bins)[0]
-                end_ind = np.where(
-                    aft_data_well.ix[sample_ix, 'simulated_AFT_max']
-                    <= age_bin)[0][0]
+            #if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
+            #    end_ind = 0
+            #else:
+            # np.where(0.0 >= age_bins)[0]
+            end_ind = np.where(aft_data_well.loc[sample_ix, 'simulated_AFT_max'] < age_bin)[0][0]
 
             pdf_fit_sum = np.sum(age_pdf[start_ind:end_ind])
             pdf_nofit_sum = np.sum(age_pdf[:start_ind]) \
                 + np.sum(age_pdf[end_ind:])
-            aft_data_well.ix[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
+            aft_data_well.loc[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
+
+            #if aft_data_well.loc[sample_ix, 'AFT_age'] == 0 \
+            #        and aft_data_well.loc[sample_ix, 'AFT_age_stderr_plus'] == 0:
+
+            #    print modeled_aft_age_samples_min[i],  modeled_aft_age_samples_max[i], pdf_fit_sum
 
     # calculate model error:
     for i, sample_ix, age_bin, age_pdf in zip(itertools.count(),
@@ -187,9 +205,13 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             pc = np.cumsum(age_pdf)
 
-            # find +-95% confines of age distribution
-            start_ind = np.where(pc >= 0.05)[0][0]
-            end_ind = np.where(pc <= 0.95)[0][-1]
+            if pc[0] == 1:
+                start_ind = 0
+                end_ind = 1
+            else:
+                # find +-95% confines of age distribution
+                start_ind = np.where(pc >= 0.05)[0][0]
+                end_ind = np.where(pc <= 0.95)[0][-1]
 
             age_min = age_bin[start_ind]
             age_max = age_bin[end_ind]
@@ -206,9 +228,19 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             else:
                 age_error_max = age_max - modeled_aft_age_samples_max[i]
 
+            # differerent procedure for observed AFT ages of 0, add penaly
+            # if modeled ages are older:
+            # check difference of min modeled aft age and min. value of age distribution
+            if age_max <= 1e-3:
+                age_error_max = modeled_aft_age_samples_max[i]
+
             age_error = age_error_min + age_error_max
 
             aft_data_well.ix[sample_ix, 'age_error'] = age_error
+
+        else:
+            print 'no model-data comparison for sample %s, ' \
+                  'missing age data?' % sample_ix
 
     # calculate mean GOF from single grain GOFs for each sample
     aft_age_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
@@ -300,7 +332,6 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
 
                 # calculate ahe age error:
                 #if np.any(np.isnan(age_pdf)) == False:
-                #pdb.set_trace()
                 #pc = np.cumsum(ahe_age_pdf)
 
                 # find +-95% confines of age distribution
@@ -904,6 +935,20 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df.ix[model_scenario_number, 'aft_age_bottom_max'] = \
                 aft_age_nodes[ active_nodes[-1]][-1].max()
 
+            if aft_age_nodes_min.min() < 0.5:
+                ind_min = aft_age_nodes_min < 1.0
+                model_results_df.ix[model_scenario_number, 'z_aft_reset_min'] = \
+                    z_nodes[-1][ind_min][0]
+                model_results_df.ix[model_scenario_number, 'T_aft_reset_min'] = \
+                    T_nodes[-1][ind_min][0]
+
+            if aft_age_nodes_max.min() < 0.5:
+                ind_max = aft_age_nodes_max < 1.0
+                model_results_df.ix[model_scenario_number, 'z_aft_reset_max'] = \
+                    z_nodes[-1][ind_max][0]
+                model_results_df.ix[model_scenario_number, 'T_aft_reset_max'] = \
+                    T_nodes[-1][ind_max][0]
+
     #################################
     # simulate apatite (U-Th)/He ages
     #################################
@@ -1382,17 +1427,22 @@ def update_model_params_and_run_model(model_scenario_params,
             msg = 'error, nan objective function'
             raise ValueError(msg)
 
-        #model_results_df2.cols = model_results_df.cols
-        ind = model_results_df2.index.max() + 1
-        for col in model_results_df.columns:
-            model_results_df2.loc[ind, col] = \
-                model_results_df.ix[model_scenario_number, col]
+        # save model results for each calibration run to dataframe
+        # disabled for now, generates error when combined with
+        # aft_benchmarks.py script
+        save_obj_func_df = False
+        if save_obj_func_df is True:
+            #model_results_df2.cols = model_results_df.cols
+            ind = model_results_df2.index.max() + 1
+            for col in model_results_df.columns:
+                model_results_df2.loc[ind, col] = \
+                    model_results_df.ix[model_scenario_number, col]
 
-        model_results_df2.loc[ind, 'objective_function'] = objective_function
+            model_results_df2.loc[ind, 'objective_function'] = objective_function
 
-        fnw = '%s_calibration_results.csv' % well
-        fn = os.path.join(output_dir, fnw)
-        model_results_df2.to_csv(fn)
+            fnw = '%s_calibration_results.csv' % well
+            fn = os.path.join(output_dir, fnw)
+            model_results_df2.to_csv(fn)
 
         return objective_function
 
@@ -1745,6 +1795,42 @@ def main():
         else:
             surface_salinity_well = None
 
+        if pybasin_params.load_initial_params is True:
+
+            # load parameter file. assumes there is only one row for each well
+            fn = os.path.join(input_dir, pybasin_params.initial_params_file)
+            df_init = pd.read_csv(fn)
+
+            if well not in df_init['well']:
+                msg = 'error, well %s not in initial parameter file %s' \
+                      % (well, pybasin_params.initial_params_file)
+                raise IndexError(msg)
+
+            ind = df_init['well'] == well
+            df_init_well = df_init.loc[ind]
+
+            # copy initial parameters from best model run
+            max_ind = df_init_well.index[0]
+
+            print 'using initial parameters from best gof run:', \
+                    df_init_well.loc[max_ind]
+
+            model_scenario_params = []
+
+            print 'initial model params'
+            print model_scenario_param_list
+
+            for param_change in params_to_change:
+                if param_change in df_init_well.columns:
+                    model_scenario_params.append(
+                        df_init_well.loc[max_ind, param_change])
+                else:
+                    model_scenario_params.append(None)
+            model_scenario_param_list = [model_scenario_params]
+
+            print 'model params after reading from list:'
+            print model_scenario_param_list
+
         if pybasin_params.calibrate_model_params is True:
 
             return_objective_function = True
@@ -1897,14 +1983,26 @@ def main():
                     contour_variable=pybasin_params.contour_variable)
             #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
-                fn = os.path.join(fig_output_dir,
-                                  'model_data_fig_%s_%s_ms%i.%s'
-                                  % (well, today_str,
-                                     model_scenario_number,
-                                     pybasin_params.fig_adj))
-                print 'saving model-data comparison figure %s' % fn
-                fig.savefig(fn, dpi=200)
-                pl.clf()
+                if type(pybasin_params.fig_adj) is list:
+                    for fa in pybasin_params.fig_adj:
+                        fn = os.path.join(fig_output_dir,
+                                      'model_data_fig_%s_%s_ms%i.%s'
+                                      % (well, today_str,
+                                         model_scenario_number,
+                                         fa))
+                        print 'saving model-data comparison figure %s' % fn
+                        fig.savefig(fn, dpi=200)
+
+                    pl.clf()
+                else:
+                    fn = os.path.join(fig_output_dir,
+                                      'model_data_fig_%s_%s_ms%i.%s'
+                                      % (well, today_str,
+                                         model_scenario_number,
+                                         pybasin_params.fig_adj))
+                    print 'saving model-data comparison figure %s' % fn
+                    fig.savefig(fn, dpi=200)
+                    pl.clf()
 
             # save model results .csv file
             if wells[0] == wells[-1]:
@@ -2125,14 +2223,35 @@ def main():
                         contour_variable=pybasin_params.contour_variable)
                 #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
-                    fn = os.path.join(fig_output_dir,
-                                      'model_data_fig_%s_%s_ms%i.%s'
-                                      % (well, today_str,
-                                         model_scenario_number,
-                                         pybasin_params.fig_adj))
-                    print 'saving model-data comparison figure %s' % fn
-                    fig.savefig(fn, dpi=200)
-                    pl.clf()
+                    #fn = os.path.join(fig_output_dir,
+                    #                  'model_data_fig_%s_%s_ms%i.%s'
+                    #                  % (well, today_str,
+                    #                     model_scenario_number,
+                    #                     pybasin_params.fig_adj))
+                    #print 'saving model-data comparison figure %s' % fn
+                    #fig.savefig(fn, dpi=200)
+                    #pl.clf()
+
+                    if type(pybasin_params.fig_adj) is list:
+                        for fa in pybasin_params.fig_adj:
+                            fn = os.path.join(fig_output_dir,
+                                          'model_data_fig_%s_%s_ms%i.%s'
+                                          % (well, today_str,
+                                             model_scenario_number,
+                                             fa))
+                            print 'saving model-data comparison figure %s' % fn
+                            fig.savefig(fn, dpi=200)
+
+                        pl.clf()
+                    else:
+                        fn = os.path.join(fig_output_dir,
+                                          'model_data_fig_%s_%s_ms%i.%s'
+                                          % (well, today_str,
+                                             model_scenario_number,
+                                             pybasin_params.fig_adj))
+                        print 'saving model-data comparison figure %s' % fn
+                        fig.savefig(fn, dpi=200)
+                        pl.clf()
 
                 # save model results .csv file
                 if wells[0] == wells[-1]:

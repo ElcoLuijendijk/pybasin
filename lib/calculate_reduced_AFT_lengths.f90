@@ -2,7 +2,7 @@
 
 subroutine reduced_ln(timestepduration, temperature, &
                       rmr0, kappa, alpha, C0, C1, C2, C3, &
-                      rcf, rmf, nsteps)
+                      rcf, nsteps)
 
 !     fission track annealing algorithm, using Ketcham 2005, 2007 eqs.
 !     calculate reduced track lengths
@@ -23,16 +23,14 @@ subroutine reduced_ln(timestepduration, temperature, &
     real*8, intent(in) :: C2
     real*8, intent(in) :: C3
     
-    real*8, intent(out) :: rmf(nsteps)
     real*8, intent(out) :: rcf(nsteps)
     
-    integer i, segments, timestepcount
+    integer segments, timestepcount
     
     real*8 gf(nsteps), teq(nsteps), rcmod(nsteps)
     real*8 tt, temp1
     real*8 f1, f2
-    real*8 rc_a, rc_b, rc_c
-  
+
     do segments=1, nsteps
         gf(:) = 0
         teq(:) = 0
@@ -64,20 +62,7 @@ subroutine reduced_ln(timestepduration, temperature, &
         endif
 
     end do
-            
-    ! project c-axis corrected lenghts to normal lengths:            
-    rc_a = -1.499
-    rc_b = 4.150
-    rc_c = -1.656
-    rmf = rc_a * (rcf**2) + rc_b * rcf + rc_c
-        
-    do i=1, nsteps 
-        if (rmf(i).lt.0.0) then
-            rmf(i) = 0.0
-        endif
-    end do
-    !write (*,*) rmf
-    
+
 end subroutine reduced_ln
 
 !C END FILE AFT.F

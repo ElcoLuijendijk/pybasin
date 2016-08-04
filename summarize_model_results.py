@@ -24,7 +24,7 @@ y_data2 = 'vr_gof'
 z_data = None
 
 # minimum value for gof for acceptable model fits
-gof_cutoff = 0.5
+gof_cutoff = 0.7
 
 # best estimate of heat flow if no temperature data are available
 default_heat_flow = 0.065
@@ -33,13 +33,16 @@ default_heat_flow = 0.065
 default_exhumation = 1500.0
 
 # read model result data
-model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/5apr2016_results_two_stage_cooling/model_results_merged_mod.csv"
+model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/" \
+                  "jul2016_2stage_calibration_merged/" \
+                  "model_results_combined_regular_calibration.csv"
 df = pd.read_csv(model_result_fn)
 
 # calculate overall thermochron gof
 df['thermochron_gof'] = df['aft_age_gof']
 
-ind = (df['ahe_gof'] < df['thermochron_gof']) & (np.isnan(df['ahe_gof']) == False)
+ind = (df['ahe_gof'] > df['thermochron_gof']) \
+      & (np.isnan(df['ahe_gof']) == False)
 df['thermochron_gof'][ind] = df['ahe_gof'][ind]
 
 ind = df['aft_age_gof'].isnull()
@@ -63,6 +66,7 @@ wells = np.unique(df['well'].dropna())
 df['aft_age_and_T_gof'] = (df['aft_age_gof'] + df['T_gof']) / 2.0
 
 cols = ['gof_T_best', 'gof_vr_best', 'gof_aft_best', 'gof_ahe_best',
+        'gof_thermochron_best',
         'cooling_vr_best', 'cooling_vr_min', 'cooling_vr_max',
         'cooling_aft_best', 'cooling_aft_min', 'cooling_aft_max',
         'cooling_ahe_best', 'cooling_ahe_min', 'cooling_ahe_max',

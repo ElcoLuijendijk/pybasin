@@ -1685,16 +1685,20 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
 
     # calculate gamma value (i.e. normally distributed transform of AFT age equation)
     gamma = AFTlib.calculate_gamma_from_AFT_age(aft_ages)
-    #print 'gamma :', gamma
+
+    # calculate standard error of gamma:
+    gamma_max = AFTlib.calculate_gamma_from_AFT_age(aft_ages_max)
 
     # correct zero ages:
     zero_index = np.where(aft_ages == 0)[0]
     gamma[zero_index] = 1e-10
+    #gamma_max[zero_index] = 1e-9
 
-    # calculate standard error of gamma:
-    gamma_max = AFTlib.calculate_gamma_from_AFT_age(aft_ages_max)
+    #if len(zero_index) >= 1 or aft_ages.min() <1e-3:
+    #    print 'zero_age'
+    #    pdb.set_trace()
+
     gamma_std = (gamma_max - gamma)/2.0
-
     gamma_pdf = np.zeros((len(aft_ages), len(bins)))
 
     for i in xrange(len(aft_ages)):
@@ -1708,7 +1712,6 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     # sum all single grain pdf to one sample pdf
     if sum_single_grain_age_pdfs is True:
         age_pdf_final = np.sum(gamma_pdf, axis=0) / len(gamma_pdf)
-        #pdb.set_trace()
     else:
         age_pdf_final = gamma_pdf
 
@@ -2605,11 +2608,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         if timestep in cumulative_steps:
 
-            print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f' \
+            print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f, ncells=%i' \
                   % (timestep, time_array_bp[timestep] / 1e6,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
-                     T_nodes[timestep, active_nodes_i].max())
+                     T_nodes[timestep, active_nodes_i].max(),
+                     len(z_nodes[timestep, active_nodes_i]) )
             if pybasin_params.simulate_salinity is True:
                 print 'min, max C = %0.4f - %0.4f' \
                       % (C_nodes[timestep, active_nodes_i].min(),

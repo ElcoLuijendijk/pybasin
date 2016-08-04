@@ -243,7 +243,9 @@ def model_vs_data_figure(model_run_data,
     model_label = []
     model_range_label = []
     data_label = []
+    data_ext_label = []
     leg_data = None
+    leg_data_ext = []
     leg_model_range = None
 
     max_depth = z_nodes.max() * 1.1
@@ -277,7 +279,7 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(4)
 
     gs = gridspec.GridSpec(nrows, ncols,
-                           wspace=0.03, hspace=0.03,
+                           wspace=0.06, hspace=0.06,
                            bottom=bottom, top=0.96, left=0.12, right=0.97,
                            width_ratios=width_ratios,
                            height_ratios=[1, 4, 1])
@@ -549,10 +551,13 @@ def model_vs_data_figure(model_run_data,
                               color='lightgrey')
         leg_model_range = mpatches.Patch(color='lightgrey')
 
-        ax_afta.plot(node_age[active_nodes[-1]],
+        leg_strat, = ax_afta.plot(node_age[active_nodes[-1]],
                      z_nodes[-1, active_nodes[-1]],
                      color='green', lw=1.5, ls='--', zorder=101)
-        model_range_label.append('AFT age')
+        leg_items.append(leg_strat)
+        leg_labels.append('age of deposition')
+
+        model_range_label.append('AFT ages')
 
     if AFT_data is not None:
 
@@ -581,8 +586,8 @@ def model_vs_data_figure(model_run_data,
 
         leg_violin = mpatches.Patch(facecolor='lightblue',
                                     edgecolor='blue')
-        leg_items.append(leg_violin)
-        leg_labels.append('age distribution AFT/AHe data')
+        leg_data_ext.append(leg_violin)
+        data_ext_label.append('age distribution')
 
         # show single grain AFT ages, without errorbar
         for sample_no in xrange(len(single_grain_aft_ages)):
@@ -592,8 +597,8 @@ def model_vs_data_figure(model_run_data,
                 y = np.ones_like(x) * aft_age_depth[sample_no]
                 leg_sg = ax_afta.scatter(x, y, color='black', s=5, marker='o')
                 if len(leg_labels) == 0 or 'single grain' not in leg_labels[-1]:
-                    leg_items.append(leg_sg)
-                    leg_labels.append('single grain AFT ages')
+                    leg_data_ext.append(leg_sg)
+                    data_ext_label.append('single grain AFT ages')
 
         ind_ca = np.array([a is None for a in single_grain_aft_ages])
 
@@ -654,8 +659,8 @@ def model_vs_data_figure(model_run_data,
         leg_strat, = ax_ahe.plot(node_age[active_nodes[-1]],
                                  z_nodes[-1, active_nodes[-1]],
                                  color='green', lw=1.5, ls='--', zorder=101)
-        leg_items.append(leg_strat)
-        leg_labels.append('age of deposition')
+        leg_data_ext.append(leg_strat)
+        data_ext_label.append('age of deposition')
 
         ahe_age_nodes_array = np.array(ahe_age_nodes)
         for n_prov in xrange(n_prov_scenarios):
@@ -767,11 +772,10 @@ def model_vs_data_figure(model_run_data,
     if T_data is not None:
         max_T = T_obs.max()
 
-    ax_temp.set_xlim(0, max_T * 1.1)
+    ax_temp.set_xlim(0, max_T * 1.2)
 
     if contour_variable == 'salinity':
         max_C = C_nodes[-1].max()
-
 
     if C_data is not None and len(salinity_data) > 0:
         if salinity_data.max() > max_C:
@@ -891,6 +895,10 @@ def model_vs_data_figure(model_run_data,
             leg_items += [leg_data]
             leg_labels += [data_label_merged]
 
+        if len(leg_data_ext) >= 1:
+            leg_items += leg_data_ext
+            leg_labels += data_ext_label
+
         leg_items += [leg_model]
         leg_labels += [model_label_merged]
 
@@ -899,7 +907,7 @@ def model_vs_data_figure(model_run_data,
             leg_labels += [model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=2, fontsize='small',
+                   loc='lower center', ncol=3, fontsize='small',
                    handlelength=3, frameon=False)
 
     return fig

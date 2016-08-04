@@ -63,8 +63,12 @@ for x_data, x_label, xticks, fn_adj in zip(x_datas, x_labels,
     markers = ['o', 's']
     colors = ['lightblue', 'gray']
 
-    model_result_fn = 'model_output/MB/final_results_23mar2016_2stage_cooling/' \
+    #model_result_fn = 'model_output/MB/5apr2016_results_two_stage_cooling/' \
+    #                  'model_results_merged_mod.csv'
+    model_result_fn = '/home/elco/model_files/pybasin/MB/' \
+                      'final_results_1mar2016_rdaam/' \
                       'model_results_merged_mod.csv'
+
 
     df_all = pd.read_csv(model_result_fn)
 
