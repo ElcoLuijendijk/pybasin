@@ -75,23 +75,49 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
 def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes,
                              vr_unc_sigma=0.05):
 
+    """
+
+    :param vr_data_well:
+    :param z_nodes:
+    :param vr_nodes:
+    :param active_nodes:
+    :param vr_unc_sigma:
+    :return:
+    """
+
     vr_data_well['simulated_vr'] = \
         np.interp(vr_data_well['depth'],
                   z_nodes[-1, active_nodes[-1]],
                   vr_nodes[-1, active_nodes[-1]])
 
     # calculate model error vitrinite data
-    #vr_data_well['VR_unc_1sigma'] = vr_data_well['VR_std']
-    ind = vr_data_well['VR_unc_1sigma'].isnull()
-    vr_data_well['VR_unc_1sigma'][ind] = vr_unc_sigma
     vr_data_well['residual'] = (vr_data_well['VR']
                                 - vr_data_well['simulated_vr'])
+
+    # if min and max VR is given calculate asymetric error value:
+    indm = vr_data_well['vr_min'].notnull() & vr_data_well['vr_max'].notnull()
+    vr_data_well['vr_SE_plus'] = vr_data_well['vr_max'] - vr_data_well['VR']
+    vr_data_well['vr_SE_min'] = vr_data_well['VR'] - vr_data_well['vr_min']
+    ind_plus = indm &  vr_data_well['residual'] >= 0
+    ind_neg = indm &  vr_data_well['residual'] < 0
+    # min and max value assumed to be +- 2 SE
+    vr_data_well.loc[ind_plus, 'VR_unc_1sigma'] = \
+        vr_data_well.loc[ind_plus, 'vr_SE_plus'] / 2.0
+    vr_data_well.loc[ind_neg, 'VR_unc_1sigma'] = \
+        vr_data_well.loc[ind_neg, 'vr_SE_min'] / 2.0
+
+    # otherwise, use value of 1 sigma unc. given in input file:
+    ind = (vr_data_well['VR_unc_1sigma'].isnull()) & (indm == False)
+    vr_data_well.loc[ind, 'VR_unc_1sigma'] = vr_unc_sigma
+
+    # calculate normalized residual
     vr_data_well['residual_norm'] = (vr_data_well['residual']
                                      / vr_data_well['VR_unc_1sigma'])
     vr_data_well['P_fit'] = \
         (1.0
          - scipy.stats.norm.cdf(np.abs(vr_data_well['residual_norm'])))*2
 
+    # calculate total rmse and goodness of fit statistic:
     vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
     vr_gof = np.mean(vr_data_well['P_fit'])
 
@@ -544,7 +570,10 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                                    surface_temp,
                                    calculate_thermochron_for_all_nodes=False,
                                    U_default=50.0, Th_default=50.0,
-                                   radius_default=75.0):
+                                   radius_default=75.0,
+                                   ahe_method='RDAAM',
+                                   alpha=0.04672, C0=0.39528, C1=0.01073,
+                                   C2=-65.12969, C3=-7.91715):
 
     """
 
@@ -620,7 +649,9 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                 resample_t, nt_prov, n_nodes, time_array_bp,
                 z_nodes, T_nodes, active_nodes,
                 prov_start_nodes, prov_end_nodes,
-                surface_temp, ahe_grain_radius_nodes, U_nodes, Th_nodes)
+                surface_temp, ahe_grain_radius_nodes, U_nodes, Th_nodes,
+                ahe_method=ahe_method,
+                alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3)
 
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
@@ -700,7 +731,9 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
             z_ahe_samples, T_ahe_samples, active_nodes_ahe_samples,
             prov_start_ahe_samples, prov_end_ahe_samples,
             surface_temp, ahe_grain_radius_samples,
-            U_samples, Th_samples)
+            U_samples, Th_samples,
+            ahe_method=ahe_method,
+            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3)
 
     (modeled_ahe_age_samples, modeled_ahe_age_samples_min,
      modeled_ahe_age_samples_max, ahe_node_times_burial,
@@ -993,7 +1026,13 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             prov_end_nodes,
             surface_temp,
             calculate_thermochron_for_all_nodes=
-            calculate_thermochron_for_all_nodes)
+            calculate_thermochron_for_all_nodes,
+            C0=pybasin_params.C0,
+            C1=pybasin_params.C1,
+            C2=pybasin_params.C2,
+            C3=pybasin_params.C3,
+            alpha=pybasin_params.alpha,
+            ahe_method=pybasin_params.ahe_method)
 
     ##################################
     # calculate model goodness of fit:
@@ -1097,6 +1136,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             and location_has_AFT is True):
 
         AFT_data = [simulated_AFT_data,
+                    aft_data_well['sample'].values,
                     aft_data_well['depth'].values,
                     aft_data_well['AFT_age'].values,
                     aft_data_well['AFT_age_stderr_min'].values,
@@ -1122,6 +1162,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         VR_data = [vr_nodes,
                    vr_data_well['depth'].values,
                    vr_data_well['VR'].values,
+                   vr_data_well['vr_min'].values,
+                   vr_data_well['vr_max'].values,
                    vr_data_well['VR_unc_1sigma'].values,
                    vr_gof]
     else:
@@ -1283,7 +1325,10 @@ def update_model_params_and_run_model(model_scenario_params,
 
     # adjust entire heat flow history
     if basal_heat_flow is not None:
-        if basal_heat_flow_scenario_period == 'all':
+        if type(basal_heat_flow_scenario_period) == list:
+            pybasin_params.heatflow_history[basal_heat_flow_scenario_period] \
+                = basal_heat_flow
+        elif basal_heat_flow_scenario_period == 'all':
             pybasin_params.heatflow_history[:] = basal_heat_flow
             print 'constant basal heat flow = %0.2e' % basal_heat_flow
         elif basal_heat_flow_scenario_period == 'last':
@@ -1321,7 +1366,8 @@ def update_model_params_and_run_model(model_scenario_params,
         model_results_df.ix[model_scenario_number, 'exhumation_duration_factor'] = \
             pybasin_params.exhumation_duration_factor
         model_results_df.ix[model_scenario_number, 'basal_heat_flow'] = \
-            pybasin_params.heatflow_history[-1]
+            pybasin_params.heatflow_history[0]
+
         model_results_df.ix[model_scenario_number, 'AFT_eq_alpha'] = alpha
         model_results_df.ix[model_scenario_number, 'AFT_eq_C0'] = C0
         model_results_df.ix[model_scenario_number, 'AFT_eq_C1'] = C1
@@ -1364,7 +1410,7 @@ def update_model_params_and_run_model(model_scenario_params,
             model_results_df.ix[model_scenario_number, 'ahe_error'] = \
                 ahe_age_error
 
-                        # calculate cumlative salt loss due to diffusion
+        # calculate cumlative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
             (C_nodes, surface_salinity_array, salinity_lwr_bnd,
              salinity_well_depth,
@@ -2175,6 +2221,8 @@ def main():
                     [vr_nodes,
                      vr_depth,
                      vr_obs,
+                     vr_min,
+                     vr_max,
                      vr_obs_sigma,
                      vr_GOF] = VR_model_data
                     l = len(vr_depth) - 1
@@ -2202,17 +2250,6 @@ def main():
                 #                  % (well, today_str, n_scenarios))
                 #dfc.to_csv(fn, index=False)
 
-                if pybasin_params.save_model_run_data is True:
-
-                    fn = os.path.join(datafile_output_dir,
-                                      'model_data_%s_%s_ms%i.pck'
-                                      % (well, today_str, model_scenario_number))
-
-                    print 'saving model run results to %s' % fn
-
-                    fout = open(fn, 'w')
-                    pickle.dump(model_run_data, fout)
-                    fout.close()
 
                 #############################
                 # make a model vs data figure
@@ -2264,77 +2301,80 @@ def main():
                 print 'saving model results .csv file %s' % fn
                 model_results_df.to_csv(fn, index_label='model_scenario_number')
 
+                if (pybasin_params.save_model_run_data is True
+                        and pybasin_params.simulate_AFT is True):
+
+                    [simulated_AFT_data,
+                     aft_sample,
+                     aft_age_depth,
+                     aft_age,
+                     aft_age_stderr_min,
+                     aft_age_stderr_plus,
+                     aft_length_mean,
+                     aft_length_std,
+                     aft_data_type,
+                     aft_age_samples,
+                     single_grain_aft_ages,
+                     single_grain_aft_ages_se_min,
+                     single_grain_aft_ages_se_plus,
+                     aft_age_bins,
+                     aft_age_pdfs,
+                     aft_age_GOF,
+                     aft_age_error,
+                     aft_sample_times,
+                     aft_sample_temps] = AFT_data
+
+                    # find max number of timesteps for AFT history
+                    max_steps = 0
+                    for ti in aft_sample_times:
+                        for tii in ti:
+                            if len(tii) > max_steps:
+                                max_steps = len(tii)
+
+                    n_samples = len(aft_sample_times)
+                    n_prov = len(aft_sample_times[0])
+                    n_kin = len(aft_age_samples[0][0])
+                    cols = []
+                    for sample_i in range(n_samples):
+                        cols = cols + ['name_sample_%i' % sample_i]
+                        cols = cols + ['depth_sample_%i' % sample_i]
+                        cols = cols + ['aft_age_sample_%i' % sample_i]
+
+                        for prov_i in range(n_prov):
+                            cols = cols + ['time_sample_%i_prov_%i' % (sample_i, prov_i)]
+                            cols = cols + ['temp_sample_%i_prov_%i' % (sample_i, prov_i)]
+
+                    df_tt = pd.DataFrame(columns=cols, index=np.arange(max_steps))
+
+                    for sample_i in range(n_samples):
+                        df_tt.loc[0, 'name_sample_%i' % sample_i] = aft_sample[sample_i]
+                        df_tt.loc[0, 'depth_sample_%i' % sample_i] = aft_age_depth[sample_i]
+                        df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = aft_age[sample_i]
+
+                        for prov_i in range(n_prov):
+                            nti = len(aft_sample_times[sample_i][prov_i])
+                            df_tt.loc[:(nti-1), 'time_sample_%i_prov_%i'
+                                                % (sample_i, prov_i)] \
+                                = aft_sample_times[sample_i][prov_i]
+                            df_tt.loc[:(nti-1), 'temp_sample_%i_prov_%i'
+                                                % (sample_i, prov_i)] \
+                                = aft_sample_temps[sample_i][prov_i]
+                            for kin_i in range(n_kin):
+                                df_tt.loc[0, 'aft_age_sample_%i_prov_%i_kin_%i'
+                                          % (sample_i, prov_i, kin_i)] \
+                                    = aft_age_samples[sample_i, prov_i, kin_i]
+
+                    # save AFT time-temperature paths
+                    today = datetime.datetime.now()
+                    today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+                    fn = os.path.join(output_dir,
+                                      'aft_time_temp_%s_%s_ms%i.csv'
+                                      % (well, today_str,
+                                         model_scenario_number))
+                    print 'saving AFT time-temperature paths to %s' % fn
+                    df_tt.to_csv(fn)
+
                 model_scenario_number += 1
-
-        if (pybasin_params.save_model_run_data is True
-                and pybasin_params.simulate_AFT is True):
-
-            [simulated_AFT_data,
-             aft_age_depth,
-             aft_age,
-             aft_age_stderr_min,
-             aft_age_stderr_plus,
-             aft_length_mean,
-             aft_length_std,
-             aft_data_type,
-             aft_age_samples,
-             single_grain_aft_ages,
-             single_grain_aft_ages_se_min,
-             single_grain_aft_ages_se_plus,
-             aft_age_bins,
-             aft_age_pdfs,
-             aft_age_GOF,
-             aft_age_error,
-             aft_sample_times,
-             aft_sample_temps] = AFT_data
-
-            # find max number of timesteps for AFT history
-            max_steps = 0
-            for ti in aft_sample_times:
-                for tii in ti:
-                    if len(tii) > max_steps:
-                        max_steps = len(tii)
-
-            n_samples = len(aft_sample_times)
-            n_prov = len(aft_sample_times[0])
-            n_kin = len(aft_age_samples[0][0])
-            cols = []
-            for sample_i in range(n_samples):
-                cols = cols + ['depth_sample_%i' % sample_i]
-                cols = cols + ['aft_age_sample_%i' % sample_i]
-
-                for prov_i in range(n_prov):
-                    cols = cols + ['time_sample_%i_prov_%i' % (sample_i, prov_i)]
-                    cols = cols + ['temp_sample_%i_prov_%i' % (sample_i, prov_i)]
-
-            df_tt = pd.DataFrame(columns=cols, index=np.arange(max_steps))
-
-            for sample_i in range(n_samples):
-                df_tt.loc[0, 'depth_sample_%i' % sample_i] = aft_age_depth[sample_i]
-                df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = aft_age[sample_i]
-
-                for prov_i in range(n_prov):
-                    nti = len(aft_sample_times[sample_i][prov_i])
-                    df_tt.loc[:(nti-1), 'time_sample_%i_prov_%i'
-                                        % (sample_i, prov_i)] \
-                        = aft_sample_times[sample_i][prov_i]
-                    df_tt.loc[:(nti-1), 'temp_sample_%i_prov_%i'
-                                        % (sample_i, prov_i)] \
-                        = aft_sample_temps[sample_i][prov_i]
-                    for kin_i in range(n_kin):
-                        df_tt.loc[0, 'aft_age_sample_%i_prov_%i_kin_%i'
-                                  % (sample_i, prov_i, kin_i)] \
-                            = aft_age_samples[sample_i, prov_i, kin_i]
-
-            # save AFT time-temperature paths
-            today = datetime.datetime.now()
-            today_str = '%i-%i-%i' % (today.day, today.month, today.year)
-            fn = os.path.join(output_dir,
-                              'aft_time_temp_%s_%s_ms%i.csv'
-                              % (well, today_str,
-                                 model_scenario_number))
-            print 'saving AFT time-temperature paths to %s' % fn
-            df_tt.to_csv(fn)
 
     print 'done'
 

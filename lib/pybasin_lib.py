@@ -1813,7 +1813,9 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
 
 
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
-                 prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th):
+                 prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th,
+                 ahe_method='RDAAM',
+                 alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715):
 
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
@@ -1833,9 +1835,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     :return:
     """
 
-    radius = 60.0 * 1e-6
-    U238 = 8.98e-6
-    Th232 = 161.3e-6
+    #radius = 60.0 * 1e-6
+    #U238 = 8.98e-6
+    #Th232 = 161.3e-6
 
     Kelvin = 273.15
 
@@ -1884,7 +1886,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                 U_grain = U[nn][ng]
                 Th_grain = Th[nn][ng]
                 he_age_i = he.calculate_he_age_meesters_dunai_2002(
-                    t, T, grain_radius, U_grain, Th_grain)
+                    t, T, grain_radius, U_grain, Th_grain,
+                    alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                    method=ahe_method)
 
                 # store AHe age in Myr bp
                 ahe_age_nodes[ng, n_prov] = he_age_i[-1] / Myr
@@ -2123,6 +2127,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     and np.isnan(porosity_df.ix[row, col])):
                 porosity_df.ix[row, col] = hf_param_df.ix[row,
                                                           'surface_porosity']
+    porosity_last = porosity_df[porosity_df.columns[-1]].dropna().values
+    print 'final calculated porosity, mean=%0.2f, range=%0.2f-%0.2f' \
+          % (porosity_last.mean(), porosity_last.min(), porosity_last.max())
 
     # calculate bulk thermal conductivity, heat capacity, density and
     # heat production
@@ -2137,6 +2144,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                          porosity_df.ix[ix] *
                          litho_props.ix['water', 'density'])
         hp_df.ix[ix] = hf_param_df.ix[ix, 'HP'] * (1.0 - porosity_df.ix[ix])
+
+    k_last = k_df[k_df.columns[-1]].dropna().values
+    print 'final thermal conductivity, mean=%0.2f, range=%0.2f-%0.2f' \
+          % (k_last.mean(), k_last.min(), k_last.max())
 
     ############################################################
     # set up arrays for forward model of heat flow and salinity

@@ -216,10 +216,17 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
-        rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa,
-                                                            alpha, C0, C1, C2, C3, nsteps)
+        #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa,
+        #                                                    alpha, C0, C1, C2, C3, nsteps)
+        rcf = calculate_reduced_AFT_lengths.reduced_ln(
+            dts, temperature_midpoint, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
+        rmf = AFT.caxis_project_reduced_lengths(rcf)
         #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
         #    dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
+
+        # correct 0 length tracks:
+        rmf[rmf < 0] = 0.0
+
         rm = rmf
         rc = rcf
 
@@ -320,7 +327,12 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          decay_constant_232Th=1.57e-18,
                                          decay_constant_235U=3.12e-17,
                                          alpha_ejection=True,
-                                         method='RDAAM'):
+                                         method='RDAAM',
+                                         alpha=0.04672,
+                                         C0=0.39528,
+                                         C1=0.01073,
+                                         C2=-65.12969,
+                                         C3=-7.91715):
 
     """
 
@@ -350,23 +362,26 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     U238 = (137.88 / 138.88) * U
     U235 = (1.0 / 138.88) * U
     Th232 = Th
-    Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U + 6 * Th232 * decay_constant_232Th
+    Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U \
+          + 6 * Th232 * decay_constant_232Th
     decay_constant = Ur0 / (8*U238 + 7*U235 + 6*Th232)
 
     if method is 'Farley2000':
-
-        print 'using Farley (2000) diffusion parameters for Durango apatite'
         D0 = D0_div_a2 * radius ** 2
         Dw = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
+        print 'using Farley (2000) diffusion parameters'
 
     elif method is 'RDAAM':
         print 'using RDAAM model to calculate helium diffusivity'
-        print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % \
-              (U238, U235, Th232, radius)
-        Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius)
+        #print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % \
+        #      (U238, U235, Th232, radius)
+        Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius,
+                                         alpha=alpha, C0=C0, C1=C1,
+                                         C2=C2, C3=C3)
 
     elif method is 'Wolf1996':
-        print 'using Wolf et al. (1996) diffusion parameters for Durango apatite'
+        print 'using Wolf et al. (1996) diffusion parameters'
+
         # diffusivity params Wolf et al (1996), table 7, Durango
         # tested, values are really given in log10 instead of ln
         # big difference with D0 values in Flowers (2009), not sure why
@@ -383,10 +398,13 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
               'or "RDAAM", current method = %s' % method
         raise ValueError(msg)
 
-    He_age = He_diffusion_Meesters_and_Dunai_2002(t, Dw, radius, Ur0,
-                                                  decay_constant=decay_constant,
-                                                  U_function='exponential',
-                                                  n_eigenmodes=15,
-                                                  alpha_ejection=alpha_ejection)
+    print 'calculated mean, min, max diffusivity = %0.2e, %0.2e, %0.2e' \
+          % (Dw.mean(), Dw.min(), Dw.max())
+    ahe_age = He_diffusion_Meesters_and_Dunai_2002(
+        t, Dw, radius, Ur0,
+        decay_constant=decay_constant,
+        U_function='exponential',
+        n_eigenmodes=15,
+        alpha_ejection=alpha_ejection)
 
-    return He_age
+    return ahe_age

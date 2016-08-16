@@ -164,11 +164,14 @@ def model_vs_data_figure(model_run_data,
         [vr_nodes,
          vr_depth,
          vr_obs,
+         vr_min,
+         vr_max,
          vr_obs_sigma,
          vr_GOF] = VR_model_data
 
     if AFT_data != None:
         [simulated_AFT_data,
+         aft_sample_names,
          aft_age_depth,
          aft_age,
          aft_age_stderr_min,
@@ -279,7 +282,7 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(4)
 
     gs = gridspec.GridSpec(nrows, ncols,
-                           wspace=0.06, hspace=0.06,
+                           wspace=0.06, hspace=0.08,
                            bottom=bottom, top=0.96, left=0.12, right=0.97,
                            width_ratios=width_ratios,
                            height_ratios=[1, 4, 1])
@@ -361,7 +364,6 @@ def model_vs_data_figure(model_run_data,
                   **line_props)
 
     ts = 1.0e5
-
 
     if z_nodes.max() < 1000:
         ys = 1.0
@@ -484,7 +486,7 @@ def model_vs_data_figure(model_run_data,
                 strat_count += 1
 
         leg_items += [leg_prov, leg_prov_fill]
-        leg_labels += ['provenance burial history',
+        leg_labels += ['provenance and burial history',
                        'range of provenance histories']
 
     else:
@@ -503,6 +505,8 @@ def model_vs_data_figure(model_run_data,
     else:
         axhf.plot(time_array_bp / 1e6, basal_hf_array * 1000.0,
                   **line_props)
+        axhf.set_ylim(basal_hf_array.min() * 1000.0 * 0.95,
+                      basal_hf_array.max() * 1000.0 * 1.05)
 
     # plot surface temperature
     leg_model, = ax_temp.plot(T_nodes[-1, active_nodes[-1]],
@@ -520,7 +524,6 @@ def model_vs_data_figure(model_run_data,
         leg_model, = ax_c.plot(C_nodes[-1, active_nodes[-1]],
                                z_nodes[-1, active_nodes[-1]],
                                **line_props)
-
         model_label.append('salinity')
 
     #pdb.set_trace()
@@ -536,8 +539,14 @@ def model_vs_data_figure(model_run_data,
                                 **line_props)
 
         #if VR_model_data is not None and len(vr_data) > 0:
+        xerr = np.ones((2, len(vr_depth))) * vr_obs_sigma
+
+        ind = np.isnan(vr_min) == False
+        xerr[0][ind] = vr_obs[ind] - vr_min[ind]
+        xerr[1][ind] = vr_max[ind] - vr_obs[ind]
+
         leg_data = ax_vr.errorbar(vr_obs, vr_depth,
-                                  xerr=vr_obs_sigma,
+                                  xerr=xerr,
                                   **erb_props)
 
         model_label.append('VR')
@@ -567,7 +576,8 @@ def model_vs_data_figure(model_run_data,
         for sample_no in xrange(len(aft_age)):
             pdf_plot = aft_age_pdfs[sample_no]
 
-            if np.any(np.isnan(pdf_plot)) == False:
+            if np.any(np.isnan(pdf_plot)) == False and \
+                            single_grain_aft_ages[sample_no] is not None:
 
                 ind = pdf_plot > pdf_threshold
 
