@@ -20,7 +20,7 @@ datafile_output_dir = '../../heavy_data/AFT_benchmarks'
 
 # option to calculate apatite fission track data
 simulate_AFT = True
-simulate_AHe = True
+simulate_AHe = False
 simulate_VR = True
 simulate_salinity = False
 
@@ -41,7 +41,7 @@ make_model_data_fig = True
 contour_variable = 'temperature'
 
 # type of figure file to save (pdf, png or jpg):
-fig_adj = 'png'
+fig_adj = ['pdf', 'png']
 
 
 ###################
@@ -103,12 +103,9 @@ provenance_time_nt = 100
 ######################
 # heat flow parameters
 ######################
-# heatflow_periods: first 1,2,3 or more letters of stratigraphic period to 
-# set the basal heat flow for. use heatflow_periods = 'all' to set a default 
-# value for all strat. periods
-heatflow_ages = np.array([0.0, 10.0, 90.0, 120.0])
-# heatflow_history: heat flow in W/m^2
-heatflow_history = np.array([65.0, 65.0, 80.0, 65.0]) * 1e-3
+# heatflow_history: age in My and basal heat flow in W/m^2
+heatflow_ages = np.array([0.0, 90.0, 120.0])
+heatflow_history = np.array([75.0, 90.0, 75.0]) * 1e-3
 
 # optimize heat flow:
 optimize_heatflow = False
@@ -190,22 +187,42 @@ binsize = 0.25
 # empirical coefficients AFT annealing equation
 # default values from Ketcham et al. (2007) American Mineralogist
 # fanning curvelinear model values in Table 5
-#alpha = 0.04672
-#C0 = 0.39528
-#C1 = 0.01073
-#C2 = -65.12969
-#C3 = -7.91715
+alpha = 0.04672
+C0 = 0.39528
+C1 = 0.01073
+C2 = -65.12969
+C3 = -7.91715
 
 # calibrated values for Frio pseudo-borehole data by Corrigan (1993):
-alpha = 0.0570171869542
-C0 = 0.465675271105
-C1 = 0.00893230883784
-C2 = -75.4037631023
-C3 = -8.20203665287
+#alpha = 0.0570171869542
+#C0 = 0.465675271105
+#C1 = 0.00893230883784
+#C2 = -75.4037631023
+#C3 = -8.20203665287
+
+# calibrated values Frio dataset (Corrigan 1993)
+# + short term annealing experiments, Vrolijk ea (1992) data and
+# Fish Canyon Tuff
+# cal results 4 aug 2016:
+#C0 = 2.10097585e-01
+#C1 = 1.20563545e-02
+#C2 = -4.90476537e+01
+#C3 = -7.46972301e+00
+#alpha = 8.15289541e-02
+
 
 ##################
 # (U-Th)/He params
 ##################
+
+# apatite U-Th/He equations to use
+# 'Farley2000' for helium diffusion parameters of Durango apatite
+#   acc. to Farley(2000) JGR 105
+# 'RDAAM' for he diffusion that depends on radiation damage acc. to
+#   Flowers et al. (2009) GCA 73
+ahe_method = 'RDAAM'
+
+# decay constants
 decay_constant_238U = 4.916e-18
 decay_constant_232Th = 1.57e-18
 decay_constant_235U = 3.12e-17
@@ -224,5 +241,6 @@ max_decompaction_error = 0.01
 #######
 # VR
 #######
-# sigma of uncertainty range for VR data, if not specified in input file
+# default sigma of uncertainty range for VR data,
+# if not specified in input file
 vr_unc_sigma = 0.05

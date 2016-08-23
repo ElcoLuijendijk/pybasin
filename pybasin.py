@@ -441,6 +441,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    surface_temp,
                                    aft_data_well,
                                    calculate_thermochron_for_all_nodes=False,
+                                   annealing_eq='FC',
                                    C0=0.39528, C1=0.01073,
                                    C2=-65.12969, C3=-7.91715,
                                    alpha=0.04672,
@@ -469,7 +470,9 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                 prov_start_nodes, prov_end_nodes,
                 annealing_kinetics_values,
                 annealing_kinetic_param,
-                surface_temp, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+                surface_temp,
+                annealing_eq=annealing_eq,
+                C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
 
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
@@ -536,6 +539,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             annealing_kinetics_values,
             annealing_kinetic_param,
             surface_temp,
+            annealing_eq=annealing_eq,
             C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
 
     (modeled_aft_age_samples, modeled_aft_age_samples_min,
@@ -665,8 +669,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
         return (None,
                 None,
                 None,
-                ahe_node_times_burial,
-                ahe_node_zs,
+                None,
+                None,
                 simulated_AHe_data)
 
     # get T history for samples only
@@ -944,6 +948,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             aft_data_well,
             calculate_thermochron_for_all_nodes=
             calculate_thermochron_for_all_nodes,
+            annealing_eq=pybasin_params.annealing_equation,
             C0=pybasin_params.C0,
             C1=pybasin_params.C1,
             C2=pybasin_params.C2,

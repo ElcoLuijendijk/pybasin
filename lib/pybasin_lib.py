@@ -1735,7 +1735,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  annealing_kinetics_values, annealing_kinetic_param, Ts,
                  C0=0.39528, C1=0.01073,
                  C2=-65.12969, C3=-7.91715,
-                 alpha=0.04672):
+                 alpha=0.04672, annealing_eq='FC'):
 
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
@@ -1797,7 +1797,8 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                         annealing_kinetics_values[n_kin],
                         kinetic_parameter=annealing_kinetic_param,
                         use_fortran_algorithm=True,
-                        C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+                        C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+                        annealing_eq=annealing_eq)
 
                 aft_age_nodes[nn, n_prov, n_kin] = AFTage
                 aft_ln_mean_nodes[nn, n_prov, n_kin] = l_mean

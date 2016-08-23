@@ -9,3 +9,6 @@ initial*.csv
 *benchmark*
 log/*
 *.pck
+model_input/AFT_benchmarks*
+*backup*.*
+*copy*

@@ -492,6 +492,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            min_length=2.18,
                            surpress_resampling=False,
                            use_fortran_algorithm=True,
+                           annealing_eq='FC',
                            alpha=0.04672,
                            C0=0.39528,
                            C1=0.01073,
@@ -679,8 +680,17 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
+        if annealing_eq is 'FA':
+            annealing_eq_f90 = 1
+        elif annealing_eq is 'FC':
+            annealing_eq_f90 = 2
+
         rcf = calculate_reduced_AFT_lengths.reduced_ln(
-            dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
+            dts, temperature,
+            rmr0, kappa,
+            annealing_eq_f90,
+            alpha, C0, C1, C2, C3,
+            nsteps)
         #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
         #    dts, temperature, rmr0, kappa, nsteps)
         rmf = caxis_project_reduced_lengths(rcf)

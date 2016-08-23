@@ -17,7 +17,8 @@ basal_heat_flow_scenario_period = 'all'
 # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
 #basal_heat_flow_scenarios = [50e-3, 70e-3, 90e-3]
 #basal_heat_flow_scenarios = np.arange(70, 80, 1.0) * 1e-3
-basal_heat_flow_scenarios = [73.0 * 1e-3]
+#basal_heat_flow_scenarios = [73.0 * 1e-3]
+basal_heat_flow_scenarios = [None]
 
 # strat period for which to change exhumation
 # must exhumation_phase_id further down this file
@@ -27,7 +28,7 @@ exhumation_scenarios_period = 'dummy_exhumation'
 # example for testing exhumation of 500, 1000 and 1500 m:
 # exhumation_magnitudes = [500, 1000, 1500]
 #exhumation_magnitudes = np.arange(0., 5000, 500)
-exhumation_magnitudes = [0.0]
+exhumation_magnitudes = [None]
 
 # exhumation phase start (Ma) and duration (My)
 #exhumation_starts = np.arange(1.0, 14.0, 2.0)

@@ -65,24 +65,32 @@ opt_method = 'Nelder-Mead'
 # calibration function or the grid model space search
 #params_to_change = ['exhumation_magnitude',
 # 'exhumation_start', 'exhumation_duration', 'basal_heat_flow']
+#params_to_change = ['exhumation_magnitude',
+#                    'exhumation_start',
+#                    'exhumation_duration',
+#                    'basal_heat_flow']
+
 params_to_change = ['exhumation_magnitude',
                     'exhumation_start',
                     'exhumation_duration',
+                    'exhumation_segment_factor',
+                    'exhumation_duration_factor',
                     'basal_heat_flow']
 
+
 # initial values for model parameters
-start_param_values = [2000.0, 10.0, 7.0, 65.0e-3]
+start_param_values = [2000.0, 10.0, 5.0, 0.5, 0.5, 65.0e-3]
 #start_param_values = [2000.0, 10.0, 7.0]
 
 # read initial params from file
-load_initial_params = True
+load_initial_params = False
 initial_params_file = 'initial_param_values.csv'
 
 # min. and max bounds for parameters
-#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
-#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
-param_bounds_min = None
-param_bounds_max = None
+param_bounds_min = [0.0, 1.0, 0.5, 0.1, 0.1, 40e-3]
+param_bounds_max = [6000.0, 12.0, 11.0, 0.9, 0.9, 100e-3]
+#param_bounds_min = None
+#param_bounds_max = None
 #param_bounds_min = [0.0, 1.0, 0.1]
 #param_bounds_max = [6000.0, 13.0, 3.23]
 
@@ -179,11 +187,11 @@ two_stage_exhumation = True
 # fraction of total exhumation phase that separates the first and second segment
 # ie, exhumation segment factor of 0.9 means that 90% of the total exhumation
 # takes place in the first of 2 segments
-exhumation_segment_factor = 0.9
+exhumation_segment_factor = 0.5
 # duration of first segment compared to the second segment
 # exhumation_rate_factor of 0.75 means the first segment takes up 75% of the
 # total duration of exhumation
-exhumation_duration_factor = 0.75
+exhumation_duration_factor = 0.5
 
 # parameter to automatically reduce exhumation duration if end of
 # exhumation is < 0 Ma
@@ -237,6 +245,11 @@ annealing_kinetics_values = np.array([1.2, 2.2])
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
 
+# annealing equation to use
+# 'FA' for fanning Arrhenius equation by Laslett (1987)
+# 'FC' for fanning curvelinear equation used by Ketcham (1999, 2007)
+annealing_equation = 'FC'
+
 # empirical coefficients AFT annealing equation
 # default values from Ketcham et al. (2007) American Mineralogist
 # fanning curvelinear model values in Table 5
@@ -246,11 +259,17 @@ C1 = 0.01073
 C2 = -65.12969
 C3 = -7.91715
 
+# apatite U-Th/He equations to use
+# 'Farley2000' for helium diffusion parameters of Durango apatite
+#   acc. to Farley(2000) JGR 105
+# 'RDAAM' for he diffusion that depends on radiation damage acc. to
+#   Flowers et al. (2009) GCA 73
+ahe_method = 'RDAAM'
+
 # (U-Th)/He params:
 decay_constant_238U = 4.916e-18
 decay_constant_232Th = 1.57e-18
 decay_constant_235U = 3.12e-17
-
 
 ###################################################
 # compaction
