@@ -222,6 +222,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             #    print modeled_aft_age_samples_min[i],  modeled_aft_age_samples_max[i], pdf_fit_sum
 
     # calculate model error:
+    print aft_data_well #tom
+    
     for i, sample_ix, age_bin, age_pdf in zip(itertools.count(),
                                               aft_data_well.index,
                                               age_bins,
@@ -1812,7 +1814,7 @@ def main():
     if len(sys.argv) > 1:
         wells = sys.argv[1:]
     else:
-        wells = model_scenarios.wells
+        wells = model_scenarios.wells  
 
     # option to run all wells found in wells_stratigraphy.csv input file
     if 'all' in wells:
