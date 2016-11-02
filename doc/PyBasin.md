@@ -100,7 +100,7 @@ Heat flow is governed by the following equation
 \end{equation}
 where $\rho$ is density (kg m^-3^), *c* is heat capacity (), *T* is temperature (K), *t* is time (sec), *q* is heat flux () and Q is heat production (W m^-3^).
 
-We discretize the drivative of temperature in time as 
+We discretize the derivative of temperature in time as 
 \begin{equation}
     \frac{\partial T}{\partial t} = \frac{T^{t+\Delta t} - T^t}{\Delta t}
 \end{equation}

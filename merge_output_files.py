@@ -7,7 +7,7 @@ import pandas as pd
 
 __author__ = 'elco'
 
-folder = '/home/elco/python_scripts/pybasin/model_output/MB/15jun2016_calibration_2stage'
+folder = '/home/elco/model_files/pybasin/MB/30aug2016_2stage_new'
 
 files = os.listdir(folder)
 

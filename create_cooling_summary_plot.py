@@ -42,9 +42,9 @@ fn_adj = 'cooling_vs_thermochron'
 
 
 x_datas = ['cooling', 'exhumation_start',
-           'exhumation_time_factor', 'exhumation_rate_factor']
+           'exhumation_segment_factor', 'exhumation_duration_factor']
 x_labels = ['Cooling (%s C)' % degree_symbol, 'Start of cooling (Ma)',
-            'exhumation time factor', 'exhumation rate factor']
+            'exhumation segment factor', 'exhumation duration factor']
 xticks_all = [[0, 25, 50, 75, 100, 125, 150, 175],
               [0, 2.5, 5.0, 7.5, 10.0, 12.5],
               [0.0, 0.25, 0.5, 0.75, 1.0],
@@ -53,6 +53,18 @@ fn_adjs = ['cooling_vs_thermochron',
            'exh_start_vs_thermochron',
            'exh_time_factor_vs_thermochron',
            'exhumation rate factor']
+
+#model_result_fn = 'model_output/MB/5apr2016_results_two_stage_cooling/' \
+#                  'model_results_merged_mod.csv'
+#model_result_fn = '/home/elco/model_files/pybasin/MB/' \
+#                  'final_results_1mar2016_rdaam/' \
+#                  'model_results_merged_mod.csv'
+
+model_result_fn = '/home/elco/model_files/pybasin/MB/30aug2016_2stage_new/' \
+                  'model_results_merged_mod.csv'
+
+df_all = pd.read_csv(model_result_fn)
+
 
 for x_data, x_label, xticks, fn_adj in zip(x_datas, x_labels,
                                            xticks_all, fn_adjs):
@@ -65,12 +77,11 @@ for x_data, x_label, xticks, fn_adj in zip(x_datas, x_labels,
 
     #model_result_fn = 'model_output/MB/5apr2016_results_two_stage_cooling/' \
     #                  'model_results_merged_mod.csv'
-    model_result_fn = '/home/elco/model_files/pybasin/MB/' \
-                      'final_results_1mar2016_rdaam/' \
-                      'model_results_merged_mod.csv'
+    #model_result_fn = '/home/elco/model_files/pybasin/MB/' \
+    #                  'final_results_1mar2016_rdaam/' \
+    #                  'model_results_merged_mod.csv'
 
-
-    df_all = pd.read_csv(model_result_fn)
+    #df_all = pd.read_csv(model_result_fn)
 
     wells = np.unique(df_all['well'].dropna())
     nwells = len(wells)

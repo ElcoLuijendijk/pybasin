@@ -18,7 +18,7 @@ import pandas as pd
 min_T_gof = 0.5
 default_heat_flow = 0.065
 
-model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/jul2016_2stage_calibration_merged/model_results_merged_calibration.csv"
+model_result_fn = "/home/elco/model_files/pybasin/MB/30aug2016_2stage_new/model_results_merged.csv"
 
 df = pd.read_csv(model_result_fn)
 

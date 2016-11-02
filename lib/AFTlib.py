@@ -101,7 +101,7 @@ def calculate_AFT_age_fluence(Ns, Ni, neutron_fluence, neutron_fluence_std,
 
 def calculate_AFT_age(Ns, Ni, Nd, rho_d, zeta, zeta_std):
 
-    '''
+    """
     Calculate apatite fission track ages using zeta calibration method
     
     equation 32 by Ketcham (2005)
@@ -137,8 +137,7 @@ def calculate_AFT_age(Ns, Ni, Nd, rho_d, zeta, zeta_std):
     gamma_std : array
     
     gamma_plus2SE : array
-    
-    '''
+    """
 
     # calculate gamma:
     gamma = calculate_AFT_age_gamma(zeta, rho_d, Ns, Ni)
@@ -176,8 +175,7 @@ def calculate_AFT_age(Ns, Ni, Nd, rho_d, zeta, zeta_std):
 
 def calculate_AFT_age_gamma(zeta, rho_d, Ns, Ni):
     
-    '''
-    
+    """
     Parameters
     ----------
     zeta : array or float
@@ -192,8 +190,7 @@ def calculate_AFT_age_gamma(zeta, rho_d, Ns, Ni):
     Returns
     -------
     gamma
-
-    '''
+    """
     
     if type(Ni) == np.ndarray:
         a = Ns/Ni.astype(float)
@@ -206,8 +203,7 @@ def calculate_AFT_age_gamma(zeta, rho_d, Ns, Ni):
 
 def calculate_AFT_age_SE(AFT_age, Ns, Ni, Nd, zeta, zeta_std):
 
-    '''
-    
+    """
     Calculate standard error of fission track ages
     
     
@@ -230,8 +226,7 @@ def calculate_AFT_age_SE(AFT_age, Ns, Ni, Nd, zeta, zeta_std):
     -------
     AFT_age_SE : array
         standard error of fission track age
-    
-    '''
+    """
     
     # calculate standard error of zeta:
     SE_zeta = zeta_std/zeta
@@ -253,8 +248,7 @@ def calculate_AFT_age_SE(AFT_age, Ns, Ni, Nd, zeta, zeta_std):
 
 def calculate_AFT_age_gamma_std(gamma, Ns, Ni, Nd, zeta, zeta_std):
     
-    '''
-    
+    """
     Parameters
     ----------
     gamma : array
@@ -273,8 +267,8 @@ def calculate_AFT_age_gamma_std(gamma, Ns, Ni, Nd, zeta, zeta_std):
     Returns
     -------
     gamma_std : array
-    
-    '''
+
+    """
     
     # calculate standard error of zeta:
     SE_zeta = zeta_std/zeta
@@ -297,14 +291,13 @@ def calculate_AFT_age_gamma_std(gamma, Ns, Ni, Nd, zeta, zeta_std):
                                             (Ni**-1) +
                                             (Nd**-1) +
                                             (SE_zeta**2))
-        
-        
+
     return gamma_std
 
 
 def calculate_AFT_age_from_gamma(gamma):
     
-    '''
+    """
     FT age equation
     
     recast following    Galbraith (1984) Math. Geol. 16(7) and 
@@ -318,7 +311,7 @@ def calculate_AFT_age_from_gamma(gamma):
     -------
     age : array
     
-    '''
+    """
     
     
     lambda_d = 1.551e-10
@@ -332,8 +325,7 @@ def calculate_AFT_age_from_gamma(gamma):
     
 def calculate_gamma_from_AFT_age(age, lambda_d = 1.551e-10, g=0.5):
     
-    '''
-  
+    """
     Parameters
     ----------
     age : array
@@ -345,8 +337,7 @@ def calculate_gamma_from_AFT_age(age, lambda_d = 1.551e-10, g=0.5):
     Returns
     -------  
     gamma  : array
-    
-    '''
+    """
     
     
     a =  1./lambda_d

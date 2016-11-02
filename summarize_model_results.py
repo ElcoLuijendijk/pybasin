@@ -18,13 +18,19 @@ import matplotlib.pyplot as pl
 import useful_functions
 import pdb
 
+# select the min value of GOF for all thermochronometers
+# when False, select the max value. Ie if AFT gof = 0.5 and AHe gof=0.8, the
+# overall GOF will be 0.5 with this parameter set to True and 0.8 with this
+# parameter set to False
+gof_selection_min = True
+
 x_data = 'max_cooling'
 y_data = 'aft_age_gof'
 y_data2 = 'vr_gof'
 z_data = None
 
 # minimum value for gof for acceptable model fits
-gof_cutoff = 0.7
+gof_cutoff = 0.5
 
 # best estimate of heat flow if no temperature data are available
 default_heat_flow = 0.065
@@ -33,26 +39,38 @@ default_heat_flow = 0.065
 default_exhumation = 1500.0
 
 # read model result data
-model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/" \
-                  "jul2016_2stage_calibration_merged/" \
-                  "model_results_combined_regular_calibration.csv"
+#model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/" \
+#                  "jul2016_2stage_calibration_merged/" \
+#                  "model_results_combined_regular_calibration.csv"
+model_result_fn = "/home/elco/model_files/pybasin/MB/" \
+                  "30aug2016_2stage_new/model_results_merged_mod.csv"
 df = pd.read_csv(model_result_fn)
 
 # calculate overall thermochron gof
-df['thermochron_gof'] = df['aft_age_gof']
+df['thermochron_gof_max'] = df['aft_age_gof']
 
-ind = (df['ahe_gof'] > df['thermochron_gof']) \
+ind = (df['ahe_gof'] > df['thermochron_gof_max']) \
       & (np.isnan(df['ahe_gof']) == False)
-df['thermochron_gof'][ind] = df['ahe_gof'][ind]
+df['thermochron_gof_max'][ind] = df['ahe_gof'][ind]
 
 ind = df['aft_age_gof'].isnull()
-df['thermochron_gof'][ind] = df['ahe_gof'][ind]
+df['thermochron_gof_max'][ind] = df['ahe_gof'][ind]
+
+df['thermochron_gof_min'] = df['thermochron_gof_max']
+ind_gof_min = df['aft_age_gof'].notnull() & df['ahe_gof'].notnull()
+df.loc[ind_gof_min, 'thermochron_gof_min'] = \
+    np.min(df.loc[ind_gof_min, ['aft_age_gof', 'ahe_gof']], axis=1)
 
 # calculate exhumation rate and drop samples with > 2 km / My cooling
 df['exhumation_rate'] = df['exhumation_magnitude'] / df['exhumation_duration']
 max_realistic_exhumation_rate = 1500.0
 ind = df['exhumation_rate'] < max_realistic_exhumation_rate
 df = df[ind]
+
+if gof_selection_min is True:
+    df['thermochron_gof'] = df['thermochron_gof_min']
+else:
+    df['thermochron_gof'] = df['thermochron_gof_max']
 
 #
 #df['cooling'] = df['mean_cooling_exhumation_phase_0']
@@ -212,7 +230,13 @@ for well in wells:
             dfs.ix[well, 'exhumation_thermochron_hf%0.3f_max' % default_heat_flow] = np.max(df['exhumation_magnitude'][ind_default_heat_flow])
 
 # save summary
-summary_fn = model_result_fn.split('.csv')[0] + '_cooling_and_exhumation_summary_cutoff%0.2f.csv' % gof_cutoff
+if gof_selection_min is True:
+    adj = 'gof_min'
+else:
+    adj = 'gof_max'
+summary_fn = model_result_fn.split('.csv')[0] + \
+             '_cooling_and_exhumation_summary_cutoff%0.2f_%s.csv' \
+             % (gof_cutoff, adj)
 print 'saving results to %s' % summary_fn
 dfs.to_csv(summary_fn, index_label='well')
 

@@ -184,14 +184,19 @@ annealing_kinetics_values = np.array([0.00179, 0.0208])
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
 
+# annealing equation to use
+# 'FA' for fanning Arrhenius equation by Laslett (1987)
+# 'FC' for fanning curvelinear equation used by Ketcham (1999, 2007)
+annealing_equation = 'FC'
+
 # empirical coefficients AFT annealing equation
 # default values from Ketcham et al. (2007) American Mineralogist
 # fanning curvelinear model values in Table 5
-alpha = 0.04672
-C0 = 0.39528
-C1 = 0.01073
-C2 = -65.12969
-C3 = -7.91715
+#alpha = 0.04672
+#C0 = 0.39528
+#C1 = 0.01073
+#C2 = -65.12969
+#C3 = -7.91715
 
 # calibrated values for Frio pseudo-borehole data by Corrigan (1993):
 #alpha = 0.0570171869542
@@ -203,12 +208,12 @@ C3 = -7.91715
 # calibrated values Frio dataset (Corrigan 1993)
 # + short term annealing experiments, Vrolijk ea (1992) data and
 # Fish Canyon Tuff
-# cal results 4 aug 2016:
-#C0 = 2.10097585e-01
-#C1 = 1.20563545e-02
-#C2 = -4.90476537e+01
-#C3 = -7.46972301e+00
-#alpha = 8.15289541e-02
+# cal results 17 aug 2016:
+C0 = 2.74620936e-01
+C1 = 1.15666643e-02
+C2 = -6.94099931e+01
+C3 = -7.85643253e+00
+alpha = 5.99629016e-02
 
 
 ##################

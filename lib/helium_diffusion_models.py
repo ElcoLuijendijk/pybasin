@@ -54,15 +54,19 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
         print 'need to figure out bessel functions in numpy'
 
     # experimental, implement alpha ejection algorithm
-    # this is bascially adjusting the gamma term, see eq. 24 in Meesters and Dunai (2002) pt. 2
-    # sigma is alpha ejection distance
-    # acc. Farley et al. (1996) Geochem Cosm. Acta, varies between 10-30 um for apatites
+    # this is bascially adjusting the gamma term, see eq. 24 in Meesters 
+    # and Dunai (2002) pt. 2
+    # sigma is alpha ejection distance. acc. Farley et al. (1996) GCA, 
+    # varies between 10-30 um for apatites
     if alpha_ejection is True:
         a = radius
         k = n * np.pi / a
         sigma = stopping_distance
         gamma_old = gamma
-        gamma = 3.0 / (n * np.pi)**2 * (1.0 - sigma / (2 * a) + 1 / (n * np.pi) * 1 / (k * sigma) * (1.0 - np.cos(k * sigma)) + 1.0 / (k * sigma) * np.sin(k * sigma))
+        gamma = 3.0 / (n * np.pi)**2 * (1.0 - sigma / (2 * a) 
+                       + 1 / (n * np.pi) * 1 / (k * sigma) 
+                       * (1.0 - np.cos(k * sigma)) 
+                       + 1.0 / (k * sigma) * np.sin(k * sigma))
 
         #pdb.set_trace()
 
@@ -77,7 +81,9 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0, U_function='constant
     elif U_function == 'exponential':
         F = decay_time * (1.0 - np.exp(-t / decay_time))
     else:
-        raise ValueError('please supply value for U_function, choose either "constant" or "exponential"')
+        msg = 'please supply value for U_function, '
+        msg += 'choose either "constant" or "exponential"'
+        raise ValueError(msg)
 
     # eq. 5, time integration of diffusivity:
     xi = np.zeros(nt)
@@ -236,7 +242,9 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         # check against fortran function
 
         # python reduced track length function:
-        r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature)
+        r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature, 
+                                                     C0=C0, C1=C1, C2=C2, C3=C3,
+                                                     alpha=alpha)
         rcp = AFT.kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
         rmp = AFT.caxis_project_reduced_lengths(rcp)
         rm = rmp
@@ -332,7 +340,8 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          C0=0.39528,
                                          C1=0.01073,
                                          C2=-65.12969,
-                                         C3=-7.91715):
+                                         C3=-7.91715,
+                                         use_fortran_algorithm=True):
 
     """
 
@@ -343,6 +352,14 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     parameters Farley (2000), Durango apatite:
     D0_div_a2 = np.exp(13.4)
     Ea = 32.9 * 4184 kJ/mol
+    
+    Parameters:
+    -----------
+    t : numpy array
+        time in sec
+    T : numpy array
+        temperature in Kelvin
+    
 
 
     :param t:
@@ -377,7 +394,9 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
         #      (U238, U235, Th232, radius)
         Dw = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius,
                                          alpha=alpha, C0=C0, C1=C1,
-                                         C2=C2, C3=C3)
+                                         C2=C2, C3=C3,
+                                         use_fortran_algorithm=
+                                         use_fortran_algorithm)
 
     elif method is 'Wolf1996':
         print 'using Wolf et al. (1996) diffusion parameters'
