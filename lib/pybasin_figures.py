@@ -1,3 +1,9 @@
+"""
+module that contains all functions for making figures of pybasin model results
+
+"""
+
+
 __author__ = 'elcopone'
 
 import pdb
@@ -133,8 +139,11 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
 
 def model_vs_data_figure(model_run_data,
                          show_provenance_hist=True,
+                         show_strat_column=True,
                          contour_variable='temperature',
-                         add_legend=True, debug=False):
+                         add_legend=True,
+                         strat_fontsize='xx-small',
+                         debug=False):
 
     """
     create a figure comparing 1D burial and thermal model results
@@ -232,10 +241,10 @@ def model_vs_data_figure(model_run_data,
 
     pl.rc('font', **font)
 
-    width_ratios = [8, 3]
+    width_ratios = [8]
 
     nrows = 3
-    ncols = 2
+    ncols = 1
 
     bottom = 0.12
     if add_legend is True:
@@ -260,6 +269,16 @@ def model_vs_data_figure(model_run_data,
         AFT_data = None
     if AHe_data is not None and len(ahe_ages_all_samples) == 0:
         AHe_data = None
+
+    if show_strat_column is not None:
+        strat_panel_ind = ncols
+        temp_panel_ind = ncols + 1
+        ncols += 2
+        width_ratios += [2, 3]
+    else:
+        temp_panel_ind = ncols
+        ncols += 1
+        width_ratios.append(3)
 
     if C_data is not None:
         C_panel_ind = ncols
@@ -291,9 +310,15 @@ def model_vs_data_figure(model_run_data,
     axst = fig.add_subplot(gs[0, 0])
     axhf = fig.add_subplot(gs[2, 0])
     #ax_strat = fig.add_subplot(gs[1, 1])
-    ax_temp = fig.add_subplot(gs[1, 1])
 
-    all_panels = [axb, axhf, axst, ax_temp]
+    all_panels = [axb, axhf, axst]
+
+    if show_strat_column is not None:
+        ax_strat = fig.add_subplot(gs[1, strat_panel_ind])
+        all_panels.append(ax_strat)
+
+    ax_temp = fig.add_subplot(gs[1, temp_panel_ind])
+    all_panels.append(ax_temp)
 
     if C_data is not None:
         ax_c = fig.add_subplot(gs[1, C_panel_ind])
@@ -437,12 +462,13 @@ def model_vs_data_figure(model_run_data,
                          s=10,
                          cmap=cmap)
 
-    major_strat = [n[:4] for n in node_strat]
+    major_strat = [n.split('_s_')[0] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
                                                major_strat[1:])]
     strat_transition.append(True)
 
-    if (AFT_data is not None or AHe_data is not None) and show_provenance_hist is True:
+    if (AFT_data is not None or AHe_data is not None) \
+            and show_provenance_hist is True:
 
         if AFT_data is not None:
             burial = aft_node_times_burial
@@ -450,7 +476,6 @@ def model_vs_data_figure(model_run_data,
         else:
             burial = ahe_node_times_burial
             depths = ahe_node_zs
-
 
         strat_count = 0
         for xb, yb, strat_trans in zip(burial, depths,
@@ -493,8 +518,10 @@ def model_vs_data_figure(model_run_data,
         ind = np.array(strat_transition) == True
         n_strat_trans = ind.sum()
         for i in xrange(n_strat_trans):
-            leg_strat_unit, = axb.plot(time_array_bp / 1e6, z_nodes[:, ind][:, i],
-                                  color='black', lw=0.5, zorder=100)
+            leg_strat_unit, = axb.plot(time_array_bp / 1e6,
+                                       z_nodes[:, ind][:, i],
+                                       color='black',
+                                       lw=0.5, zorder=100)
 
         leg_items += [leg_strat_unit]
         leg_labels += ['major stratigraphic unit']
@@ -513,6 +540,25 @@ def model_vs_data_figure(model_run_data,
                               z_nodes[-1, active_nodes[-1]],
                               **line_props)
     model_label.append('temperature')
+
+    if show_strat_column is True:
+
+        ind = np.array(strat_transition) == True
+        n_strat_trans = ind.sum()
+
+        z_trans = z_nodes[:, ind][-1, :]
+        z_trans = np.insert(z_trans, [0], np.array([0]))
+        strat_trans = np.array(major_strat)[ind]
+        for ax in depth_panels[1:]:
+            for i in xrange(n_strat_trans):
+                leg_strat_unit = ax.axhline(y=z_nodes[:, ind][-1, i],
+                                            color='gray',
+                                            lw=0.5, zorder=1)
+
+        # add labels for stratigraphic units
+        z_mid_trans = (z_trans[1:] + z_trans[:-1]) / 2.0
+        for z_pos, strat_name in zip(z_mid_trans, strat_trans):
+            ax_strat.text(0.03, z_pos, strat_name, fontsize=strat_fontsize)
 
     if T_data is not None and len(T_data) > 0:
         leg_data = ax_temp.errorbar(T_obs, T_depth,
@@ -682,7 +728,6 @@ def model_vs_data_figure(model_run_data,
         model_label.append('AHe ages')
         model_range_label.append('AHe ages')
 
-
     if AHe_data is not None:
         for ahe_ages_sample, ahe_sample_depth, ahe_ages_sample_SE in \
                 zip(ahe_ages_all_samples,
@@ -744,6 +789,9 @@ def model_vs_data_figure(model_run_data,
     if AHe_data is not None:
         ax_ahe.set_xlabel('AHe age (Ma)')
     #ax_aftln.set_xlabel(r'AFT ln ($\mu m$)')
+
+    if show_strat_column is True:
+        ax_strat.set_xticks([])
 
     for ax in all_panels[3:]:
         ax.set_yticklabels([])
@@ -883,7 +931,7 @@ def model_vs_data_figure(model_run_data,
 
     #gs.tight_layout(fig, h_pad=0.02, w_pad=0.02)
     # add colorbar
-    cax_left = ax_temp.get_position().x0 + 0.05
+    cax_left = depth_panels[1].get_position().x0 + 0.05
     pos_right = all_panels[-1].get_position()
     cax_right = pos_right.x0 + pos_right.width
     cax_width = cax_right - cax_left - 0.03

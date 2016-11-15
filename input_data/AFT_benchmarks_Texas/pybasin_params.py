@@ -44,6 +44,9 @@ make_model_data_fig = True
 # to show evolution of temperature or salinity over time
 contour_variable = 'temperature'
 
+# add a stratigraphic column to the figure
+show_strat_column = True
+
 # type of figure file to save (pdf, png or jpg):
 fig_adj = ['pdf', 'png']
 

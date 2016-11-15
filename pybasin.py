@@ -2031,7 +2031,8 @@ def main():
             if pybasin_params.make_model_data_fig is True:
                 fig = pybasin_figures.model_vs_data_figure(
                     model_run_data_fig,
-                    contour_variable=pybasin_params.contour_variable)
+                    contour_variable=pybasin_params.contour_variable,
+                    show_strat_column=pybasin_params.show_strat_column)
             #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
                 if type(pybasin_params.fig_adj) is list:
@@ -2262,7 +2263,8 @@ def main():
                 if pybasin_params.make_model_data_fig is True:
                     fig = pybasin_figures.model_vs_data_figure(
                         model_run_data_fig,
-                        contour_variable=pybasin_params.contour_variable)
+                        contour_variable=pybasin_params.contour_variable,
+                        show_strat_column=pybasin_params.show_strat_column)
                 #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
                     #fn = os.path.join(fig_output_dir,
