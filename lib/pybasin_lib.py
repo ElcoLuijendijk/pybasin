@@ -2636,7 +2636,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      z_nodes, T_nodes, active_nodes,
                      n_nodes, n_cells,
                      node_strat, node_age,
-                     prov_start_nodes, prov_end_nodes]
+                     prov_start_nodes, prov_end_nodes,porosity_nodes,k_nodes]
 
     if pybasin_params.simulate_salinity is True:
         return_params += [C_nodes,
