@@ -854,11 +854,20 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                         'max_depth'] = z_nodes.max()
 
     cebs_input = 'cebs.py'
-    if os.path.isfile(cebs_input) is True:
+    if pybasin_params.calculate_thermochron_for_all_nodes is True \
+            and os.path.isfile(cebs_input) is True:
+
+        print 'reading model input from cebs.py'
+
         import cebs
-        model_results_df = cebs.present_temp_in_given_depth(z_nodes,model_scenario_number,T_nodes,model_results_df)
-        model_results_df = cebs.thermal_conductivity(model_results_df, node_strat, geohist_df,model_scenario_number,k_nodes)
-        model_results_df = cebs.porosity(model_results_df, node_strat, geohist_df,model_scenario_number,porosity_nodes)
+        model_results_df = cebs.present_temp_in_given_depth(
+            z_nodes, model_scenario_number, T_nodes, model_results_df)
+        model_results_df = cebs.thermal_conductivity(
+            model_results_df, node_strat, geohist_df, model_scenario_number,
+            k_nodes)
+        model_results_df = cebs.porosity(model_results_df, node_strat,
+                                         geohist_df, model_scenario_number,
+                                         porosity_nodes)
 
     vr_nodes = None
 
@@ -890,8 +899,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                 vr_nodes[-1, active_nodes[-1]][-1]
             
             if os.path.isfile(cebs_input) is True:
-                model_results_df = cebs.vr_top_bot(model_results_df, node_strat, vr_nodes,geohist_df,model_scenario_number)
-                model_results_df = cebs.vr_middle(model_results_df, node_strat, vr_nodes,geohist_df,model_scenario_number, z_nodes) 
+                model_results_df = cebs.vr_top_bot(
+                    model_results_df, node_strat,
+                    vr_nodes, geohist_df, model_scenario_number)
+                model_results_df = cebs.vr_middle(model_results_df, node_strat,
+                    vr_nodes, geohist_df,
+                    model_scenario_number, z_nodes)
 
 
     if pybasin_params.simulate_salinity is True:

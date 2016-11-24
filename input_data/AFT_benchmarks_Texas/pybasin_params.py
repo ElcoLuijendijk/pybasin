@@ -32,6 +32,9 @@ calculate_thermochron_for_all_nodes = False
 # option to save model run data (approx 10-20 MB per model run)
 save_model_run_data = False
 
+#
+calculate_thermochron_for_all_nodes = False
+
 ################
 # figure options
 ################
