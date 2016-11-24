@@ -33,7 +33,7 @@ calculate_thermochron_for_all_nodes = False
 save_model_run_data = False
 
 #
-calculate_thermochron_for_all_nodes = False
+use_strat_map_input = False
 
 ################
 # figure options

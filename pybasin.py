@@ -854,7 +854,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                         'max_depth'] = z_nodes.max()
 
     cebs_input = 'cebs.py'
-    if pybasin_params.calculate_thermochron_for_all_nodes is True \
+    if pybasin_params.use_strat_map_input is True \
             and os.path.isfile(cebs_input) is True:
 
         print 'reading model input from cebs.py'
