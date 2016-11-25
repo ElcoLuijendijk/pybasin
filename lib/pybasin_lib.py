@@ -1584,7 +1584,8 @@ def generate_thermal_histories(resample_t, n_nodes,
     return aft_node_times, aft_node_temps
 
 
-def generate_burial_histories(n_nodes,
+def generate_burial_histories(resample_t,
+                              n_nodes,
                               time_array_bp,
                               z_nodes, active_nodes,
                               prov_ages_start_array, prov_ages_end_array,
@@ -1597,8 +1598,8 @@ def generate_burial_histories(n_nodes,
     for nn in xrange(n_nodes):
 
         # burial history
-        burial_time = (time_array_bp[active_nodes[:, nn]] / 1e6)
-        burial_z = z_nodes[active_nodes[:, nn], nn]
+        burial_time = (time_array_bp[active_nodes[:, nn]][::resample_t] / 1e6)
+        burial_z = z_nodes[active_nodes[:, nn], nn][::resample_t]
 
         z_scenarios = []
         t_scenarios = []
@@ -1623,7 +1624,8 @@ def generate_burial_histories(n_nodes,
                 provenance_times = [p1, p2, burial_time[0]]
 
             # subdivide provenance history into finer timesteps
-            prov_time_fine = [np.linspace(a, b, (nt_prov) / (len(provenance_times) - 1) + 1)[:-1]
+            prov_time_fine = [np.linspace(a, b, (nt_prov) /
+                                          (len(provenance_times) - 1) + 1)[:-1]
                               for a, b
                               in zip(provenance_times[:-1],
                                      provenance_times[1:])]
@@ -1763,7 +1765,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
         nt_prov, Ts)
 
     aft_node_times_burial, aft_node_zs = generate_burial_histories(
-        n_nodes,
+        resample_t, n_nodes,
         time_array_bp, z_nodes, active_nodes,
         prov_ages_start, prov_ages_end,
         nt_prov)
@@ -1855,13 +1857,6 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         time_array_bp, z_nodes, active_nodes,
         prov_ages_start, prov_ages_end,
         nt_prov)
-
-    #figb = pl.figure()
-    #ax = figb.add_subplot(1, 1, 1)
-    #for x, y in zip(ahe_node_times_burial, ahe_node_zs):
-    #    for xi, yi in zip(x, y):
-    #        ax.plot(xi, yi)
-    #figb.savefig('burial_prov_test.png', dpi=300)
 
     # calculate FT ages for all formations
     n_prov_scenarios = prov_ages_start.shape[1]

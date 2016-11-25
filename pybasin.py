@@ -2332,6 +2332,11 @@ def main():
                 print 'saving model results .csv file %s' % fn
                 model_results_df.to_csv(fn, index_label='model_scenario_number')
 
+                if pybasin_params.save_model_run_data is True:
+                    # TODO save T-t paths if no aft is modeled....
+                    pass
+
+
                 if (pybasin_params.save_model_run_data is True
                         and pybasin_params.simulate_AFT is True):
 
@@ -2390,20 +2395,78 @@ def main():
                             df_tt.loc[:(nti-1), 'temp_sample_%i_prov_%i'
                                                 % (sample_i, prov_i)] \
                                 = aft_sample_temps[sample_i][prov_i]
-                            for kin_i in range(n_kin):
-                                df_tt.loc[0, 'aft_age_sample_%i_prov_%i_kin_%i'
-                                          % (sample_i, prov_i, kin_i)] \
-                                    = aft_age_samples[sample_i, prov_i, kin_i]
+                            #for kin_i in range(n_kin):
+                            #    df_tt.loc[0, 'aft_age_sample_%i_prov_%i_kin_%i'
+                            #              % (sample_i, prov_i, kin_i)] \
+                            #        = aft_age_samples[sample_i, prov_i, kin_i]
 
                     # save AFT time-temperature paths
                     today = datetime.datetime.now()
                     today_str = '%i-%i-%i' % (today.day, today.month, today.year)
                     fn = os.path.join(output_dir,
-                                      'aft_time_temp_%s_%s_ms%i.csv'
+                                      'aft_sample_time_temp_%s_%s_ms%i.csv'
                                       % (well, today_str,
                                          model_scenario_number))
-                    print 'saving AFT time-temperature paths to %s' % fn
-                    df_tt.to_csv(fn)
+                    print 'saving time-temperature paths AFT samples to %s' % fn
+                    df_tt.to_csv(fn, index=False)
+
+                    # save modeled T-t paths, all nodes
+
+                    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+                     aft_ln_mean_nodes, aft_ln_std_nodes,
+                     aft_node_times_burial, aft_node_zs,
+                     aft_node_times, aft_node_temps) = simulated_AFT_data
+
+                    #n_ts_output = 101
+                    #n_ts, n_nodes = T_nodes.shape
+                    #ind = np.linspace(0, n_ts-1, n_ts_output)
+
+                    n_nodes = len(aft_node_times)
+                    n_prov = len(aft_node_times[0])
+                    max_steps = 0
+                    for i in range(n_nodes):
+                        for j in range(n_prov):
+                            n_steps = len(aft_node_times[i][j])
+                            if n_steps > max_steps:
+                                max_steps = n_steps
+
+                    cols = []
+                    for i in range(n_nodes):
+                        for j in range(n_prov):
+                            cols += ['time_node_%i_prov_%i' % (i, j),
+                                     'z_node_%i_prov_%i' % (i, j),
+                                     'T_node_%i_prov_%i' % (i, j)]
+
+                    df_tt2 = pd.DataFrame(columns=cols,
+                                          index=np.arange(max_steps))
+
+                    for i in range(n_nodes):
+                        for j in range(n_prov):
+                            n_steps = len(aft_node_times[i][j])
+
+                            # add time
+                            col_name = 'time_node_%i_prov_%i' % (i, j)
+                            df_tt2.loc[:n_steps-1, col_name] = \
+                                    aft_node_times[i][j]
+
+                            # add depth
+                            col_name = 'z_node_%i_prov_%i' % (i, j)
+                            df_tt2.loc[:n_steps-1, col_name] = \
+                                    aft_node_zs[i][j]
+
+                            # add temperature
+                            col_name = 'T_node_%i_prov_%i' % (i, j)
+                            df_tt2.loc[:n_steps-1, col_name] = \
+                                    aft_node_temps[i][j]
+
+                    fn = os.path.join(output_dir,
+                                      'time_depth_temp_%s_%s_ms%i.csv'
+                                      % (well, today_str,
+                                         model_scenario_number))
+
+                    print 'saving time-temperature paths AFT samples to %s' \
+                          % fn
+                    df_tt2.to_csv(fn, index_label='timestep')
 
                 model_scenario_number += 1
 
