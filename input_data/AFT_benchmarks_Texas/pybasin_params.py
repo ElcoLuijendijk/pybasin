@@ -126,7 +126,8 @@ optimize_heatflow = False
 # max size of heatflow timestep (in yrs)
 max_hf_timestep = 10000.0
 
-# resample timesteps for AFT calculation, number of timesteps that
+# resample timesteps for AFT calculation, will take every xth timestep as
+# to construct a\ temperature history for the AFT algorithm
 resample_AFT_timesteps = 10
 
 #############################
@@ -224,11 +225,18 @@ annealing_equation = 'FC'
 # + short term annealing experiments, Vrolijk ea (1992) data and
 # Fish Canyon Tuff
 # cal results 17 aug 2016:
-C0 = 2.74620936e-01
-C1 = 1.15666643e-02
-C2 = -6.94099931e+01
-C3 = -7.85643253e+00
-alpha = 5.99629016e-02
+#C0 = 2.74620936e-01
+#C1 = 1.15666643e-02
+#C2 = -6.94099931e+01
+#C3 = -7.85643253e+00
+#alpha = 5.99629016e-02
+
+# cal results dec 2016
+C0 = -0.90543190685298
+C1 = 0.02592286967474
+C2 = -45.2134335102318
+C3 = -7.40429860409844
+alpha = 0.38985570895328
 
 
 ##################

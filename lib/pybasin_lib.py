@@ -1740,7 +1740,8 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  alpha=0.04672, annealing_eq='FC'):
 
     """
-    simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
+    simulate fission track ages using calculated burial thermal history
+    and provenance thermal history scenarios
 
     :param resample_t:
     :param nt_prov:

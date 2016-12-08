@@ -197,7 +197,9 @@ def model_vs_data_figure(model_run_data,
          aft_age_GOF,
          aft_age_error,
          aft_sample_times,
-         aft_sample_temps] = AFT_data
+         aft_sample_temps,
+         time_array_bp,
+         z_aft_samples, T_samples] = AFT_data
 
     if AHe_data is not None:
         [ahe_sample_depths,

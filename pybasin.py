@@ -126,7 +126,8 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes,
 
 def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                                   modeled_aft_age_samples_min,
-                                  modeled_aft_age_samples_max):
+                                  modeled_aft_age_samples_max,
+                                  verbose=False):
     age_bins = []
     age_pdfs = []
     single_grain_aft_ages = []
@@ -193,8 +194,10 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
         if np.any(np.isnan(age_pdf)) == False:
             #
-            aft_data_well['simulated_AFT_min'] = modeled_aft_age_samples_min[i]
-            aft_data_well['simulated_AFT_max'] = modeled_aft_age_samples_max[i]
+            aft_data_well.loc[sample_ix, 'simulated_AFT_min'] = \
+                modeled_aft_age_samples_min[i]
+            aft_data_well.loc[sample_ix, 'simulated_AFT_max'] = \
+                modeled_aft_age_samples_max[i]
 
             # TODO: find more elegant solution for 0.0 simulated AFT age
             # and check if GOF for AFT ages of 0.0 Ma are correct
@@ -242,13 +245,15 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             age_min = age_bin[start_ind]
             age_max = age_bin[end_ind]
 
-            # check difference of min modeled aft age and min. value of age distribution
+            # check difference of min modeled aft age and min. value of age
+            # distribution
             if modeled_aft_age_samples_min[i] < age_min:
                 age_error_min = 0
             else:
                 age_error_min = modeled_aft_age_samples_min[i] - age_min
 
-            # check difference of max modeled aft age and max. value of age distribution
+            # check difference of max modeled aft age and max. value of age
+            # distribution
             if modeled_aft_age_samples_max[i] > age_max:
                 age_error_max = 0
             else:
@@ -256,7 +261,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             # differerent procedure for observed AFT ages of 0, add penaly
             # if modeled ages are older:
-            # check difference of min modeled aft age and min. value of age distribution
+            # check difference of min modeled aft age and min. value of age
+            # distribution
             if age_max <= 1e-3:
                 age_error_max = modeled_aft_age_samples_max[i]
 
@@ -271,6 +277,13 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
     # calculate mean GOF from single grain GOFs for each sample
     aft_age_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
     aft_age_error = aft_data_well['age_error'].dropna().mean()
+
+    if verbose is True:
+
+        print aft_data_well[['sample', 'depth',
+                            'AFT_age', 'AFT_age_stderr_plus',
+                            'simulated_AFT_min', 'simulated_AFT_max',
+                            'GOF_aft_ages', 'age_error']]
 
     return (aft_age_gof, aft_age_error, single_grain_aft_ages, single_grain_aft_ages_se_min,
             single_grain_aft_ages_se_plus,
@@ -556,7 +569,9 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             aft_sample_times_burial,
             aft_sample_zs,
             aft_sample_times, aft_sample_temps,
-            simulated_AFT_data)
+            simulated_AFT_data,
+            time_array_bp,
+            z_aft_samples, T_samples)
 
 
 def assemble_data_and_simulate_AHe(ahe_samples_well,
@@ -960,7 +975,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          aft_sample_times_burial,
          aft_sample_zs,
          aft_sample_times, aft_sample_temps,
-         simulated_AFT_data) = assemble_data_and_simulate_aft(
+         simulated_AFT_data,
+         time_array_bp,
+         z_aft_samples, T_samples) = assemble_data_and_simulate_aft(
             pybasin_params.resample_AFT_timesteps,
             pybasin_params.provenance_time_nt,
             n_nodes, time_array_bp,
@@ -1182,7 +1199,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     aft_age_gof,
                     aft_age_error,
                     aft_sample_times,
-                    aft_sample_temps]
+                    aft_sample_temps,
+                    time_array_bp,
+                    z_aft_samples, T_samples]
 
     else:
         AFT_data = None
@@ -2358,106 +2377,91 @@ def main():
                      aft_age_GOF,
                      aft_age_error,
                      aft_sample_times,
-                     aft_sample_temps] = AFT_data
+                     aft_sample_temps,
+                     time_array_bp,
+                     z_aft_samples, T_samples] = AFT_data
 
                     # find max number of timesteps for AFT history
-                    max_steps = 0
-                    for ti in aft_sample_times:
-                        for tii in ti:
-                            if len(tii) > max_steps:
-                                max_steps = len(tii)
 
-                    n_samples = len(aft_sample_times)
-                    n_prov = len(aft_sample_times[0])
-                    n_kin = len(aft_age_samples[0][0])
-                    cols = []
+                    time_resampled = \
+                        time_array_bp[::pybasin_params.resample_AFT_timesteps]
+                    z_resampled = \
+                        z_aft_samples[::pybasin_params.resample_AFT_timesteps]
+                    T_resampled = \
+                        T_samples[::pybasin_params.resample_AFT_timesteps]
+                    active_nodes_resampled = \
+                        active_nodes[::pybasin_params.resample_AFT_timesteps]
+
+                    max_steps, n_samples = T_resampled.shape
+
+                    # todo: figure out some way to record which samples
+                    # are deposited at which time
+                    #z_resampled[active_nodes_resampled == False] = np.nan
+                    #T_resampled[active_nodes_resampled == False] = np.nan
+
+                    cols = ['time_bp']
                     for sample_i in range(n_samples):
                         cols = cols + ['name_sample_%i' % sample_i]
                         cols = cols + ['depth_sample_%i' % sample_i]
                         cols = cols + ['aft_age_sample_%i' % sample_i]
+                        cols = cols + ['temp_sample_%i' % sample_i]
 
-                        for prov_i in range(n_prov):
-                            cols = cols + ['time_sample_%i_prov_%i' % (sample_i, prov_i)]
-                            cols = cols + ['temp_sample_%i_prov_%i' % (sample_i, prov_i)]
+                    df_tt = pd.DataFrame(columns=cols,
+                                         index=np.arange(max_steps))
 
-                    df_tt = pd.DataFrame(columns=cols, index=np.arange(max_steps))
+                    df_tt['time_bp'] = time_resampled
 
                     for sample_i in range(n_samples):
-                        df_tt.loc[0, 'name_sample_%i' % sample_i] = aft_sample[sample_i]
-                        df_tt.loc[0, 'depth_sample_%i' % sample_i] = aft_age_depth[sample_i]
-                        df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = aft_age[sample_i]
-
-                        for prov_i in range(n_prov):
-                            nti = len(aft_sample_times[sample_i][prov_i])
-                            df_tt.loc[:(nti-1), 'time_sample_%i_prov_%i'
-                                                % (sample_i, prov_i)] \
-                                = aft_sample_times[sample_i][prov_i]
-                            df_tt.loc[:(nti-1), 'temp_sample_%i_prov_%i'
-                                                % (sample_i, prov_i)] \
-                                = aft_sample_temps[sample_i][prov_i]
-                            #for kin_i in range(n_kin):
-                            #    df_tt.loc[0, 'aft_age_sample_%i_prov_%i_kin_%i'
-                            #              % (sample_i, prov_i, kin_i)] \
-                            #        = aft_age_samples[sample_i, prov_i, kin_i]
+                        df_tt.loc[0, 'name_sample_%i' % sample_i] = \
+                            aft_sample[sample_i]
+                        df_tt.loc[0, 'depth_sample_%i' % sample_i] = \
+                            aft_age_depth[sample_i]
+                        df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = \
+                            aft_age[sample_i]
+                        df_tt['temp_sample_%i' % sample_i] \
+                            = T_resampled[:, sample_i]
 
                     # save AFT time-temperature paths
                     today = datetime.datetime.now()
-                    today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+                    today_str = '%i-%i-%i' % (today.day, today.month,
+                                              today.year)
                     fn = os.path.join(output_dir,
                                       'aft_sample_time_temp_%s_%s_ms%i.csv'
                                       % (well, today_str,
                                          model_scenario_number))
-                    print 'saving time-temperature paths AFT samples to %s' % fn
+                    print 'saving time-temperature paths AFT samples to %s' \
+                          % fn
                     df_tt.to_csv(fn, index=False)
 
                     # save modeled T-t paths, all nodes
+                    _, n_nodes = T_nodes.shape
 
-                    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                     aft_ln_mean_nodes, aft_ln_std_nodes,
-                     aft_node_times_burial, aft_node_zs,
-                     aft_node_times, aft_node_temps) = simulated_AFT_data
-
-                    #n_ts_output = 101
-                    #n_ts, n_nodes = T_nodes.shape
-                    #ind = np.linspace(0, n_ts-1, n_ts_output)
-
-                    n_nodes = len(aft_node_times)
-                    n_prov = len(aft_node_times[0])
-                    max_steps = 0
+                    cols = ['time_bp']
                     for i in range(n_nodes):
-                        for j in range(n_prov):
-                            n_steps = len(aft_node_times[i][j])
-                            if n_steps > max_steps:
-                                max_steps = n_steps
-
-                    cols = []
-                    for i in range(n_nodes):
-                        for j in range(n_prov):
-                            cols += ['time_node_%i_prov_%i' % (i, j),
-                                     'z_node_%i_prov_%i' % (i, j),
-                                     'T_node_%i_prov_%i' % (i, j)]
+                        cols += ['z_node_%i' % i,
+                                 'T_node_%i' % i]
 
                     df_tt2 = pd.DataFrame(columns=cols,
                                           index=np.arange(max_steps))
 
+                    rs = pybasin_params.resample_AFT_timesteps
+
+                    df_tt2['time_bp'] = time_array_bp[::rs]
+
                     for i in range(n_nodes):
-                        for j in range(n_prov):
-                            n_steps = len(aft_node_times[i][j])
 
-                            # add time
-                            col_name = 'time_node_%i_prov_%i' % (i, j)
-                            df_tt2.loc[:n_steps-1, col_name] = \
-                                    aft_node_times[i][j]
+                        # add depth
+                        col_name = 'z_node_%i' % i
+                        z_col = z_nodes[::rs, i]
+                        z_col[active_nodes[::rs, i] == False] = np.nan
+                        df_tt2[col_name] = z_col
 
-                            # add depth
-                            col_name = 'z_node_%i_prov_%i' % (i, j)
-                            df_tt2.loc[:n_steps-1, col_name] = \
-                                    aft_node_zs[i][j]
 
-                            # add temperature
-                            col_name = 'T_node_%i_prov_%i' % (i, j)
-                            df_tt2.loc[:n_steps-1, col_name] = \
-                                    aft_node_temps[i][j]
+                        # add temperature
+                        col_name = 'T_node_%i' % i
+                        T_col = T_nodes[::rs, i]
+                        T_col[active_nodes[::rs, i] == False] = np.nan
+                        df_tt2[col_name] = T_col
 
                     fn = os.path.join(output_dir,
                                       'time_depth_temp_%s_%s_ms%i.csv'
