@@ -69,6 +69,10 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
     T_rmse = np.sqrt(np.mean(T_data_well['residual']**2))
     T_gof = np.mean(T_data_well['P_fit'])
 
+    print 'Temperature data:'
+    print T_data_well
+
+
     return T_gof, T_rmse
 
 
@@ -776,8 +780,30 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   T_data, vr_data_df,
                                   aft_samples, aft_ages,
                                   ahe_samples, ahe_data, salinity_data):
+    """
+    run basin & thermal history model and compare modeled  and observed temperature, salinity,
+    vitrinite reflectance, apatite fission track ages and/or apatite (U-Th)/He ages
 
-
+    :param well_number:
+    :param well:
+    :param well_strat:
+    :param strat_info_mod:
+    :param pybasin_params:
+    :param surface_temp:
+    :param surface_salinity_well:
+    :param litho_props:
+    :param csv_output_dir:
+    :param model_scenario_number:
+    :param model_results_df:
+    :param T_data:
+    :param vr_data_df:
+    :param aft_samples:
+    :param aft_ages:
+    :param ahe_samples:
+    :param ahe_data:
+    :param salinity_data:
+    :return:
+    """
 
     # run burial history model
     model_result_vars = \
@@ -794,7 +820,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          z_nodes, T_nodes, active_nodes,
          n_nodes, n_cells,
          node_strat, node_age,
-         prov_start_nodes, prov_end_nodes,porosity_nodes,k_nodes] = model_result_vars
+         prov_start_nodes, prov_end_nodes,porosity_nodes,k_nodes] = \
+            model_result_vars
     else:
         [geohist_df, time_array, time_array_bp,
          surface_temp_array, basal_hf_array,
@@ -803,8 +830,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          node_strat, node_age,
          prov_start_nodes, prov_end_nodes,
          C_nodes, surface_salinity_array,
-         salinity_lwr_bnd, Dw, q_solute_bottom, q_solute_top] \
-            = model_result_vars
+         salinity_lwr_bnd, Dw, q_solute_bottom, q_solute_top] = \
+            model_result_vars
 
     # find out if exhumation end has changed
     exhumed_units = [unit[0] == '-' for unit in geohist_df.index]
@@ -846,17 +873,17 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         # store results
         model_results_df.ix[model_scenario_number,
-                         'start_exhumation_phase_%i' % i] = start
+                            'start_exhumation_phase_%i' % i] = start
         model_results_df.ix[model_scenario_number,
-                         'end_exhumation_phase_%i' % i] = end
+                            'end_exhumation_phase_%i' % i] = end
         model_results_df.ix[model_scenario_number,
-                         'mean_cooling_exhumation_phase_%i' % i] = \
+                            'mean_cooling_exhumation_phase_%i' % i] = \
             T_cooling_preserved.mean()
         model_results_df.ix[model_scenario_number,
-                         'min_cooling_exhumation_phase_%i' % i] = \
+                            'min_cooling_exhumation_phase_%i' % i] = \
             T_cooling_preserved.min()
         model_results_df.ix[model_scenario_number,
-                         'max_cooling_exhumation_phase_%i' % i] = \
+                            'max_cooling_exhumation_phase_%i' % i] = \
             T_cooling_preserved.max()
 
     # record max temperature and depth
@@ -913,7 +940,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df.ix[model_scenario_number, 'vr_bottom'] = \
                 vr_nodes[-1, active_nodes[-1]][-1]
             
-            if os.path.isfile(cebs_input) is True:
+            if pybasin_params.use_strat_map_input is True \
+                    and os.path.isfile(cebs_input) is True:
                 model_results_df = cebs.vr_top_bot(
                     model_results_df, node_strat,
                     vr_nodes, geohist_df, model_scenario_number)
@@ -1282,7 +1310,44 @@ def update_model_params_and_run_model(model_scenario_params,
                                       aft_samples, aft_ages,
                                       ahe_samples, ahe_data,
                                       salinity_data):
+    """
+    update the model parameters class and run the model one time
 
+    returns either an objective function that measures the misfit of the model to observed data
+    or a tuple with the model result variables
+
+    :param model_scenario_params:
+    :param pybasin_params:
+    :param params_to_change:
+    :param exhumation_scenarios_period:
+    :param basal_heat_flow_scenario_period:
+    :param model_results_df:
+    :param model_results_df2:
+    :param well_number:
+    :param well:
+    :param well_strat:
+    :param well_strat_orig:
+    :param strat_info_mod:
+    :param surface_temp:
+    :param surface_salinity_well:
+    :param litho_props:
+    :param csv_output_dir:
+    :param output_dir:
+    :param model_scenario_number:
+    :param return_objective_function:
+    :param calibration_target:
+    :param record_data:
+    :param param_bounds_min:
+    :param param_bounds_max:
+    :param T_data:
+    :param vr_data_df:
+    :param aft_samples:
+    :param aft_ages:
+    :param ahe_samples:
+    :param ahe_data:
+    :param salinity_data:
+    :return:
+    """
     well_strat = well_strat_orig.copy()
 
     (exhumation_magnitude, exhumation_start, exhumation_duration,
@@ -1345,7 +1410,8 @@ def update_model_params_and_run_model(model_scenario_params,
 
     # calculate exhumation duraiton from standard param file if it is unchanged
     if exhumation_duration is None:
-        exhumation_duration_temp = pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.exhumation_period_ends[exhumation_phase_id]
+        exhumation_duration_temp = \
+            pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.exhumation_period_ends[exhumation_phase_id]
     else:
         exhumation_duration_temp = exhumation_duration
 
@@ -2075,7 +2141,8 @@ def main():
                 fig = pybasin_figures.model_vs_data_figure(
                     model_run_data_fig,
                     contour_variable=pybasin_params.contour_variable,
-                    show_strat_column=pybasin_params.show_strat_column)
+                    show_strat_column=pybasin_params.show_strat_column,
+                    show_thermochron_data=pybasin_params.show_thermochron_data)
             #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
                 if type(pybasin_params.fig_adj) is list:
@@ -2307,7 +2374,9 @@ def main():
                     fig = pybasin_figures.model_vs_data_figure(
                         model_run_data_fig,
                         contour_variable=pybasin_params.contour_variable,
-                        show_strat_column=pybasin_params.show_strat_column)
+                        show_strat_column=pybasin_params.show_strat_column,
+                        show_thermochron_data=
+                        pybasin_params.show_thermochron_data)
                 #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
                     #fn = os.path.join(fig_output_dir,

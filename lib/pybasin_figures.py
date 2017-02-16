@@ -138,17 +138,53 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
 
 
 def model_vs_data_figure(model_run_data,
-                         show_provenance_hist=True,
+                         show_provenance_hist=False,
                          show_strat_column=True,
+                         show_thermochron_data=True,
                          contour_variable='temperature',
-                         add_legend=True,
+                         add_legend=False,
                          strat_fontsize='xx-small',
+                         figsize=110.0,
+                         legend_space=0.17,
+                         height_ratio=3,
+                         cb_buffer_vert=-0.03,
+                         cb_buffer_hor=0.0,
+                         show_prov_ages_simple=True,
+                         ncols_legend=2,
+                         add_panel_titles=True,
+                         panel_title_numbers=True,
+                         panel_title_prefix='a',
+                         panel_label_fs='small',
+                         bottom=0.12,
+                         left=0.12,
+                         right=0.97,
+                         top=0.96,
                          debug=False):
 
     """
     create a figure comparing 1D burial and thermal model results
     with vitrinite reflectance, apatite fission track and present-day
     temperature data
+
+    :param model_run_data:
+    :param show_provenance_hist:
+    :param show_strat_column:
+    :param show_thermochron_data:
+    :param contour_variable:
+    :param add_legend:
+    :param strat_fontsize:
+    :param figsize:
+    :param legend_space:
+    :param height_ratio:
+    :param cb_buffer_vert:
+    :param cb_buffer_hor:
+    :param show_prov_ages_simple:
+    :param ncols_legend:
+    :param add_panel_titles: add a label to each figure panel
+    :param panel_title_level: if 1 label panels a, b, c. If 2, label panels as a1, a2, a3 etc...
+    :param panel_label_fs: fontsize of panel label
+    :param debug:
+    :return:
     """
 
     [time_array_bp,
@@ -223,18 +259,22 @@ def model_vs_data_figure(model_run_data,
 
         _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
 
+        prov_ages = [aft_node_times[0][0].max(),
+                     aft_node_times[0][1].max()]
+
+
     if AHe_data is not None and simulated_AHe_data is not None:
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
 
     degree_symbol = unichr(176)
 
-    xsize = 170.0 / 25.4
+    xsize = figsize / 25.4
     golden_ratio = (1.0 + np.sqrt(5))/2.0
-    ysize= xsize / golden_ratio
+    ysize = xsize / golden_ratio
 
     if add_legend is True:
-        ysize = ysize * 1.1
+        ysize = ysize * 1.12
 
     fig = pl.figure(figsize=(xsize, ysize))
 
@@ -248,9 +288,8 @@ def model_vs_data_figure(model_run_data,
     nrows = 3
     ncols = 1
 
-    bottom = 0.12
     if add_legend is True:
-        bottom = 0.23
+        bottom += legend_space
 
     leg_items = []
     leg_labels = []
@@ -272,7 +311,11 @@ def model_vs_data_figure(model_run_data,
     if AHe_data is not None and len(ahe_ages_all_samples) == 0:
         AHe_data = None
 
-    if show_strat_column is not None:
+    if show_thermochron_data is False:
+        AFT_data = None
+        AHe_data = None
+
+    if show_strat_column is True:
         strat_panel_ind = ncols
         temp_panel_ind = ncols + 1
         ncols += 2
@@ -302,20 +345,23 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(4)
 
+
+
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.06, hspace=0.08,
-                           bottom=bottom, top=0.96, left=0.12, right=0.97,
+                           bottom=bottom, top=top,
+                           left=left, right=right,
                            width_ratios=width_ratios,
-                           height_ratios=[1, 4, 1])
+                           height_ratios=[1, height_ratio, 1])
 
     axb = fig.add_subplot(gs[1, 0])
     axst = fig.add_subplot(gs[0, 0])
     axhf = fig.add_subplot(gs[2, 0])
     #ax_strat = fig.add_subplot(gs[1, 1])
 
-    all_panels = [axb, axhf, axst]
+    all_panels = [axst, axb, axhf]
 
-    if show_strat_column is not None:
+    if show_strat_column is True:
         ax_strat = fig.add_subplot(gs[1, strat_panel_ind])
         all_panels.append(ax_strat)
 
@@ -337,7 +383,7 @@ def model_vs_data_figure(model_run_data,
 
     #ax_aftln = fig.add_subplot(gs[1, 4])
 
-    depth_panels = [all_panels[0]] + all_panels[3:]
+    depth_panels = [all_panels[1]] + all_panels[3:]
     time_panels = all_panels[:3]
 
     line_props = {"color": "black", "lw": 1.0}
@@ -366,7 +412,7 @@ def model_vs_data_figure(model_run_data,
                               alpha=0.7)}
 
     provenance_color = 'darkgray'
-    cmap = matplotlib.cm.get_cmap('jet')
+    cmap = matplotlib.cm.get_cmap('coolwarm')
 
     if contour_variable == 'salinity':
         cnt_var = C_nodes
@@ -434,10 +480,7 @@ def model_vs_data_figure(model_run_data,
         z_1d = cnt_var_mask[tsi * time_int_grid]
         ind_nan = np.isnan(z_1d) == False
         z_interpolated = np.interp(yi, y_1d[ind_nan], z_1d[ind_nan])
-        try:
-            zi[:, -tsi] = z_interpolated
-        except IndexError:
-            pdb.set_trace()
+        zi[:, -tsi] = z_interpolated
 
     if gridding_ok is True:
         # find max depth at each timestep
@@ -450,10 +493,9 @@ def model_vs_data_figure(model_run_data,
         for nti in xrange(len(xi)):
             zi.mask[yi > max_depth_time2[nti], nti] = True
 
-        print 'color mesh:'
         #tc = axb.pcolormesh(xg, yg, zi2, cmap='jet')
         c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
-        tc = axb.contourf(xi, yi, zi, c_int, cmap='jet', zorder=1.0)
+        tc = axb.contourf(xi, yi, zi, c_int, cmap=cmap, zorder=1.0)
 
     else:
         plot_int = 1
@@ -526,7 +568,25 @@ def model_vs_data_figure(model_run_data,
                                        lw=0.5, zorder=100)
 
         leg_items += [leg_strat_unit]
-        leg_labels += ['major stratigraphic unit']
+        leg_labels += ['stratigraphic unit']
+
+    if (AFT_data is not None or show_thermochron_data is False) \
+            and show_prov_ages_simple is True:
+
+        print 'showing errorbar for AFT start times:'
+
+        x = np.array(prov_ages).mean()
+        xerr = np.abs(x - prov_ages[0])
+        #leg_prov_simple = axb.scatter(prov_ages, [0, 0],
+        #                              marker='*',
+        #                              facecolor='gray', edgecolor='black',
+        #                              zorder=301)
+        leg_prov_simple = axb.errorbar([x], [0], xerr=[xerr],
+                                       marker='None', color='gray',
+                                       lw=1.0,
+                                       zorder=301)
+        leg_items += [leg_prov_simple]
+        leg_labels += ['provenance ages']
 
     # plot basal heat flow
     if contour_variable == 'salinity':
@@ -609,8 +669,8 @@ def model_vs_data_figure(model_run_data,
         leg_model_range = mpatches.Patch(color='lightgrey')
 
         leg_strat, = ax_afta.plot(node_age[active_nodes[-1]],
-                     z_nodes[-1, active_nodes[-1]],
-                     color='green', lw=1.5, ls='--', zorder=101)
+                                  z_nodes[-1, active_nodes[-1]],
+                                  color='green', lw=1.5, ls='--', zorder=101)
         leg_items.append(leg_strat)
         leg_labels.append('age of deposition')
 
@@ -777,7 +837,7 @@ def model_vs_data_figure(model_run_data,
         axhf.set_ylabel('Salinity\nlower bnd\n(kg/kg)')
     else:
         axst.set_ylabel('Surface\nT (%sC)' % degree_symbol)
-        axhf.set_ylabel(r'HF (mW m$^{-2}$)')
+        axhf.set_ylabel(r'HF (mW m$^{-2}$)', labelpad=12)
 
     axhf.set_xlabel('Time (Ma)')
     ax_temp.set_xlabel('T (%sC)' % degree_symbol)
@@ -813,6 +873,10 @@ def model_vs_data_figure(model_run_data,
 
     #
     max_time = time_array_bp.max() / 1e6 * 1.1
+
+    if (AFT_data is not None or show_thermochron_data is False) \
+            and show_prov_ages_simple is True:
+        max_time = np.array(prov_ages).max() * 1.1
 
     if (AFT_data is not None and show_provenance_hist is True
             and simulated_AFT_data is not None):
@@ -895,10 +959,12 @@ def model_vs_data_figure(model_run_data,
         axst.set_yticks(axst.get_yticks()[1::2])
         axhf.set_yticks(axhf.get_yticks()[::2])
     else:
-        hf_min = int(np.floor(basal_hf_array.min() * 100.0)) * 10.0
-        hf_max = int(np.ceil(basal_hf_array.max() * 100.0)) * 10.0
-        hf_ticks = np.arange(hf_min, hf_max + 5.0, 5.0)
-        axhf.set_yticks(hf_ticks)
+        #hf_min = int(np.floor(basal_hf_array.min() * 100.0)) * 10.0
+        #hf_max = int(np.ceil(basal_hf_array.max() * 100.0)) * 10.0
+        #hf_ticks = np.arange(hf_min, hf_max + 5.0, 5.0)
+        #axhf.set_yticks(hf_ticks)
+
+        axhf.set_yticks(axhf.get_yticks()[::3])
 
         st_min = int(np.floor(surface_temp_array.min() / 10.0)) * 10.0
         st_max = int(np.ceil(surface_temp_array.max() / 10.0)) * 10.0
@@ -933,11 +999,11 @@ def model_vs_data_figure(model_run_data,
 
     #gs.tight_layout(fig, h_pad=0.02, w_pad=0.02)
     # add colorbar
-    cax_left = depth_panels[1].get_position().x0 + 0.05
+    cax_left = depth_panels[1].get_position().x0 + cb_buffer_hor
     pos_right = all_panels[-1].get_position()
     cax_right = pos_right.x0 + pos_right.width
-    cax_width = cax_right - cax_left - 0.03
-    cax_bottom = axhf.get_position().y0
+    cax_width = cax_right - cax_left - cb_buffer_hor
+    cax_bottom = axhf.get_position().y0 + cb_buffer_vert
     cax = fig.add_axes([cax_left, cax_bottom, cax_width, 0.015])
     cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
     cb.set_label(cb_label, fontsize='medium')
@@ -945,6 +1011,13 @@ def model_vs_data_figure(model_run_data,
     if contour_variable is 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
         cb.set_ticks(cb_ticks)
+
+    if show_thermochron_data is False:
+        # fewer ticks in colorbar in case of small space
+        max_T = cb.locator().max()
+        max_T_tick = np.ceil(max_T / 50.0) * 50.0
+        T_ticks = np.arange(0, max_T_tick+50, 50.0)
+        cb.set_ticks(T_ticks)
 
     model_label_merged = 'modeled ' + ', '.join(model_label)
     model_range_label_merged = 'modeled range ' + ', '.join(model_range_label)
@@ -967,7 +1040,27 @@ def model_vs_data_figure(model_run_data,
             leg_labels += [model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=3, fontsize='small',
-                   handlelength=3, frameon=False)
+                   loc='lower center', ncol=ncols_legend, fontsize='small',
+                   frameon=False, numpoints=1, handlelength=1)
+
+    if add_panel_titles is True:
+        if panel_title_numbers is True:
+            panel_labels_init = ['1', '2', '3', '4', '5',
+                                 '6', '7', '8', '9', '10', '11']
+
+        else:
+            panel_labels_init = ['a', 'b', 'c', 'd', 'e',
+                                 'f', 'g', 'h', 'i', 'j', 'k']
+
+        panel_labels = ['%s%s' % (panel_title_prefix, p) for p in panel_labels_init]
+
+        for panel, label in zip(all_panels, panel_labels):
+            panel.text(0.03, 0.98, label,
+                       horizontalalignment='left',
+                       verticalalignment='top',
+                       weight='extra bold',
+                       transform = panel.transAxes,
+                       fontsize = panel_label_fs)
+
 
     return fig
