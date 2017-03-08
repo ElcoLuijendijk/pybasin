@@ -773,7 +773,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     #######################################
     if verbose is True:
         print 'start calculation of pdf of track lengths:'
-    track_ln_prob = np.zeros((nsteps, 20 / binsize))
+    track_ln_prob = np.zeros((nsteps, int(20 / binsize)))
     bins_ = np.arange(0, 20, binsize)
     for i in xrange(nsteps):
         track_ln_prob[i, :] = normpdf(bins_, l[i], l_std[i])
@@ -787,7 +787,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     # sum probability density,  and normalize
     if verbose is True:
         print 'sum probability density,  and normalize'
-    track_length_pdf = np.zeros((20 / binsize))
+    track_length_pdf = np.zeros((int(20 / binsize)))
     for j in xrange(0, int(20 / binsize)):
         track_length_pdf[j] = track_ln_prob[:, j].sum()
     track_length_pdf = track_length_pdf/track_length_pdf[:].sum()

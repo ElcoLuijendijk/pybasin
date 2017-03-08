@@ -50,7 +50,7 @@ done = 0
 for j, inp_file in enumerate(locations):
 
     print '-' * 20
-    print 'at location %s, %i of %i' % (inp_file, j+1 , len(locations))
+    print 'at location %s, %i of %i' % (inp_file, j+1, len(locations))
     print '%i processes running' % len(processes)
     print '-' * 20
 

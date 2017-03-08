@@ -1854,7 +1854,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         nt_prov, Ts)
 
     ahe_node_times_burial, ahe_node_zs = generate_burial_histories(
-        n_nodes,
+        resample_t, n_nodes,
         time_array_bp, z_nodes, active_nodes,
         prov_ages_start, prov_ages_end,
         nt_prov)
