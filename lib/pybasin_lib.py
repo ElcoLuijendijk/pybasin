@@ -303,7 +303,14 @@ def add_exhumation_phases(well_strat,
                     well_strat['present-day_thickness'][unit_preserved1].sum()
 
             # list (partly) eroded units
-            youngest_unit = df_ex[df_ex['preserved']].index[-1]
+            try:
+                youngest_unit = df_ex[df_ex['preserved']].index[-1]
+            except IndexError:
+                msg = 'error, cannot implement exhumation. most likely the youngest preserved stratigraphic unit is ' \
+                      'not inlcuded in the exhumed_strat_units parameter in the pybasin_params.py file, ' \
+                      'or otherwise there could be an overlap between the timing of exhumation and the ' \
+                      'depositional age, check parameters exhumation_period_starts and exhumation_period_end'
+                raise IndexError(msg)
 
             eroded_units = exhumed_strat_unit[exhumed_strat_unit.index(youngest_unit):]
 
@@ -587,8 +594,6 @@ def add_exhumation_phases(well_strat,
     # sort new dataframe to have correct sequence:
     output_df = output_df.sort(['age_bottom'])
 
-    #pdb.set_trace()
-
     return output_df
 
 
@@ -633,7 +638,7 @@ def find_hiatus(strat_units, age_start, age_end):
             hiatus_start_list.append(age_end[-1])
             hiatus_end_list.append(0.0)
 
-            print 'added hiatus following depoistion ' \
+            print 'added hiatus following deposition ' \
                   'of youngest unit %s (%0.2f-) ' \
                   % (strat_units[-1], age_end[-1])
 
@@ -1394,17 +1399,11 @@ def reconstruct_strat_thickness(geohist_df):
                 for i, th_old, th_new in zip(itertools.count(), thickness_list[-1], thicknesses[1:]):
                     if th_old < th_new:
                         thicknesses[i+1] = th_old
-                #pdb.set_trace()
 
         # remove top unit
         elif geohist_df.ix[timestep, 'deposition_code'] == -1:
             thicknesses = thickness_list[-1][1:]
             strat_column = strat_column_list[-1][1:]
-
-        #else:
-        #    print 'warning, cannot calculate thicknesses'
-        #    print 'probably something wrong with the unit ages in the strat_info.csv file'
-        #    pdb.set_trace()
 
         # store strat column and thicknesses in list
         strat_column_list.append(list(strat_column))
@@ -1694,11 +1693,6 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     # correct zero ages:
     zero_index = np.where(aft_ages == 0)[0]
     gamma[zero_index] = 1e-10
-    #gamma_max[zero_index] = 1e-9
-
-    #if len(zero_index) >= 1 or aft_ages.min() <1e-3:
-    #    print 'zero_age'
-    #    pdb.set_trace()
 
     gamma_std = (gamma_max - gamma)/2.0
     gamma_pdf = np.zeros((len(aft_ages), len(bins)))
@@ -1875,7 +1869,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         for ng in range(n_grains):
 
             for n_prov in xrange(n_prov_scenarios):
-                #pdb.set_trace()
+
                 Myr = 1e6 * 365.25 * 24 * 60 * 60
                 t = ahe_node_times[nn][n_prov] * Myr
                 T = ahe_node_temps[nn][n_prov] + Kelvin
@@ -2448,17 +2442,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 elif stage[0] == '-':
                     # exhumation, assume basin was exposed
                     salinity_stage = pybasin_params.salinity_freshwater
-                    #pdb.set_trace()
                 else:
                     # undetermined
                     if i_stage > 0:
                         salinity_stage = surface_salinity_array[timestep-1]
                     else:
                         salinity_stage = pybasin_params.salinity_seawater
-            #if stage[0] == '-':
-            #    # exhumation, assume basin was exposed
-            #    salinity_stage = pybasin_params.salinity_freshwater
-            #    pdb.set_trace()
 
             surface_salinity_array[timestep:(timestep + nt_heatflow)] = salinity_stage
 
@@ -2616,7 +2605,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         if timestep in cumulative_steps:
 
-            print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f, ncells=%i' \
+            print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f, nodes=%i' \
                   % (timestep, time_array_bp[timestep] / 1e6,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),

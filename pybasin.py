@@ -33,7 +33,7 @@ import lib.pybasin_figures as pybasin_figures
 
 # helium diffusion algortihm by Meesters and Dunai (2003)
 try:
-    import helium_diffusion_models as he
+    import lib.helium_diffusion_models as he
 except ImportError:
     print 'warning, failed to import AHe module'
 
@@ -99,9 +99,9 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes,
                                 - vr_data_well['simulated_vr'])
 
     # if min and max VR is given calculate asymetric error value:
-    indm = vr_data_well['vr_min'].notnull() & vr_data_well['vr_max'].notnull()
-    vr_data_well['vr_SE_plus'] = vr_data_well['vr_max'] - vr_data_well['VR']
-    vr_data_well['vr_SE_min'] = vr_data_well['VR'] - vr_data_well['vr_min']
+    indm = vr_data_well['VR_min'].notnull() & vr_data_well['VR_max'].notnull()
+    vr_data_well['vr_SE_plus'] = vr_data_well['VR_max'] - vr_data_well['VR']
+    vr_data_well['vr_SE_min'] = vr_data_well['VR'] - vr_data_well['VR_min']
     ind_plus = indm &  vr_data_well['residual'] >= 0
     ind_neg = indm &  vr_data_well['residual'] < 0
     # min and max value assumed to be +- 2 SE
@@ -505,7 +505,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     if n_aft_samples == 0:
         return (None, None, None, None, None, None, None, None, None,
-                simulated_AFT_data)
+                simulated_AFT_data, None, None)
 
 
     # get T history for samples only
@@ -572,10 +572,11 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             aft_ln_std_samples,
             aft_sample_times_burial,
             aft_sample_zs,
-            aft_sample_times, aft_sample_temps,
+            aft_sample_times,
+            aft_sample_temps,
             simulated_AFT_data,
-            time_array_bp,
-            z_aft_samples, T_samples)
+            z_aft_samples,
+            T_samples)
 
 
 def assemble_data_and_simulate_AHe(ahe_samples_well,
@@ -635,36 +636,38 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
             ind_sample = ahe_data['sample'] == ahe_sample
             ahe_grain_radius_sample = \
                 ahe_data['grain_radius'][ind_sample].values * 1e-6
-            if (np.min(ahe_grain_radius_sample)
-                    < ahe_grain_radius_nodes[0, 0]) \
-                    or ahe_sample_no==0:
-                ahe_grain_radius_nodes[:, 0] = \
-                    np.min(ahe_grain_radius_sample)
-            if (np.max(ahe_grain_radius_sample)
-                    > ahe_grain_radius_nodes[0, 1]) \
-                    or ahe_sample_no==0:
-                ahe_grain_radius_nodes[:, 1] = \
-                    np.max(ahe_grain_radius_sample)
 
-            # calculate helium production and select min and
-            # max values of helium prodcution of all samples
-            U = ahe_data['U'][ind_sample].values * 1e-6
-            Th = ahe_data['Th'][ind_sample].values * 1e-6
-            U238 = (137.88 / 138.88) * U
-            U235 = (1.0 / 138.88) * U
-            Th232 = Th
-            Ur0 = (8 * U238 * decay_constant_238U
-                   + 7 * U235 * decay_constant_235U
-                   + 6 * Th232 * decay_constant_232Th)
+            if True in ind_sample.values:
+                if (np.min(ahe_grain_radius_sample)
+                        < ahe_grain_radius_nodes[0, 0]) \
+                        or ahe_sample_no==0:
+                    ahe_grain_radius_nodes[:, 0] = \
+                        np.min(ahe_grain_radius_sample)
+                if (np.max(ahe_grain_radius_sample)
+                        > ahe_grain_radius_nodes[0, 1]) \
+                        or ahe_sample_no==0:
+                    ahe_grain_radius_nodes[:, 1] = \
+                        np.max(ahe_grain_radius_sample)
 
-            if np.max(Ur0) > Ur0_max:
-                U_nodes[:, 1] = U[np.argmax(Ur0)]
-                Th_nodes[:, 1] = Th[np.argmax(Ur0)]
-                Ur0_max = Ur0.max()
-            if np.max(Ur0) < Ur0_min:
-                U_nodes[:, 0] = U[np.argmin(Ur0)]
-                Th_nodes[:, 0] = Th[np.argmin(Ur0)]
-                Ur0_min = Ur0.min()
+                # calculate helium production and select min and
+                # max values of helium prodcution of all samples
+                U = ahe_data['U'][ind_sample].values * 1e-6
+                Th = ahe_data['Th'][ind_sample].values * 1e-6
+                U238 = (137.88 / 138.88) * U
+                U235 = (1.0 / 138.88) * U
+                Th232 = Th
+                Ur0 = (8 * U238 * decay_constant_238U
+                       + 7 * U235 * decay_constant_235U
+                       + 6 * Th232 * decay_constant_232Th)
+
+                if np.max(Ur0) > Ur0_max:
+                    U_nodes[:, 1] = U[np.argmax(Ur0)]
+                    Th_nodes[:, 1] = Th[np.argmax(Ur0)]
+                    Ur0_max = Ur0.max()
+                if np.max(Ur0) < Ur0_min:
+                    U_nodes[:, 0] = U[np.argmin(Ur0)]
+                    Th_nodes[:, 0] = Th[np.argmin(Ur0)]
+                    Ur0_min = Ur0.min()
 
         # calculate helium ages for all nodes
         simulated_AHe_data =\
@@ -1002,10 +1005,11 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          aft_ln_std_samples,
          aft_sample_times_burial,
          aft_sample_zs,
-         aft_sample_times, aft_sample_temps,
+         aft_sample_times,
+         aft_sample_temps,
          simulated_AFT_data,
-         time_array_bp,
-         z_aft_samples, T_samples) = assemble_data_and_simulate_aft(
+         z_aft_samples,
+         T_samples) = assemble_data_and_simulate_aft(
             pybasin_params.resample_AFT_timesteps,
             pybasin_params.provenance_time_nt,
             n_nodes, time_array_bp,
@@ -1160,6 +1164,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         aft_data_well = aft_samples[ind]
 
         if True in ind.values:
+
             (aft_age_gof, aft_age_error,
              single_grain_aft_ages,
              single_grain_aft_ages_se_min,
@@ -1238,8 +1243,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         VR_data = [vr_nodes,
                    vr_data_well['depth'].values,
                    vr_data_well['VR'].values,
-                   vr_data_well['vr_min'].values,
-                   vr_data_well['vr_max'].values,
+                   vr_data_well['VR_min'].values,
+                   vr_data_well['VR_max'].values,
                    vr_data_well['VR_unc_1sigma'].values,
                    vr_gof]
     else:
@@ -1758,6 +1763,11 @@ def select_well_strat(well, well_strats):
     # copy original well strat file
     well_strat_orig = well_strat.copy()
 
+    if len(well_strat) == 0:
+        msg = 'could not find well %s in well strat file' % well
+        msg += 'please check your input files and make sure each well can be found in the well stratigraphy file'
+        raise IndexError(msg)
+
     return well_strat, well_strat_orig
 
 
@@ -1938,8 +1948,8 @@ def main():
         print 'well %s, %i/%i' % (well, well_number + 1,
                                   len(wells))
 
-        if np.any(well_strats['well'] == well) is False:
-            raise IOError('error, could not find well %s in well strat file')
+        if np.any(well_strats['well'] == well) == False:
+            raise IOError('error, could not find well %s in well strat file' % well)
 
         well_strat, well_strat_orig = select_well_strat(well, well_strats)
 
@@ -2183,8 +2193,8 @@ def main():
             # estimate max number of nodes
             well_strat['thickness'] = well_strat['depth_bottom'] - well_strat['depth_top']
             well_strat['n_nodes_est'] = np.ceil(well_strat['thickness'] / pybasin_params.max_thickness)
-            # buffer of 10000 m for number of nodes to be safe
-            n_nodes_est = int(np.sum(well_strat['n_nodes_est']) + 1e4 / pybasin_params.max_thickness)
+            # buffer of 20000 m for number of nodes to be safe
+            n_nodes_est = int(np.sum(well_strat['n_nodes_est']) + 2e4 / pybasin_params.max_thickness)
 
             dfc = pd.DataFrame(columns=['well'],
                                index=np.arange(n_nodes_est))
@@ -2195,6 +2205,11 @@ def main():
                 dfqs = pd.DataFrame(columns=['well'],
                                     index=np.arange(n_ts_est))
                 dfqs['well'] = well
+
+            save_counter = 0
+
+            # determine interval for saving output to csv file
+            save_counter_interval = pybasin_params.csv_save_interval
 
             # go through model scenarios specified in the model_scenarios.py file:
             for well_scenario_no, model_scenario_params \
@@ -2332,8 +2347,7 @@ def main():
                     print 'saving solute flux data to %s' % fn
                     dfqs.to_csv(fn, index=False)
 
-
-                if pybasin_params.simulate_VR is True:
+                if pybasin_params.simulate_VR is True and pybasin_params.save_model_run_data is True:
                     [vr_nodes,
                      vr_depth,
                      vr_obs,
@@ -2341,18 +2355,21 @@ def main():
                      vr_max,
                      vr_obs_sigma,
                      vr_GOF] = VR_model_data
-                    l = len(vr_depth) - 1
-                    #dfc.loc[:l, 'VR_depth_s%i' % model_scenario_number] = vr_depth
-                    #dfc.loc[:l, 'VR_s%i' % model_scenario_number] = vr_nodes
 
-                #if pybasin_params.simulate_AFT is True:
-                #    simulated_AFT_data = AFT_data[0]
-                #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                #     aft_ln_mean_nodes, aft_ln_std_nodes,
-                #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+                    nn = len(active_nodes[-1]) - 1
 
-                    #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
-                #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
+                    dfc.loc[:nn, 'depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
+                    dfc.loc[:nn, 'T_s%i' % model_scenario_number] = T_nodes[-1, active_nodes[-1]]
+                    dfc.loc[:nn, 'VR_s%i' % model_scenario_number] = vr_nodes[-1, active_nodes[-1]]
+
+                    #if pybasin_params.simulate_AFT is True:
+                    #    simulated_AFT_data = AFT_data[0]
+                    #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+                    #     aft_ln_mean_nodes, aft_ln_std_nodes,
+                    #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+
+                        #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
+                    #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
                     #dfc.loc[:l, 'AFT_depth_s%i' % model_scenario_number] = \
                     #    z_nodes[-1, active_nodes[-1]]
                     #dfc.loc[:l, 'AFT_age_min_s%i' % model_scenario_number] = \
@@ -2360,11 +2377,12 @@ def main():
                     #dfc.loc[:l, 'AFT_age_max_s%i' % model_scenario_number] = \
                     #    aft_age_nodes_max
 
-                # save depth vs T and salinity data
-                #fn = os.path.join(fig_output_dir,
-                #                  'model_run_data_%s_%s_ms%i.csv'
-                #                  % (well, today_str, n_scenarios))
-                #dfc.to_csv(fn, index=False)
+                    # save depth vs T and salinity data
+                    fn = os.path.join(fig_output_dir,
+                                      'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
+                                      % (well, today_str, n_scenarios))
+                    print 'saving depth, temperature and VR data to %s' % fn
+                    dfc.to_csv(fn, index=False)
 
 
                 #############################
@@ -2410,15 +2428,22 @@ def main():
                         pl.clf()
 
                 # save model results .csv file
-                if wells[0] == wells[-1]:
-                    well_txt = wells[0]
-                else:
-                    well_txt = '%s-%s' % (wells[0], wells[-1])
-                fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
-                                  % (today_str, well_txt,
-                                     n_scenarios))
-                print 'saving model results .csv file %s' % fn
-                model_results_df.to_csv(fn, index_label='model_scenario_number')
+                if save_counter == 0 or save_counter >= save_counter_interval:
+
+                    if wells[0] == wells[-1]:
+                        well_txt = wells[0]
+                    else:
+                        well_txt = '%s-%s' % (wells[0], wells[-1])
+                    fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
+                                      % (today_str, well_txt,
+                                         n_scenarios))
+                    print 'saving model results .csv file %s' % fn
+                    model_results_df.to_csv(fn, index_label='model_scenario_number')
+
+                save_counter += 1
+
+                if save_counter >= save_counter_interval:
+                    save_counter = 0
 
                 if pybasin_params.save_model_run_data is True:
                     # TODO save T-t paths if no aft is modeled....
@@ -2542,6 +2567,18 @@ def main():
                     df_tt2.to_csv(fn, index_label='timestep')
 
                 model_scenario_number += 1
+            print 'done with all model scenarios'
+
+            # saving model results to a .csv file
+            if wells[0] == wells[-1]:
+                well_txt = wells[0]
+            else:
+                well_txt = '%s-%s' % (wells[0], wells[-1])
+            fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i_final.csv'
+                              % (today_str, well_txt,
+                                 n_scenarios))
+            print 'saving model results .csv file %s' % fn
+            model_results_df.to_csv(fn, index_label='model_scenario_number')
 
     print 'done'
 

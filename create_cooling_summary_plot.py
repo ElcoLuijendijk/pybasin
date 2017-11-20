@@ -150,7 +150,7 @@ for x_data, x_label, xticks, fn_adj in zip(x_datas, x_labels,
     legs = leg_ydatas + [leg_gf]
     labels = ['model fit, AFT data', 'model fit, AHe data', 'good fit']
     #fig.legend(legs, labels, loc='lower right', fontsize='small')
-    panels[len(wells)].legend(legs, labels, bbox_to_anchor=(1.05, 1),
+    panels[-1].legend(legs, labels, bbox_to_anchor=(1.05, 1),
                               fontsize='small', frameon=False,
                               handlelength=3)
 

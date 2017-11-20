@@ -18,6 +18,13 @@ import matplotlib.pyplot as pl
 import useful_functions
 import pdb
 
+#model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/" \
+#                  "jul2016_2stage_calibration_merged/" \
+#                  "model_results_combined_regular_calibration.csv"
+#model_result_fn = "/home/elco/model_files/pybasin/MB/final_results_mar2017/model_results_merged_mod.csv"
+# file containing pybasin model results
+model_result_fn = "/home/elco/model_files/pybasin/MB/final_results_all_MB_wells_jul2017/model_results_merged_with_cooling_estimates.csv"
+
 # select the min value of GOF for all thermochronometers
 # when False, select the max value. Ie if AFT gof = 0.5 and AHe gof=0.8, the
 # overall GOF will be 0.5 with this parameter set to True and 0.8 with this
@@ -30,20 +37,21 @@ y_data2 = 'vr_gof'
 z_data = None
 
 # minimum value for gof for acceptable model fits
-gof_cutoff = 0.5
+print 'please enter the gof value treshold for acceptable models (anything between 0.0 and 1.0):'
+
+gof_cutoff = float(raw_input())
 
 # best estimate of heat flow if no temperature data are available
-default_heat_flow = 0.065
+print 'please enter the default heat flow in mW/m2:'
+default_heat_flow = float(raw_input()) / 1000.0
 
 #
-default_exhumation = 1500.0
+print 'please enter the default value of exhumation (m): '
+default_exhumation = float(raw_input())
 
 # read model result data
-#model_result_fn = "/home/elco/python_scripts/pybasin/model_output/MB/" \
-#                  "jul2016_2stage_calibration_merged/" \
-#                  "model_results_combined_regular_calibration.csv"
-model_result_fn = "/home/elco/model_files/pybasin/MB/" \
-                  "30aug2016_2stage_new/model_results_merged_mod.csv"
+print 'reading model results from file %s' % model_result_fn
+
 df = pd.read_csv(model_result_fn)
 
 # calculate overall thermochron gof

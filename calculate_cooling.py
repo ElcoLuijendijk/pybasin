@@ -14,11 +14,17 @@ import os
 import numpy as np
 import pandas as pd
 
+# file containing the merged pybasin model results:
+#model_result_fn = "/home/elco/model_files/pybasin/MB/final_results_mar2017/model_results_merged.csv"
+model_result_fn = "/home/elco/model_files/pybasin/MB/final_results_all_MB_wells_jul2017/model_results_merged.csv"
 
+# min value of temperautre goodness of fit that is acceptable
 min_T_gof = 0.5
+
+# if no temperature data are avialable to claibrate present-day heat flow: use the defult value:
 default_heat_flow = 0.065
 
-model_result_fn = "/home/elco/model_files/pybasin/MB/30aug2016_2stage_new/model_results_merged.csv"
+################################
 
 df = pd.read_csv(model_result_fn)
 
@@ -65,6 +71,6 @@ for well in wells:
 df['cooling'] = df['cooling_with_fixed_present_HF']
 
 # save results
-mod_fn = model_result_fn.split('.csv')[0] + '_mod.csv'
+mod_fn = model_result_fn.split('.csv')[0] + '_with_cooling_estimates.csv'
 print 'saving results to ', mod_fn
 df.to_csv(mod_fn, index=False)
