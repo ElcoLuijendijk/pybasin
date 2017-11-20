@@ -122,7 +122,7 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
         fontsize_l = 'xx-small'
         fontsize_leg = fontsize
 
-    if fontsize_legend != None:
+    if fontsize_legend is not None:
         fontsize_leg = fontsize_legend
 
     params = {'axes.labelsize': fontsize_s,
@@ -304,12 +304,12 @@ def model_vs_data_figure(model_run_data,
     max_depth = z_nodes.max() * 1.1
 
     # skip VR, AFT and AHe panels if no data
-    if VR_model_data is not None and len(vr_obs) == 0:
-        VR_model_data = None
-    if AFT_data is not None and len(aft_age) == 0:
-        AFT_data = None
-    if AHe_data is not None and len(ahe_ages_all_samples) == 0:
-        AHe_data = None
+    #if VR_model_data is not None and len(vr_obs) == 0:
+    #    VR_model_data = None
+    #if AFT_data is not None and len(aft_age) == 0:
+    #    AFT_data = None
+    #if AHe_data is not None and len(ahe_ages_all_samples) == 0:
+    #    AHe_data = None
 
     if show_thermochron_data is False:
         AFT_data = None
@@ -506,10 +506,17 @@ def model_vs_data_figure(model_run_data,
                          s=10,
                          cmap=cmap)
 
-    major_strat = [n.split('_s_')[0] for n in node_strat]
+    major_strat = [n.split('_s_')[0].split('_a_')[0] for n in node_strat]
     strat_transition = [m != n for m, n in zip(major_strat[:-1],
                                                major_strat[1:])]
     strat_transition.append(True)
+
+    print 'strat units shown in fig:'
+    for i, s in enumerate(strat_transition):
+        if s is True:
+            print major_strat[i]
+
+    #pdb.set_trace()
 
     if (AFT_data is not None or AHe_data is not None) \
             and show_provenance_hist is True:
@@ -641,11 +648,12 @@ def model_vs_data_figure(model_run_data,
         data_label.append('salinity')
 
     # plot vitrinite
-    if VR_model_data is not None and vr_nodes is not None and len(vr_obs) > 0:
+    if VR_model_data is not None and vr_nodes is not None:
         leg_model, = ax_vr.plot(vr_nodes[-1, active_nodes[-1]],
                                 z_nodes[-1, active_nodes[-1]],
                                 **line_props)
 
+    if len(vr_obs) > 0:
         #if VR_model_data is not None and len(vr_data) > 0:
         xerr = np.ones((2, len(vr_depth))) * vr_obs_sigma
 
@@ -679,33 +687,34 @@ def model_vs_data_figure(model_run_data,
     if AFT_data is not None:
 
         # violin plots of single grain age pdf
-        violin_width = max_depth / 20.0
-        pdf_threshold = 1e-5
-        for sample_no in xrange(len(aft_age)):
-            pdf_plot = aft_age_pdfs[sample_no]
+        if show_violin_plot is True:
+            violin_width = max_depth / 20.0
+            pdf_threshold = 1e-5
+            for sample_no in xrange(len(aft_age)):
+                pdf_plot = aft_age_pdfs[sample_no]
 
-            if np.any(np.isnan(pdf_plot)) == False and \
-                            single_grain_aft_ages[sample_no] is not None:
+                if np.any(np.isnan(pdf_plot)) == False and \
+                                single_grain_aft_ages[sample_no] is not None:
 
-                ind = pdf_plot > pdf_threshold
+                    ind = pdf_plot > pdf_threshold
 
-                #pdf_plot[pdf_plot < pdf_threshold] = 0.0
-                vd = dict(coords=aft_age_bins[sample_no][ind],
-                          vals=aft_age_pdfs[sample_no][ind],
-                          mean=1.0, min=1.0, max=1.0, median=1.0)
-                vp = ax_afta.violin([vd],
-                                    positions=[aft_age_depth[sample_no]],
-                                    vert=False,
-                                    widths=violin_width,
-                                    showextrema=False)
-                for pc in vp['bodies']:
-                    pc.set_edgecolor('darkblue')
-                    pc.set_facecolor('lightblue')
+                    #pdf_plot[pdf_plot < pdf_threshold] = 0.0
+                    vd = dict(coords=aft_age_bins[sample_no][ind],
+                              vals=aft_age_pdfs[sample_no][ind],
+                              mean=1.0, min=1.0, max=1.0, median=1.0)
+                    vp = ax_afta.violin([vd],
+                                        positions=[aft_age_depth[sample_no]],
+                                        vert=False,
+                                        widths=violin_width,
+                                        showextrema=False)
+                    for pc in vp['bodies']:
+                        pc.set_edgecolor('darkblue')
+                        pc.set_facecolor('lightblue')
 
-        leg_violin = mpatches.Patch(facecolor='lightblue',
-                                    edgecolor='blue')
-        leg_data_ext.append(leg_violin)
-        data_ext_label.append('age distribution')
+            leg_violin = mpatches.Patch(facecolor='lightblue',
+                                        edgecolor='blue')
+            leg_data_ext.append(leg_violin)
+            data_ext_label.append('age distribution')
 
         # show single grain AFT ages, without errorbar
         for sample_no in xrange(len(single_grain_aft_ages)):
