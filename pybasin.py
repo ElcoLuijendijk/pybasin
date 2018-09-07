@@ -12,6 +12,7 @@ Elco Luijendijk, Goettingen University
 
 import sys
 import os
+import argparse
 
 # make sure multi-threading for numpy is turned off (this slows down the heat
 # flow solution a lot...)
@@ -1857,18 +1858,32 @@ def setup_model_output_df(n_scenarios):
 
 def main():
 
+    parser = argparse.ArgumentParser(description='PyBasin: Model burial, exhumation and thermal history '
+                                                 'and low-temperature thermochronology')
+
+    parser.add_argument('model_input_subfolder', metavar='directory', default=None, nargs='?',
+                        help='directory containing input dataset for PyBasin')
+
+    parser.add_argument('-w', dest='wells',
+                        help='specify wells to include, separated by a comma for multiple wells')
+
+    args = parser.parse_args()
+
     # check if script dir in python path
     scriptdir = os.path.realpath(sys.path[0])
     if scriptdir not in sys.path:
         sys.path.append(scriptdir)
 
-    # read default input folder
-    fin = open(os.path.join(scriptdir, 'default_input_folder.txt'))
-    d = fin.readline()
-    fin.close()
-    scenario_name = d.split()[0]
-    model_input_subfolder = os.path.join(scriptdir, 'input_data',
-                                         scenario_name)
+    if args.model_input_subfolder is not None:
+        model_input_subfolder = os.path.join(scriptdir, args.model_input_subfolder)
+    else:
+        # read default input folder
+        fin = open(os.path.join(scriptdir, 'default_input_folder.txt'))
+        d = fin.readline()
+        fin.close()
+        scenario_name = d.split()[0]
+        model_input_subfolder = os.path.join(scriptdir, 'input_data', scenario_name)
+
     print 'running model input data from folder %s' % model_input_subfolder
 
     # import model parameter and model functions scripts
@@ -1917,8 +1932,9 @@ def main():
                                                       pybasin_params.correct_exhumation_duration)
 
     # check sys arguments to run a particular well
-    if len(sys.argv) > 1:
-        wells = sys.argv[1:]
+    if args.wells is not None:
+        wells_str = args.wells
+        wells = wells_str.split(",")
     else:
         wells = model_scenarios.wells
         
@@ -1949,7 +1965,7 @@ def main():
                                   len(wells))
 
         if np.any(well_strats['well'] == well) == False:
-            raise IOError('error, could not find well %s in well strat file' % well)
+            raise IOError('error, could not find well %s in well strat file in directory %s' % (well, input_dir))
 
         well_strat, well_strat_orig = select_well_strat(well, well_strats)
 
@@ -2356,11 +2372,12 @@ def main():
                      vr_obs_sigma,
                      vr_GOF] = VR_model_data
 
-                    nn = len(active_nodes[-1]) - 1
+                    nn = len(z_nodes[-1, active_nodes[-1]])
+                    ind_nn = dfc.index[:nn]
 
-                    dfc.loc[:nn, 'depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
-                    dfc.loc[:nn, 'T_s%i' % model_scenario_number] = T_nodes[-1, active_nodes[-1]]
-                    dfc.loc[:nn, 'VR_s%i' % model_scenario_number] = vr_nodes[-1, active_nodes[-1]]
+                    dfc.loc[ind_nn, 'depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
+                    dfc.loc[ind_nn, 'T_s%i' % model_scenario_number] = T_nodes[-1, active_nodes[-1]]
+                    dfc.loc[ind_nn, 'VR_s%i' % model_scenario_number] = vr_nodes[-1, active_nodes[-1]]
 
                     #if pybasin_params.simulate_AFT is True:
                     #    simulated_AFT_data = AFT_data[0]

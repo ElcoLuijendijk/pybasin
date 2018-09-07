@@ -310,6 +310,7 @@ def add_exhumation_phases(well_strat,
                       'not inlcuded in the exhumed_strat_units parameter in the pybasin_params.py file, ' \
                       'or otherwise there could be an overlap between the timing of exhumation and the ' \
                       'depositional age, check parameters exhumation_period_starts and exhumation_period_end'
+                print df_ex
                 raise IndexError(msg)
 
             eroded_units = exhumed_strat_unit[exhumed_strat_unit.index(youngest_unit):]
@@ -320,11 +321,11 @@ def add_exhumation_phases(well_strat,
                 df_ex.ix[eroded_units, 'preserved_thickness']
 
             # correct < 0 eroded thicknesses
-            df_ex['eroded_thickness'][df_ex['eroded_thickness'] < 0] = 0.0
+            df_ex.loc[df_ex['eroded_thickness'] < 0, 'eroded_thickness'] = 0.0
 
             # calculate total potential exhumation and correct
             if df_ex['eroded_thickness'].sum() < exhumed_thickness:
-                df_ex.ix[eroded_units[-1], 'eroded_thickness'] += \
+                df_ex.loc[eroded_units[-1], 'eroded_thickness'] += \
                     exhumed_thickness - df_ex['eroded_thickness'].sum()
 
             if df_ex['eroded_thickness'].sum() > exhumed_thickness:
@@ -345,7 +346,7 @@ def add_exhumation_phases(well_strat,
             df_ex['n_additional_units'] = \
                 np.ceil((df_ex['eroded_thickness'] / max_thickness).astype(float))
 
-            df_ex['n_additional_units'][df_ex['n_additional_units'] == 0] = np.nan
+            df_ex.loc[df_ex['n_additional_units'] == 0, 'n_additional_units'] = np.nan
             df_ex['thickness_additional_units'] = \
                 (df_ex['eroded_thickness'] / df_ex['n_additional_units'])
 
@@ -819,10 +820,10 @@ def find_maximum_depth(input_df, exhumation_phases,
         ind = (input_df['maximum_depth_top'] <
                input_df['maximum_depth_top_temp']) | \
             input_df['maximum_depth_top'].isnull()
-        input_df['maximum_depth_top'][ind] = \
-            input_df['maximum_depth_top_temp'][ind]
-        input_df['maximum_depth_bottom'][ind] = \
-            input_df['maximum_depth_bottom_temp'][ind]
+        input_df.loc[ind, 'maximum_depth_top'] = \
+            input_df.loc[ind, 'maximum_depth_top_temp']
+        input_df.loc[ind, 'maximum_depth_bottom'] = \
+            input_df.loc[ind, 'maximum_depth_bottom_temp']
 
     return input_df
 
@@ -1086,7 +1087,6 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
     except:
         print 'error, solving matrix for temperature diffusion eq. failed'
         raise ValueError('error, solving matrix for temperature diffusion eq. failed')
-        #pdb.set_trace()
 
     # TODO check other linear solvers, such as CG:
     # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
@@ -1315,12 +1315,12 @@ def get_geo_history(well_strat, strat_info_mod,
     ind = [(s[0] != '~') & (s[0] != '-') for s in geohist_df.index]
     # recalculate matrix thickness using maximum depth instead of
     # present-day depth
-    geohist_df['matrix_thickness'][ind] = \
+    geohist_df.loc[ind, 'matrix_thickness'] = \
         calculate_matrix_thickness(
-            geohist_df['surface_porosity'][ind].values,
-            geohist_df['compressibility'][ind].values,
-            geohist_df['maximum_depth_top'][ind].values,
-            geohist_df['maximum_depth_bottom'][ind].values)
+            geohist_df.loc[ind, 'surface_porosity'].values,
+            geohist_df.loc[ind, 'compressibility'].values,
+            geohist_df.loc[ind, 'maximum_depth_top'].values,
+            geohist_df.loc[ind, 'maximum_depth_bottom'].values)
 
     # find hiatusses
     hiatus_list, hiatus_start_list, hiatus_end_list = \
@@ -2268,8 +2268,17 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # copy provnenacne ages for nodes
     prov_cols = [col for col in geohist_df.columns if 'provenance' in col]
     n_prov = len(prov_cols) / 2
+
+    if n_prov == 0:
+        msg = 'error, no provneance age info found in stratigraphy_info.csv file\n'
+        msg += 'add one or more columns with the header provenance_age_start_1,provenance_age_end_1 and provenance '
+        msg += 'ages in Ma'
+        raise(IOError, msg)
+
     prov_ages_start = []
     prov_ages_end = []
+
+
 
     for i in xrange(n_prov):
         prov_ages_start.append(geohist_df['provenance_age_start_%i'
@@ -2365,8 +2374,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             z_nodes[nti, active_nodes[nti]]) == 0)[0]
 
         if len(ind0) > 0:
-            active_nodes[nti,
-                         np.diff(z_nodes[nti]) == 0] = False
+            inactive_check = np.diff(z_nodes[nti]) == 0
+            active_nodes[nti, :-1][inactive_check] = False
             active_cells[nti] = active_nodes[nti, :-1]
 
     # check grid nodes
