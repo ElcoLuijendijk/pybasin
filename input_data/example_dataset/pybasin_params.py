@@ -10,7 +10,7 @@ import numpy as np
 #######################################################################
 
 print '-' * 10
-print 'example input dataset from the Molasse basin'
+print 'RVG input data'
 print '-' * 10
 
 # location of input data .csv files
@@ -18,35 +18,102 @@ input_dir = 'input_data/example_dataset'
 output_dir = 'model_output/example_dataset'
 datafile_output_dir = 'model_output/example_dataset'
 
+# option to calculate apatite fission track data
+simulate_AFT = True
+simulate_AHe = False
+simulate_VR = True
+simulate_salinity = False
+
+# option to calculate AHe ages for all nodes rather than just the samples
+# in a particular borehole
+# is automatically set to True if make_model_data_fig = True
+# note that this increases the amount of computational time quite a bit
+calculate_thermochron_for_all_nodes = False
+
 # option to save model run data (approx 10-20 MB per model run)
-save_model_run_data = False
+save_model_run_data = True
+
+#
+use_strat_map_input = False
+
+# save results to a .csv file for each x number of model runs
+csv_save_interval = 1
+
+################
+# figure options
+################
 
 # option to generate 1 figure for each model run:
 make_model_data_fig = True
 
+# variable to show color contours for in burial history panel
+# choose either 'temperature' or 'salinity'
+# to show evolution of temperature or salinity over time
+contour_variable = 'temperature'
+
+# add a stratigraphic column to the figure
+show_strat_column = False
+
+# option to hide thermochron results
+show_thermochron_data = False
+
 # type of figure file to save (pdf, png or jpg):
-fig_adj = 'png'
+fig_adj = ['pdf', 'png']
+
+
+###################
+# model_calibration
+###################
+
+# turn model calibration on or off:
+calibrate_model_params = False
+
+# calibration method, see scipy optimize documentation for list of available methods:
+# http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
+opt_method = 'Nelder-Mead'
+
+# list the parameters that should be updated by either the automatic
+# calibration function or the grid model space search
+# chooose any combination of 'exhumation_magnitude', 'exhumation_start',
+# 'exhumation_duration', 'basal_heat_flow',
+# or fission track annealing params:
+# 'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha'
+#params_to_change = ['exhumation_magnitude',
+#                    'exhumation_start',
+#                    'exhumation_duration',
+#                    'basal_heat_flow']
+params_to_change = ['AFT_C0', 'AFT_C1',
+                    'AFT_C2', 'AFT_C3',
+                    'AFT_alpha']
+
+# initial values for model parameters
+start_param_values = [0.39528, 0.01073, -65.12969, -7.91715, 0.04672]
+#start_param_values = [2000.0, 10.0, 7.0]
+
+# read initial params from file
+load_initial_params = False
+initial_params_file = 'initial_param_values.csv'
+
+# min. and max bounds for parameters
+# set to None for unconstrained calibration
+#param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
+#param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
+param_bounds_min = None
+param_bounds_max = None
+
+# list of variables to calibrate model to
+# choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
+# for temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He age, respectively
+calibration_target = ['AFT_age']
 
 #################
 # goodness of fit
 ################
-
 # weights for calculating overall goodness of fit from the gof statistic for
-# temperature, vitrinite reflectance and apatite fission track age data
-gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0]
-
-
-##############################################
-# sediment provenance parameters, used for AFT
-##############################################
-# calibrate provenance ages
-calibrateProvenanceScenarios = False
-# provenance age
-# set to 0 for a provenance age that is equal to the stratigraphic
-# age of the sample
-prov_ages_start = [70.0, 70.0, 30.0, 30.0]
-# time that the sample reaches the surface:
-prov_ages_end = [68.0, 1.0, 28.0, 1.0]
+# temperature, vitrinite reflectance, apatite fission track age and
+# apatite (U-Th)/He data
+gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
 
 provenance_time_nt = 100
 
@@ -56,9 +123,9 @@ provenance_time_nt = 100
 # heatflow_periods: first 1,2,3 or more letters of stratigraphic period to 
 # set the basal heat flow for. use heatflow_periods = 'all' to set a default 
 # value for all strat. periods
-heatflow_ages = np.array([0, 100.0])
+heatflow_ages = np.array([0, 260.0, 305, 312])
 # heatflow_history: heat flow in W/m^2
-heatflow_history = np.array([65.0, 65.0]) * 1e-3
+heatflow_history = np.array([65.0, 65.0, 130.0, 130.0]) * 1e-3
 
 # optimize heat flow:
 optimize_heatflow = False
@@ -74,28 +141,38 @@ resample_AFT_timesteps = 10
 # exhumation scenarios
 #############################
 # name of exhumation phase
-exhumation_phase_ids = ['pre-molasse_exhumation',
-                        'molasse_exhumation']
+exhumation_phase_ids = ['late_cretaceous_unc'] 
 # start (Ma)
-exhumation_period_starts = np.array([80, 12.0])
+exhumation_period_starts = np.array([85.8])
 # end of exhumation phase (Ma)
-exhumation_period_ends = np.array([40.0, 2.0])
+exhumation_period_ends = np.array([71.0])
 # exhumed thickness
-exhumed_thicknesses = np.array([3000.0, 1000.0])
+exhumed_thicknesses = np.array([500.0])
 
-# determine last deposited unit before unfconformity:
-# list of 'normal' stratigraphic sequence and thicknesses
-# exhumation will start at the lowest missing unit
-# Molasse strat units, following Kemp et al. (1999)
-exhumed_strat_units = [['Kimm'],
-                       ['UMM', 'USM-I', 'USM-II',
-                       'OMM', 'OSM', 'thrust_sheet_1',
-                       'thrust_sheet_2']]
+# determine last deposited unit before unconformity:
+exhumed_strat_units = [['ATBR3', 'ATBRU', 'ATBRO', 'SLDNA']]
 
-# original thicknesses of strat units
-original_thicknesses = [[3000.0],
-                        [600.0, 2175.0, 1125.0,
-                        525.0, 4000.0, 4000.0, 4000.0]]
+# thicknesses
+original_thicknesses = [[50, 50, 50, 1500.0]]
+
+# or set pre-exhumation thickness of particular unit, if known
+# exhumation will then be calculated to match the present-day thickness
+# of this unit in each well
+# set to None if you do not use this feature
+#pre_exhumation_units = [None, 'AT', None, None]
+#pre_exhumation_thicknesses = np.array([0.0, 1200.0, 0.0, 0.0])
+
+# support for two-stage exhumation history, enables fast and slow exhumation segments
+# switch for two-stage exhumation
+two_stage_exhumation = False
+# fraction of total duration of exhumation phase that separates the first and second segment
+exhumation_segment_factor = 0.5
+# fraction of exhumation that takes place in the first of two segments
+exhumation_duration_factor = 0.5
+
+# parameter to automatically reduce exhumation duration if end of
+# exhumation is < 0 Ma
+correct_exhumation_duration = True
 
 ###########################################
 # max thickness of strat units
@@ -118,13 +195,61 @@ use_caxis_correction = False
 # options for kinetic params: 
 # 'Clwt' : Chloride wt fractions 
 # 'Dpar' : Dpar / etch pit size 
-annealing_kinetic_param = 'Dpar'
+annealing_kinetic_param = 'Clwt'
 # end member values for kinetic parameters (if no value given in input data)
-#annealing_kinetics_values = np.array([1.5, 1.8])
-annealing_kinetics_values = np.array([1.2, 2.2])
+annealing_kinetics_values = np.array([0.0001, 0.02])
 
 # size of bins of (simulated) AFT length histogram, default = 0.25 um 
 binsize = 0.25    
+
+# annealing equation to use
+# 'FA' for fanning Arrhenius equation by Laslett (1987)
+# 'FC' for fanning curvelinear equation used by Ketcham (1999, 2007)
+annealing_equation = 'FC'
+
+# empirical coefficients AFT annealing equation
+# default values from Ketcham et al. (2007) American Mineralogist
+# fanning curvelinear model values in Table 5
+#alpha = 0.04672
+#C0 = 0.39528
+#C1 = 0.01073
+#C2 = -65.12969
+#C3 = -7.91715
+
+# calibrated values for Frio pseudo-borehole data by Corrigan (1993):
+#alpha = 0.0570171869542
+#C0 = 0.465675271105
+#C1 = 0.00893230883784
+#C2 = -75.4037631023
+#C3 = -8.20203665287
+
+# calibrated values Frio dataset (Corrigan 1993)
+# + short term annealing experiments, Vrolijk ea (1992) data and
+# Fish Canyon Tuff
+# cal results 17 aug 2016:
+C0 = 2.74620936e-01
+C1 = 1.15666643e-02
+C2 = -6.94099931e+01
+C3 = -7.85643253e+00
+alpha = 5.99629016e-02
+
+
+##################
+# (U-Th)/He params
+##################
+
+# apatite U-Th/He equations to use
+# 'Farley2000' for helium diffusion parameters of Durango apatite
+#   acc. to Farley(2000) JGR 105
+# 'RDAAM' for he diffusion that depends on radiation damage acc. to
+#   Flowers et al. (2009) GCA 73
+ahe_method = 'RDAAM'
+
+# decay constants
+decay_constant_238U = 4.916e-18
+decay_constant_232Th = 1.57e-18
+decay_constant_235U = 3.12e-17
+
 
 ###################################################
 # compaction
@@ -139,6 +264,6 @@ max_decompaction_error = 0.01
 #######
 # VR
 #######
-
-# sigma of uncertainty range for VR data, if not specified in input file
+# default sigma of uncertainty range for VR data,
+# if not specified in input file
 vr_unc_sigma = 0.05
