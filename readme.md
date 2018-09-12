@@ -21,7 +21,7 @@ python pybasin.py
 ````	
 
 * The model will now run with the default input dataset from the Roer Valley Graben. Check the model output in the directory ``model_output/example_dataset``
-* Optionally: If you want to model apatite fission track data and you want this to run relatively fast, you will have to compile the fission track annealing module first. The fission track annealing module was also written in Fortran instead of Python to reduce computation time. Not ethat the pure python version si still available, but is relatively slow. Compile the fortran file by navigating to the subdirectory `PyBasin/lib``, opening a terminal and running the following command:
+* Optionally: If you want to model apatite fission track data and you want this to run relatively fast, you will have to compile the fission track annealing module first. The fission track annealing module was also written in Fortran instead of Python to reduce computation time. Not ethat the pure Python version is still available, but is relatively slow. Compile the Fortran file by navigating to the subdirectory `pybasin/lib``, opening a terminal and running the following command:
 
 ````sh
 f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths
