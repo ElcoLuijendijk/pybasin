@@ -14,6 +14,7 @@ import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
 import matplotlib.mlab
 import matplotlib.patches as mpatches
+from matplotlib import ticker
 
 #import useful_functions
 
@@ -138,23 +139,24 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
 
 
 def model_vs_data_figure(model_run_data,
-                         show_provenance_hist=False,
-                         show_strat_column=True,
+                         show_provenance_hist=True,
+                         show_strat_column=False,
                          show_thermochron_data=True,
                          contour_variable='temperature',
-                         add_legend=False,
+                         add_legend=True,
                          strat_fontsize='xx-small',
-                         figsize=110.0,
-                         legend_space=0.17,
+                         figsize=170.0,
+                         legend_space=0.12,
                          height_ratio=3,
                          cb_buffer_vert=-0.03,
                          cb_buffer_hor=0.0,
-                         show_prov_ages_simple=True,
-                         ncols_legend=2,
+                         show_prov_ages_simple=False,
+                         show_violin_plot=True,
+                         ncols_legend=3,
                          add_panel_titles=True,
-                         panel_title_numbers=True,
-                         panel_title_prefix='a',
-                         panel_label_fs='small',
+                         panel_title_numbers=False,
+                         panel_title_prefix='',
+                         panel_label_fs='x-small',
                          bottom=0.12,
                          left=0.12,
                          right=0.97,
@@ -345,8 +347,6 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(4)
 
-
-
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.06, hspace=0.08,
                            bottom=bottom, top=top,
@@ -380,8 +380,6 @@ def model_vs_data_figure(model_run_data,
     if AHe_data is not None:
         ax_ahe = fig.add_subplot(gs[1, ahe_panel_ind])
         all_panels.append(ax_ahe)
-
-    #ax_aftln = fig.add_subplot(gs[1, 4])
 
     depth_panels = [all_panels[1]] + all_panels[3:]
     time_panels = all_panels[:3]
@@ -653,7 +651,7 @@ def model_vs_data_figure(model_run_data,
                                 z_nodes[-1, active_nodes[-1]],
                                 **line_props)
 
-    if len(vr_obs) > 0:
+    if VR_model_data is not None and len(vr_obs) > 0:
         #if VR_model_data is not None and len(vr_data) > 0:
         xerr = np.ones((2, len(vr_depth))) * vr_obs_sigma
 
@@ -871,7 +869,7 @@ def model_vs_data_figure(model_run_data,
         ax.set_xticklabels([])
 
     for ax in all_panels:
-        ax.yaxis.grid(True)
+        ax.yaxis.grid(False)
         ax.xaxis.grid(False)
         #ax.spines['right'].set_color('none')
         #ax.spines['top'].set_color('none')
@@ -1017,6 +1015,13 @@ def model_vs_data_figure(model_run_data,
     cb = fig.colorbar(tc, cax=cax, orientation='horizontal')
     cb.set_label(cb_label, fontsize='medium')
 
+    for p in all_panels:
+        locy = ticker.MaxNLocator(nbins=3)  # this locator puts ticks at regular intervals
+        locx = ticker.MaxNLocator(nbins=3)  # this locator puts ticks at regular intervals
+
+        p.xaxis.set_major_locator(locx)
+        p.yaxis.set_major_locator(locy)
+
     if contour_variable is 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
         cb.set_ticks(cb_ticks)
@@ -1027,6 +1032,10 @@ def model_vs_data_figure(model_run_data,
         max_T_tick = np.ceil(max_T / 50.0) * 50.0
         T_ticks = np.arange(0, max_T_tick+50, 50.0)
         cb.set_ticks(T_ticks)
+
+    tick_locator = ticker.MaxNLocator(nbins=4)
+    cb.locator = tick_locator
+    cb.update_ticks()
 
     model_label_merged = 'modeled ' + ', '.join(model_label)
     model_range_label_merged = 'modeled range ' + ', '.join(model_range_label)
@@ -1064,12 +1073,13 @@ def model_vs_data_figure(model_run_data,
         panel_labels = ['%s%s' % (panel_title_prefix, p) for p in panel_labels_init]
 
         for panel, label in zip(all_panels, panel_labels):
-            panel.text(0.03, 0.98, label,
+            panel.text(0.03, 1.01, label,
                        horizontalalignment='left',
-                       verticalalignment='top',
+                       verticalalignment='bottom',
                        weight='extra bold',
                        transform = panel.transAxes,
                        fontsize = panel_label_fs)
 
+    #gs.tight_layout(fig)
 
     return fig

@@ -1,4 +1,4 @@
-well,sample_id,depth_top,depth_bottom,depth,aft_age,aft_age_min_95ci,aft_age_plus_95ci,Dpar
+well,sample,depth_top,depth_bottom,depth,aft_age,aft_age_min_95ci,aft_age_plus_95ci,Dpar
 BKZ-01,BKZ01-1,1000,1110,1055,182.8521118164,-153.1773834229,880.8995361328,
 BKZ-01,BKZ01-1,1000,1110,1055,96.0478057861,-37.1073760986,60.1878509521,
 BKZ-01,BKZ01-1,1000,1110,1055,92.0742492676,-82.9033889771,782.8423461914,

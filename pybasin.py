@@ -2405,6 +2405,17 @@ def main():
                 #############################
                 # make a model vs data figure
                 #############################
+                if pybasin_params.save_model_run_data is True:
+
+                    fn = os.path.join(output_dir,
+                                  'model_data_%s_%s_ms%i.pck'
+                                  % (well, today_str,
+                                     model_scenario_number))
+                    print 'saving figure data for model run as %s' % fn
+                    fout = open(fn, 'wb')
+                    pickle.dump(model_run_data_fig, fout)
+                    fout.close()
+
                 if pybasin_params.make_model_data_fig is True:
                     fig = pybasin_figures.model_vs_data_figure(
                         model_run_data_fig,
