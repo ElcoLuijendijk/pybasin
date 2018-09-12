@@ -21,15 +21,13 @@ python pybasin.py
 ````	
 
 * The model will now run with the default input dataset from the Roer Valley Graben. Check the model output in the directory ``model_output/example_dataset``
-* Optionally:
-	* If you want to model apatite fission track data, you will have to compile the fission track annealing module first. The fission track annealing module was written in Fortran instead of Python to reduce computation time. Compile the fortran file by navigating to the subdirectory `PyBasin/lib``, opening a terminal and running the following command:
+* Optionally: If you want to model apatite fission track data and you want this to run relatively fast, you will have to compile the fission track annealing module first. The fission track annealing module was also written in Fortran instead of Python to reduce computation time. Not ethat the pure python version si still available, but is relatively slow. Compile the fortran file by navigating to the subdirectory `PyBasin/lib``, opening a terminal and running the following command:
 
 ````sh
 f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths
 ````	
 
-	* you may need to install a fortran compiler first. For linux operating systems this should be included in your distribution, for Mac OSX you can find installers for Gfortran here: https://gcc.gnu.org/wiki/GFortranBinariesMacOS. I have not tested compiling Fortran code on windows systems.
-	* Note that you do not need to compile anything for modeling vitrinite reflectance and apatite (U-Th)/He data
+* If you want to use the Fortran version of the fission track annealing library you may need to install a fortran compiler first. For linux operating systems this should be included in your distribution, for Mac OSX you can find installers for Gfortran here: https://gcc.gnu.org/wiki/GFortranBinariesMacOS. I have not tested compiling Fortran code on windows systems. Note that you do not need to compile anything for modeling vitrinite reflectance and apatite (U-Th)/He data
 
 ## Dependencies
 
