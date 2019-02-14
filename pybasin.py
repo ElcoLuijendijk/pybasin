@@ -228,6 +228,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             #        and aft_data_well.loc[sample_ix, 'AFT_age_stderr_plus'] == 0:
 
             #    print modeled_aft_age_samples_min[i],  modeled_aft_age_samples_max[i], pdf_fit_sum
+        else:
+            aft_data_well.loc[sample_ix, 'GOF_aft_ages'] = np.nan
 
     # calculate model error:
     for i, sample_ix, age_bin, age_pdf in zip(itertools.count(),
@@ -276,6 +278,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             aft_data_well.ix[sample_ix, 'age_error'] = age_error
 
         else:
+            aft_data_well.ix[sample_ix, 'age_error'] = np.nan
             print 'no model-data comparison for sample %s, ' \
                   'missing age data?' % sample_ix
 
@@ -1881,13 +1884,14 @@ def main():
         fin = open(os.path.join(scriptdir, 'default_input_folder.txt'))
         d = fin.readline()
         fin.close()
-        scenario_name = d.split()[0]
-        model_input_subfolder = os.path.join(scriptdir, 'input_data', scenario_name)
+
+        scenario_name = d.split()[-1]
+        model_input_subfolder = os.path.join(scriptdir, d)
 
     print 'running model input data from folder %s' % model_input_subfolder
 
     # import model parameter and model functions scripts
-    sys.path.insert(1, model_input_subfolder)
+    sys.path.insert(0, model_input_subfolder)
     import pybasin_params
     import model_scenarios
 

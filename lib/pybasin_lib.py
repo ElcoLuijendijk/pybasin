@@ -216,7 +216,7 @@ def subdivide_strat_units(input_df, max_thickness):
         output_df = input_df
 
     # sort geohistory to time
-    output_df = output_df.sort(['age_bottom'])
+    output_df = output_df.sort_values(['age_bottom'])
 
     output_df = output_df.convert_objects(convert_numeric=True)
 
@@ -593,7 +593,7 @@ def add_exhumation_phases(well_strat,
     output_df = pd.concat((well_strat, exhumation_df))
 
     # sort new dataframe to have correct sequence:
-    output_df = output_df.sort(['age_bottom'])
+    output_df = output_df.sort_values(['age_bottom'])
 
     return output_df
 
@@ -1286,7 +1286,7 @@ def get_geo_history(well_strat, strat_info_mod,
                                  ignore_age_columns=True)
 
     # and sort again to keep correct order of time
-    geohist_df = geohist_df.sort(['age_bottom'])
+    geohist_df = geohist_df.sort_values(['age_bottom'])
 
     # set present-day thickness of fully eroded units to 0
     for strat in geohist_df.index:
@@ -1339,7 +1339,7 @@ def get_geo_history(well_strat, strat_info_mod,
     geohist_df = pd.concat((geohist_df, hiatus_df))
 
     # and sort again to keep correct order of time
-    geohist_df = geohist_df.sort(['age_bottom'])
+    geohist_df = geohist_df.sort_values(['age_bottom'])
 
     # set present-day thickness of hiatusses to 0
     for strat in geohist_df.index:
@@ -1368,8 +1368,11 @@ def reconstruct_strat_thickness(geohist_df):
     ind = [(s[0] != '~') & (s[0] != '-') for s in geohist_df.index]
     strat_units = geohist_df.index[ind]
 
+    #strat_thickness_df = pd.DataFrame(index=strat_units,
+    #                                  columns=geohist_df.age_top.astype(str)[::-1])
+
     strat_thickness_df = pd.DataFrame(index=strat_units,
-                                      columns=geohist_df.age_top.astype(str)[::-1])
+                                      columns=[])
 
     # trial forward modeling of compaction
     strat_column = []
@@ -2024,8 +2027,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                        % (well, model_scenario_number)),
                           index_label='strat_unit')
 
-    strat_thickness_df = \
-        reconstruct_strat_thickness(geohist_df)
+    strat_thickness_df = reconstruct_strat_thickness(geohist_df)
 
     if save_csv_files is True:
         strat_thickness_df.to_csv(
@@ -2071,6 +2073,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     # calculate duration of geological timesteps
     durations = -np.diff(ages)
+
+    if np.min(durations) <= 0:
+        msg = 'error, negative duration for a geological time period, check input data'
+        pdb.set_trace()
+        raise ValueError(msg)
 
     # populate arrays with thermal conductivity, heat capacity, heat production,
     # density and matrix thickness
@@ -2154,12 +2161,16 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                              for duration in durations])
 
     if np.sum(nt_heatflows) > 1e6:
-        print 'warning, more than 1e6 timesteps'
-        raise ValueError
+        msg = 'warning, more than 1e6 timesteps'
+        raise ValueError(msg)
 
     if np.min(nt_heatflows) <= 0:
         msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
             % (np.argmin(nt_heatflows), len(nt_heatflows))
+        print 'error'
+        print 'durations: ', durations
+        print 'n heatflow steps: ', nt_heatflows
+        print 'well strat: ', well_strat
         raise ValueError(msg)
 
     nt_total = nt_heatflows.sum()
@@ -2273,12 +2284,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         msg = 'error, no provneance age info found in stratigraphy_info.csv file\n'
         msg += 'add one or more columns with the header provenance_age_start_1,provenance_age_end_1 and provenance '
         msg += 'ages in Ma'
-        raise(IOError, msg)
+        raise IOError(msg)
 
     prov_ages_start = []
     prov_ages_end = []
 
-
+    print 'found %i provenance histories' % n_prov
 
     for i in xrange(n_prov):
         prov_ages_start.append(geohist_df['provenance_age_start_%i'

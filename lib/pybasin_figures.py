@@ -156,7 +156,8 @@ def model_vs_data_figure(model_run_data,
                          add_panel_titles=True,
                          panel_title_numbers=False,
                          panel_title_prefix='',
-                         panel_label_fs='x-small',
+                         panel_label_fs='small',
+                         legend_fontsize='x-small',
                          bottom=0.12,
                          left=0.12,
                          right=0.97,
@@ -314,6 +315,7 @@ def model_vs_data_figure(model_run_data,
     #    AHe_data = None
 
     if show_thermochron_data is False:
+        print 'not showing thermochron data:'
         AFT_data = None
         AHe_data = None
 
@@ -333,16 +335,19 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(3)
 
     if VR_model_data is not None:
+        print 'adding panel for VR data'
         vr_panel_ind = ncols
         ncols += 1
         width_ratios.append(3)
 
     if AFT_data is not None:
+        print 'adding panel for AFT data'
         aft_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
 
     if AHe_data is not None:
+        print 'adding panel for AHe data'
         ahe_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
@@ -395,10 +400,10 @@ def model_vs_data_figure(model_run_data,
     erb_props = {"marker": "o",
                  "ms": 4,
                  "linestyle": "None",
-                 "color": 'gray',
+                 "color": 'black',
                  "mec": 'black',
                  "mfc": 'gray',
-                 "lw": 0.5,
+                 "lw": 0.75,
                  "zorder": 10}
 
     textprops = {"fontsize": 'small',
@@ -513,8 +518,6 @@ def model_vs_data_figure(model_run_data,
     for i, s in enumerate(strat_transition):
         if s is True:
             print major_strat[i]
-
-    #pdb.set_trace()
 
     if (AFT_data is not None or AHe_data is not None) \
             and show_provenance_hist is True:
@@ -639,7 +642,6 @@ def model_vs_data_figure(model_run_data,
                                **line_props)
         model_label.append('salinity')
 
-    #pdb.set_trace()
     if C_data is not None and len(salinity_data) > 0:
         leg_data = ax_c.scatter(salinity_data, salinity_depth,
                                 **scatter_props)
@@ -721,11 +723,12 @@ def model_vs_data_figure(model_run_data,
             if x is not None:
                 y = np.ones_like(x) * aft_age_depth[sample_no]
                 leg_sg = ax_afta.scatter(x, y, color='black', s=5, marker='o')
-                if len(leg_labels) == 0 or 'single grain' not in leg_labels[-1]:
+                if len(data_ext_label) == 0 or 'single grain AFT ages' not in data_ext_label:
                     leg_data_ext.append(leg_sg)
                     data_ext_label.append('single grain AFT ages')
 
-        ind_ca = np.array([a is None for a in single_grain_aft_ages])
+        #ind_ca = np.array([a is None for a in single_grain_aft_ages])
+        ind_ca = np.array([True] * len(single_grain_aft_ages))
 
         if True in ind_ca:
             # show central ages
@@ -735,9 +738,6 @@ def model_vs_data_figure(model_run_data,
                                         **erb_props)
             #if len(leg_labels) == 0 or 'AFT age' not in leg_labels[-1]:
             data_label.append('AFT age')
-
-            #leg_items.append(leg_ca)
-            #leg_labels.append('single grain AFT ages')
 
     if AFT_data is not None and simulated_AFT_data is not None:
         for n_prov in xrange(n_prov_scenarios):
@@ -1058,7 +1058,7 @@ def model_vs_data_figure(model_run_data,
             leg_labels += [model_range_label_merged]
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=ncols_legend, fontsize='small',
+                   loc='lower center', ncol=ncols_legend, fontsize=legend_fontsize,
                    frameon=False, numpoints=1, handlelength=1)
 
     if add_panel_titles is True:
@@ -1073,12 +1073,12 @@ def model_vs_data_figure(model_run_data,
         panel_labels = ['%s%s' % (panel_title_prefix, p) for p in panel_labels_init]
 
         for panel, label in zip(all_panels, panel_labels):
-            panel.text(0.03, 1.01, label,
+            panel.text(0.03, 1.00, label,
                        horizontalalignment='left',
                        verticalalignment='bottom',
                        weight='extra bold',
-                       transform = panel.transAxes,
-                       fontsize = panel_label_fs)
+                       transform=panel.transAxes,
+                       fontsize=panel_label_fs)
 
     #gs.tight_layout(fig)
 
