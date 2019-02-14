@@ -31,7 +31,7 @@ f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths
 
 ## Dependencies
 
-PyBasin requires the following Python packages to be installed:
+PyBasin requires the following Python packages:
 
 - Python2.x: http://www.python.org/
 - Numpy: http://www.numpy.org/
@@ -56,7 +56,7 @@ python pybasin.py input_directory -w well1,well2,well3
 
 * Adjust the default location of the model input files by changing the file ``default_input_directory.txt``. The directory name specified in this file should be a subdirectory of the directory ``pybasin/input_data``
 * Adjust the text files in the directory to adjust the well stratigraphy, lithology and thermal properties of the rocks that you are trying to model
-* Adjust the model parameters in the file ``pybasin_params.py``. Use a text editor or preferably a dedicated Python editor like Spyder, PyCharm (https://www.jetbrains.com/pycharm/) or Enthought Canopy (https://www.enthought.com/products/canopy/) to adjust the model parameters.
+* Adjust the model parameters in the file ``pybasin_params.py``. Use a text editor or preferably a dedicated Python editor like Spyder, PyCharm (https://www.jetbrains.com/pycharm/) or Canopy (https://www.enthought.com/products/canopy/) to adjust the model parameters.
 * If you want to run multiple parameter sets and/or wells in one go, adjust the ``model_scenarios.py`` file and change the parameters you wish to change. For instance, changing from ``exhumation_magnitudes = [None]`` to ``exhumation_magnitudes = [500.0, 1000.0, 2000.0]`` will tell PyBasin to execute three a single model runs in one go with exhumation magnitudes of 500, 1000 and 2000 m, respectively. For automatically executing model runs for multiple wells change the ``wells`` list in the same file to include several wells.
 
 ## Model output:

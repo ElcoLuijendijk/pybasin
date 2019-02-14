@@ -13,6 +13,8 @@ Elco Luijendijk, Goettingen University
 import sys
 import os
 import argparse
+import imp
+from runpy import run_path
 
 # make sure multi-threading for numpy is turned off (this slows down the heat
 # flow solution a lot...)
@@ -37,7 +39,6 @@ try:
     import lib.helium_diffusion_models as he
 except ImportError:
     print 'warning, failed to import AHe module'
-
 
 
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
@@ -1886,16 +1887,16 @@ def main():
         fin.close()
 
         scenario_name = d.split()[-1]
-        model_input_subfolder = os.path.join(scriptdir, d)
+        model_input_subfolder = os.path.join(scriptdir, d.rstrip())
 
     print 'running model input data from folder %s' % model_input_subfolder
 
-    # import model parameter and model functions scripts
-    sys.path.insert(0, model_input_subfolder)
-    import pybasin_params
-    import model_scenarios
+    mpath = os.path.join(model_input_subfolder, 'pybasin_params.py')
 
-    print ''
+    param_module = imp.load_source('pybasin_params', mpath)
+
+    pybasin_params = param_module.pybasin_params
+    model_scenarios = param_module.model_scenarios
 
     year = 365.25 * 24.0 * 60 * 60.
 
