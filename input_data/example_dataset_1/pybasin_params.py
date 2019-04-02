@@ -15,6 +15,7 @@ print '-' * 10
 class pybasin_params:
 
     # location of input data .csv files
+    output_dir = 'model_output/example_dataset_1'
     datafile_output_dir = 'model_output/example_dataset_1'
 
     # option to calculate apatite fission track data
@@ -85,10 +86,9 @@ class pybasin_params:
     # end of exhumation phase (Ma)
     exhumation_period_ends = np.array([71.0])
     # exhumed thickness
-    exhumed_thicknesses = np.array([1000.0])
+    exhumed_thicknesses = np.array([250.0])
 
-    # determine last deposited unit before unconformity:
-    # this should be one list for each exhumation phase
+    # list the stratigraphic units that (may) have been exhumed in each exhumation phase here:
     exhumed_strat_units = [['ATBR3', 'ATBRU', 'ATBRO', 'SLDNA']]
 
     # initial (pre-erosion) thicknesses:
