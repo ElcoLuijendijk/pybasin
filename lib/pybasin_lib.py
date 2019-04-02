@@ -2076,7 +2076,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     if np.min(durations) <= 0:
         msg = 'error, negative duration for a geological time period, check input data'
-        pdb.set_trace()
         raise ValueError(msg)
 
     # populate arrays with thermal conductivity, heat capacity, heat production,
@@ -2623,7 +2622,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
             raise ValueError('error, nan values in T array')
 
-        if timestep in cumulative_steps:
+        #timestep in xrange(nt_total
+        if timestep in cumulative_steps or timestep == nt_total - 1:
 
             print 'step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f, nodes=%i' \
                   % (timestep, time_array_bp[timestep] / 1e6,

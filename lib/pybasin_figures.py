@@ -162,6 +162,7 @@ def model_vs_data_figure(model_run_data,
                          left=0.12,
                          right=0.97,
                          top=0.96,
+                         max_strat_units=10,
                          debug=False):
 
     """
@@ -514,9 +515,21 @@ def model_vs_data_figure(model_run_data,
                                                major_strat[1:])]
     strat_transition.append(True)
 
+    strat_transition = np.array(strat_transition)
+
+    # check and reduce number of strat units shown
+    n_strat_units_shown = np.sum(strat_transition)
+    if n_strat_units_shown > max_strat_units:
+        print 'reducing number of strat units shown from %i to %i' % (n_strat_units_shown, max_strat_units)
+        sint = int(np.ceil(n_strat_units_shown / max_strat_units))
+
+        ind = np.where(strat_transition == True)[0]
+        strat_transition[:] = False
+        strat_transition[ind[::sint]] = True
+
     print 'strat units shown in fig:'
     for i, s in enumerate(strat_transition):
-        if s is True:
+        if s == True:
             print major_strat[i]
 
     if (AFT_data is not None or AHe_data is not None) \
@@ -532,7 +545,7 @@ def model_vs_data_figure(model_run_data,
         strat_count = 0
         for xb, yb, strat_trans in zip(burial, depths,
                                        strat_transition):
-            if strat_trans is True:
+            if strat_trans == True:
                 c = provenance_color
                 cf = 'beige'
 
@@ -551,11 +564,21 @@ def model_vs_data_figure(model_run_data,
                         min_prov_age = prov_age_mid
                         min_prov_ind = i
 
-                xf = np.concatenate((xb[min_prov_ind], xb[max_prov_ind][::-1]))
-                yf = np.concatenate((yb[min_prov_ind], yb[max_prov_ind][::-1]))
+                #xf = np.concatenate((xb[min_prov_ind], xb[max_prov_ind][::-1]))
+                #yf = np.concatenate((yb[min_prov_ind], yb[max_prov_ind][::-1]))
 
-                axb.fill(xf, yf, color=cf, zorder=0)
-                leg_prov_fill = mpatches.Patch(color=cf)
+                #axb.fill(xf, yf, color=cf, zorder=0)
+                #leg_prov_fill = mpatches.Patch(color=cf)
+
+                combs = list(itertools.combinations(range(len(xb)), 2))
+                for comb in combs:
+
+                    i1, i2 = comb
+                    xf = np.concatenate((xb[i1], xb[i2][::-1]))
+                    yf = np.concatenate((yb[i1], yb[i2][::-1]))
+
+                    axb.fill(xf, yf, color=cf, zorder=0)
+                    leg_prov_fill = mpatches.Patch(color=cf)
 
                 for xbi, ybi in zip(xb, yb):
                     leg_prov, = axb.plot(xbi, ybi, color=c, lw=0.5)

@@ -1,0 +1,8 @@
+well,sample,depth,n_grains,aft_age,aft_age_stderr_plus,aft_age_stderr_min,length_mean,length_std,data_type
+BKZ-01,BKZ01-1,1055,,182.85,-153.18,880.9,,,central_age
+BKZ-01,BKZ01-2,1374,,249.62,-149.77,363.99,,,central_age
+BKZ-01,BKZ01-3,2292.5,,152.24,-72.54,137.1,,,central_age
+BKZ-01,BKZ01-4,2503,,66.48,-18.29,25.18,,,central_age
+HSW-01,HSW01-1,1182,,289.87,-99.98,150.84,,,central_age
+NDW-01,NDW01-1,2649.5,,132.92,-33.75,45.08,,,central_age
+NDW-01,NDW01-2,2813,,23.65,-13.04,29.02,,,central_age

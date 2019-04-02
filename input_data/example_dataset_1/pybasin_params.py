@@ -15,9 +15,7 @@ print '-' * 10
 class pybasin_params:
 
     # location of input data .csv files
-    input_dir = 'input_data/example_dataset'
-    output_dir = 'model_output/example_dataset'
-    datafile_output_dir = 'model_output/example_dataset'
+    datafile_output_dir = 'model_output/example_dataset_1'
 
     # option to calculate apatite fission track data
     simulate_AFT = True
@@ -29,7 +27,7 @@ class pybasin_params:
     # in a particular borehole
     # is automatically set to True if make_model_data_fig = True
     # note that this increases the amount of computational time quite a bit
-    calculate_thermochron_for_all_nodes = False
+    calculate_thermochron_for_all_nodes = True
 
     # option to save model run data (approx 10-20 MB per model run)
     save_model_run_data = True
@@ -58,7 +56,7 @@ class pybasin_params:
     show_thermochron_data = True
 
     # type of figure file to save (pdf, png or jpg):
-    fig_adj = ['pdf', 'png']
+    fig_adj = ['png']
 
     ###########################################
     # max thickness of strat units
@@ -87,7 +85,7 @@ class pybasin_params:
     # end of exhumation phase (Ma)
     exhumation_period_ends = np.array([71.0])
     # exhumed thickness
-    exhumed_thicknesses = np.array([500.0])
+    exhumed_thicknesses = np.array([1000.0])
 
     # determine last deposited unit before unconformity:
     # this should be one list for each exhumation phase
@@ -116,7 +114,7 @@ class pybasin_params:
     # value for all strat. periods
     heatflow_ages = np.array([0, 260.0, 305, 312])
     # heatflow_history: heat flow in W/m^2
-    heatflow_history = np.array([65.0, 65.0, 130.0, 130.0]) * 1e-3
+    heatflow_history = np.array([68.0, 68.0, 130.0, 130.0]) * 1e-3
 
     # optimize heat flow:
     optimize_heatflow = False
@@ -225,7 +223,7 @@ class pybasin_params:
     #   acc. to Farley(2000) JGR 105
     # 'RDAAM' for he diffusion that depends on radiation damage acc. to
     #   Flowers et al. (2009) GCA 73
-    ahe_method = 'RDAAM'
+    ahe_method = 'Farley2000'
 
     # decay constants
     decay_constant_238U = 4.916e-18
@@ -259,7 +257,7 @@ class model_scenarios:
 
     # exhumation (m) for each model scenario
     # example for testing exhumation of 500, 1000 and 1500 m:
-    exhumation_magnitudes = [250.0, 1000.0]
+    exhumation_magnitudes = [None]
 
     # exhumation phase start (Ma) and duration (My)
     exhumation_starts = [None]

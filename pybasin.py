@@ -147,11 +147,11 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             ind_sample = aft_ages['sample'].values == sample
 
             # find single grain ages for this sample
-            single_grain_ages_sample = aft_ages['AFT_age'][ind_sample].values
+            single_grain_ages_sample = aft_ages['aft_age'][ind_sample].values
             single_grain_ages_se_min_sample = \
-                aft_ages['AFT_age_stderr_min'][ind_sample].values
+                aft_ages['aft_age_stderr_min'][ind_sample].values
             single_grain_ages_se_plus_sample = \
-                aft_ages['AFT_age_stderr_plus'][ind_sample].values
+                aft_ages['aft_age_stderr_plus'][ind_sample].values
             single_grain_aft_ages.append(single_grain_ages_sample)
             single_grain_aft_ages_se_min.append(
                 single_grain_ages_se_min_sample)
@@ -172,9 +172,9 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             # get pdf of observed AFT ages
             age_bin, age_pdf = \
                 pybasin_lib.calculate_aft_ages_pdf(
-                    aft_data_well['AFT_age'][ind_sample].values,
-                    aft_data_well['AFT_age_stderr_min'][ind_sample].values,
-                    aft_data_well['AFT_age_stderr_plus'][ind_sample].values)
+                    aft_data_well['aft_age'][ind_sample].values,
+                    aft_data_well['aft_age_stderr_min'][ind_sample].values,
+                    aft_data_well['aft_age_stderr_plus'][ind_sample].values)
 
             single_grain_aft_ages.append(None)
             single_grain_aft_ages_se_min.append(None)
@@ -182,8 +182,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             # calculate error for completely reset samples
             # (ie 0 age with SE of 0)
-            if aft_data_well.loc[ind_sample, 'AFT_age'].values == 0 \
-                    and aft_data_well.loc[ind_sample, 'AFT_age_stderr_plus'].values == 0:
+            if aft_data_well.loc[ind_sample, 'aft_age'].values == 0 \
+                    and aft_data_well.loc[ind_sample, 'aft_age_stderr_plus'].values == 0:
 
                 age_bin = np.array([0, 1e-3, 1e3])
                 age_pdf = np.array([1.0, 0.0, 0.0])
@@ -225,8 +225,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                 + np.sum(age_pdf[end_ind:])
             aft_data_well.loc[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
 
-            #if aft_data_well.loc[sample_ix, 'AFT_age'] == 0 \
-            #        and aft_data_well.loc[sample_ix, 'AFT_age_stderr_plus'] == 0:
+            #if aft_data_well.loc[sample_ix, 'aft_age'] == 0 \
+            #        and aft_data_well.loc[sample_ix, 'aft_age_stderr_plus'] == 0:
 
             #    print modeled_aft_age_samples_min[i],  modeled_aft_age_samples_max[i], pdf_fit_sum
         else:
@@ -290,7 +290,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
     if verbose is True:
 
         print aft_data_well[['sample', 'depth',
-                            'AFT_age', 'AFT_age_stderr_plus',
+                            'aft_age', 'aft_age_stderr_plus',
                             'simulated_AFT_min', 'simulated_AFT_max',
                             'GOF_aft_ages', 'age_error']]
 
@@ -334,16 +334,16 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
             grain_pdfs = []
 
             ahe_ages_all_samples.append(
-                ahe_data['raw_Ahe_age'][ind_sample].values)
+                ahe_data.loc[ind_sample, 'ahe_age_uncorrected'].values)
             ahe_ages_all_samples_SE.append(
-                ahe_data['raw_Ahe_age_SE'][ind_sample].values)
+                ahe_data.loc[ind_sample,'ahe_age_uncorrected_se'].values)
 
             age_error = 0
 
             for grain_i, ahe_age_obs, ahe_age_obs_SE \
                     in zip(itertools.count(),
-                           ahe_data['raw_Ahe_age'][ind_sample].values,
-                           ahe_data['raw_Ahe_age_SE'][ind_sample].values):
+                           ahe_data.loc[ind_sample, 'ahe_age_uncorrected'].values,
+                           ahe_data.loc[ind_sample, 'ahe_age_uncorrected_se'].values):
 
                 ahe_age_pdf = scipy.stats.norm.pdf(ahe_age_bin,
                                                    ahe_age_obs,
@@ -410,7 +410,7 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
                 np.min(np.array(grain_pdfs))
             ahe_samples_well.ix[ahe_sample_ix, 'max_GOF_all_grains'] = \
                 np.max(np.array(grain_pdfs))
-            ahe_samples_well.ix[ahe_sample_ix, 'ahe_error'] = age_error
+            ahe_samples_well.ix[ahe_sample_ix, 'mean_ahe_error'] = age_error / len(grain_pdfs)
 
         ahe_age_pdfs_all_samples.append(ahe_age_pdfs)
 
@@ -419,13 +419,13 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
     else:
         ahe_age_gof = np.nan
 
-    if 'ahe_error' in ahe_samples_well.columns:
-        ahe_age_error = ahe_samples_well.ix[ahe_sample_ix, 'ahe_error'].mean()
+    if 'mean_ahe_error' in ahe_samples_well.columns:
+        ahe_age_error = ahe_samples_well.ix[ahe_sample_ix, 'mean_ahe_error'].mean()
     else:
         ahe_age_error = 99999.9
 
     return (ahe_age_gof, ahe_age_error, ahe_ages_all_samples, ahe_ages_all_samples_SE,
-            ahe_age_bin, ahe_age_pdfs_all_samples)
+            ahe_age_bin, ahe_age_pdfs_all_samples, ahe_samples_well)
 
 
 def model_data_comparison_salinity(salinity_data_well,
@@ -619,6 +619,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
         print '-' * 10
         print 'calculating AHe for all nodes'
+        print '(note that this may take a while....)'
 
         ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
         U_nodes = np.zeros((n_nodes, 2))
@@ -783,6 +784,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   surface_temp, surface_salinity_well,
                                   litho_props,
                                   csv_output_dir,
+                                  output_dir,
                                   model_scenario_number,
                                   model_results_df,
                                   T_data, vr_data_df,
@@ -867,7 +869,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             end_ind = np.where(time_array_bp / 1e6 == end)[0][0]
 
         else:
-            print 'warning, could not find exact start and end of ' \
+            print 'could not find exact start and end of ' \
                   'exhumation in time array'
             print 'using closest time instead'
             start_ind = np.argmin(np.abs(time_array_bp / 1e6 - start))
@@ -1002,6 +1004,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         if True in ind.values:
             location_has_AFT = True
+        else:
+            print 'no AFT data found for this location'
 
         (modeled_aft_age_samples,
          modeled_aft_age_samples_min,
@@ -1076,12 +1080,13 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         nt_prov = pybasin_params.provenance_time_nt
 
         # find if there is any aft data for this well:
-        ind = ahe_samples['location'] == well
-        ahe_samples_well = ahe_samples[ind]
+        location_has_AHe = False
+        if ahe_samples is not None:
+            ind = ahe_samples['location'] == well
+            ahe_samples_well = ahe_samples[ind]
 
-        if True in ind.values:
-
-            location_has_AHe = True
+            if True in ind.values:
+                location_has_AHe = True
 
         decay_constant_238U = pybasin_params.decay_constant_238U
         decay_constant_235U = pybasin_params.decay_constant_235U
@@ -1190,17 +1195,26 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
            & (ahe_samples['depth'] <= z_nodes[-1].max() + 1.0))
         ahe_samples_well = ahe_samples[ind]
 
-        ahe_age_bin = np.linspace(0, prov_start_nodes.max(), 100)
+        ahe_age_bin = np.linspace(0, prov_start_nodes.max(), 1000)
 
         if True in ind.values:
 
             (ahe_age_gof, ahe_age_error, ahe_ages_all_samples,
              ahe_ages_all_samples_SE,
-             ahe_age_bin, ahe_age_pdfs_all_samples) = \
+             ahe_age_bin, ahe_age_pdfs_all_samples, ahe_samples_well) = \
                 model_data_comparison_AHe(ahe_samples_well, ahe_data,
                                           ahe_age_bin,
                                           modeled_ahe_age_samples_min,
                                           modeled_ahe_age_samples_max)
+
+            today = datetime.datetime.now()
+            today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+
+            fna = os.path.join(output_dir, 'ahe_samples_%s_%s_ms%i.csv'
+                              % (today_str, well,
+                                 model_scenario_number))
+            print 'saving ahe sample data as %s' % fna
+            ahe_samples_well.to_csv(fna)
 
     # calculate model error salinity data
     salinity_rmse = np.nan
@@ -1222,9 +1236,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         AFT_data = [simulated_AFT_data,
                     aft_data_well['sample'].values,
                     aft_data_well['depth'].values,
-                    aft_data_well['AFT_age'].values,
-                    aft_data_well['AFT_age_stderr_min'].values,
-                    aft_data_well['AFT_age_stderr_plus'].values,
+                    aft_data_well['aft_age'].values,
+                    aft_data_well['aft_age_stderr_min'].values,
+                    aft_data_well['aft_age_stderr_plus'].values,
                     aft_data_well['length_mean'].values,
                     aft_data_well['length_std'].values,
                     aft_data_well['data_type'].values,
@@ -1242,6 +1256,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     z_aft_samples, T_samples]
 
     else:
+        print 'no AFT data found for this location'
         AFT_data = None
 
     if pybasin_params.simulate_VR is True:
@@ -1418,16 +1433,18 @@ def update_model_params_and_run_model(model_scenario_params,
             exhumation_start
         print 'start of exhumation = %0.2f Ma' % exhumation_start
 
-    # calculate exhumation duraiton from standard param file if it is unchanged
+    # calculate exhumation duration from standard param file if it is unchanged
     if exhumation_duration is None:
         exhumation_duration_temp = \
-            pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.exhumation_period_ends[exhumation_phase_id]
+            pybasin_params.exhumation_period_starts[exhumation_phase_id] - \
+            pybasin_params.exhumation_period_ends[exhumation_phase_id]
     else:
         exhumation_duration_temp = exhumation_duration
 
     # check if exhumation duration exceeds starting age of exhumation
     if (exhumation_duration_temp
-          >= (pybasin_params.exhumation_period_starts[exhumation_phase_id] - pybasin_params.max_hf_timestep) / 1e6):
+          >= (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+              - pybasin_params.max_hf_timestep) / 1e6):
         exhumation_duration_temp = \
             (pybasin_params.exhumation_period_starts[exhumation_phase_id]
              - (pybasin_params.max_hf_timestep * 3) / 1e6)
@@ -1437,7 +1454,6 @@ def update_model_params_and_run_model(model_scenario_params,
          - exhumation_duration_temp)
     if exhumation_duration is not None:
         exhumation_duration = exhumation_duration_temp
-
 
     print 'adjusted duration of exhumation = %0.2f My' \
           % exhumation_duration_temp
@@ -1510,6 +1526,7 @@ def update_model_params_and_run_model(model_scenario_params,
                                       surface_temp, surface_salinity_well,
                                       litho_props,
                                       csv_output_dir,
+                                      output_dir,
                                       model_scenario_number,
                                       model_results_df,
                                       T_data, vr_data_df,
@@ -1680,16 +1697,30 @@ def read_model_input_data(input_dir, pybasin_params):
         aft_samples = aft_samples_raw[ind]
 
         # load AFT age data
-        aft_ages = pd.read_csv(os.path.join(input_dir, 'aft_ages.csv'))
+        aft_ages = pd.read_csv(os.path.join(input_dir, 'aft_data.csv'))
     else:
         aft_samples = None
         aft_ages = None
 
     if pybasin_params.simulate_AHe is True:
-        # read apatite U-Th/He (AHe) data
-        ahe_samples = pd.read_csv(os.path.join(input_dir, 'ahe_samples.csv'))
-        # read apatite U-Th/He (AHe) data
-        ahe_data = pd.read_csv(os.path.join(input_dir, 'AHe_data.csv'))
+        ahe_sample_fn = os.path.join(input_dir, 'ahe_samples.csv')
+        ahe_data_fn = os.path.join(input_dir, 'ahe_data.csv')
+        if os.path.exists(ahe_sample_fn):
+            # read apatite U-Th/He (AHe) data
+            ahe_samples = pd.read_csv(ahe_sample_fn)
+        else:
+            print 'warning, could not find input file %s ' % ahe_sample_fn
+            print 'continuing without AHe sample data'
+            ahe_samples = None
+
+        if os.path.exists(ahe_data_fn):
+            # read apatite U-Th/He (AHe) data
+            ahe_data = pd.read_csv(ahe_data_fn)
+        else:
+            print 'warning, could not find input file %s ' % ahe_data_fn
+            print 'continuing without AHe age data'
+            ahe_data = None
+
     else:
         ahe_samples = None
         ahe_data = None
@@ -1699,8 +1730,7 @@ def read_model_input_data(input_dir, pybasin_params):
         #Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
 
         # and read salinity data
-        salinity_data = pd.read_csv(os.path.join(input_dir,
-                                                 'salinity_data.csv'))
+        salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'))
 
     else:
         salinity_data = None
@@ -1871,6 +1901,8 @@ def main():
     parser.add_argument('-w', dest='wells',
                         help='specify wells to include, separated by a comma for multiple wells')
 
+    parser.print_help()
+
     args = parser.parse_args()
 
     # check if script dir in python path
@@ -1900,7 +1932,7 @@ def main():
 
     year = 365.25 * 24.0 * 60 * 60.
 
-    input_dir = pybasin_params.input_dir
+    input_dir = model_input_subfolder
     output_dir = pybasin_params.output_dir
     datafile_output_dir = pybasin_params.datafile_output_dir
 
