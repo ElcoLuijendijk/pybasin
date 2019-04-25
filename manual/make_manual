@@ -1,0 +1,1 @@
+pandoc PyBasin_manual.md -o PyBasin_manual.pdf -V geometry:margin=0.5in

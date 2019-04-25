@@ -426,7 +426,7 @@ def calculate_central_age( Ns, Ni, Nd, rho_d, zeta, zeta_se,
         Niterations += 1
         
         if Niterations>100:
-            print 'error, too many iterations'
+            print('error, too many iterations')
             pdb.set_trace()
     
     central_age = 1.0/lambda_d * np.log(1.0 + lambda_d * g * zeta * rho_d.mean() *(eta/(1.0-eta))) /1.0e6
@@ -469,7 +469,7 @@ def chi_sq_test(Nsj, Nij):
     Ngrains = len(Nsj)
     chi_sq = 0
     
-    for j in xrange(Ngrains):
+    for j in range(Ngrains):
         
         Nsj_e = Ns / (Ns + Ni) * (Nsj[j] + Nij[j])
         Nij_e = Ni / (Ns + Ni) * (Nsj[j] + Nij[j])
@@ -678,8 +678,8 @@ def caxis_proj_lengths(l, a=-0.08076, b = 3.856, c=-25.488):
     cl = c-l
     D = (b**2-(4*a*cl))
     if D<0:
-        print 'error,  D<0'
-        print bla
+        print('error,  D<0')
+        print(bla)
         
     lm = (-b+(math.sqrt(D)))/(2*a)
     if lm<0:

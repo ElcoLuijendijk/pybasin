@@ -69,12 +69,12 @@ def easyRo( times, temperatures_in, debug = False):
     
     # delta I
     deltaI = np.zeros( I.shape )
-    for j in xrange(1,timesteps,1):
+    for j in range(1,timesteps,1):
         deltaI[:,j] = deltaI[:,j-1] + (I[:,j]-I[:,j-1]) / heatingRates[j]
     
     #cumulativeReacted
     cumulativeReacted = weights*(1.0-np.exp(-deltaI.T))
-    for k in xrange(components):
+    for k in range(components):
         cumulativeReacted[ deltaI[k,:]>220.0, k ] = weights[k]
     cumulativeReacted[deltaI.T<1.0e-20] = 0
     
@@ -185,12 +185,12 @@ def easyRo_slow(timeArray, tempArray, debug = False):
         #pdb.set_trace()
         
         if np.isnan(Ro[j]) == True:
-            print '!!error in vitrinite function,  no data value at time slice %s: %s' %(j, Ro[j])
-            print 'time  =  %s,  temp =  %s' %(time, T)
-            print 'input time + temperature arrays:'
-            print timeArray
-            print tempArray
-            print bla
+            print('!!error in vitrinite function,  no data value at time slice %s: %s' %(j, Ro[j]))
+            print('time  =  %s,  temp =  %s' %(time, T))
+            print('input time + temperature arrays:')
+            print(timeArray)
+            print(tempArray)
+            print(bla)
     
     if debug == True:
         return Ro, sumReacted, cumulativeReacted, deltaI, I, EdivRT

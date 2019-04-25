@@ -4,18 +4,18 @@ import itertools
 import numpy as np
 import pdb
 
-import AFTannealingLib as AFT
+from . import AFTannealingLib as AFT
 
 # import fortran module
 try:
-    import calculate_reduced_AFT_lengths
+    from . import calculate_reduced_AFT_lengths
 except ImportError:
-    print 'failed to import fortran annealing module'
-    print 'use slower python implementation of AFT annealing module instead'
-    print 'compile the fortran module by running the following command ' \
-          'in the source directory of this module:'
-    print 'f2py -c calculate_reduced_AFT_lengths.f ' \
-          '-m calculate_reduced_AFT_lengths'
+    print('failed to import fortran annealing module')
+    print('use slower python implementation of AFT annealing module instead')
+    print('compile the fortran module by running the following command ' \
+          'in the source directory of this module:')
+    print('f2py -c calculate_reduced_AFT_lengths.f ' \
+          '-m calculate_reduced_AFT_lengths')
 
 
 def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
@@ -65,10 +65,10 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
         mu = (n * np.pi / radius) ** 2
         gamma = 6.0 / ((n * np.pi) ** 2)
     elif shape == 'finite cylinder':
-        print 'need to figure out bessel functions in numpy'
+        print('need to figure out bessel functions in numpy')
         # http://docs.scipy.org/doc/scipy-0.13.0/reference/special.html
     elif shape == 'infinite cylinder':
-        print 'need to figure out bessel functions in numpy'
+        print('need to figure out bessel functions in numpy')
 
     # experimental, implement alpha ejection algorithm
     # this is basically adjusting the gamma term, see eq. 24 in Meesters
@@ -104,7 +104,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
 
     # eq. 5, time integration of diffusivity:
     xi = np.zeros(nt)
-    for j in xrange(0, nt-1):
+    for j in range(0, nt-1):
         xi[j + 1] = xi[j] + (D[j] + D[j+1]) / 2.0 * (t[j+1] - t[j])
 
     # eq. 6
@@ -118,12 +118,12 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
 
         cn = np.zeros((nt, n_eigenmodes))
 
-        for N in xrange(nt):
+        for N in range(nt):
 
             #beta[:, :] = 0
             #beta_sum[:] = 0
 
-            for n in xrange(n_eigenmodes):
+            for n in range(n_eigenmodes):
 
                 # eq. 8
                 #beta[:J] = np.exp(-mu[n] * (xi[-1] - xi[:J]))
@@ -147,7 +147,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
 
         cn = np.zeros(n_eigenmodes)
 
-        for n in xrange(n_eigenmodes):
+        for n in range(n_eigenmodes):
 
             # eq. 8
             beta[n, :] = np.exp(-mu[n] * (xi[-1] - xi[:]))
@@ -213,22 +213,22 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         rmr0, kappa = \
             AFT.calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
     else:
-        print 'using rmr0 as kinetic parameter'
+        print('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         kappa = 1.04 - rmr0
 
     #print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
 
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
-        print '!! warning, rmr0 lower than minimum'
-        print '!! %s = %0.3f' % (kinetic_parameter, kinetic_value)
-        print '!! setting rmr0 to %0.3f' % rmr0_min
+        print('!! warning, rmr0 lower than minimum')
+        print('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
+        print('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
         kappa = 1.04 - rmr0
     elif rmr0 > rmr0_max:
-        print '!! warning, rmr0 value exceeds most resistant apatite in ' \
-              'Carlson (1999) dataset'
-        print '!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max)
+        print('!! warning, rmr0 value exceeds most resistant apatite in ' \
+              'Carlson (1999) dataset')
+        print('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
         kappa = 1.04 - rmr0
 
@@ -256,7 +256,7 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         rc = rcf
 
     else:
-        print 'use python reduced track ln function:'
+        print('use python reduced track ln function:')
         # warning, reduced length is not correct
         # check against fortran function
 
@@ -334,12 +334,12 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
 
     debug = False
     if debug is True:
-        print rho_v.mean()
-        print e_rho_s.mean() / 1e6
-        print e_rho_s_sum.mean() / 1e6
-        print C.mean()
-        print D_div_a2.mean()
-        print D.mean()
+        print(rho_v.mean())
+        print(e_rho_s.mean() / 1e6)
+        print(e_rho_s_sum.mean() / 1e6)
+        print(C.mean())
+        print(D_div_a2.mean())
+        print(D.mean())
 
         pdb.set_trace()
 

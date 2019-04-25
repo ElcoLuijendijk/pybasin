@@ -8,6 +8,7 @@ __author__ = 'elcopone'
 
 import pdb
 import itertools
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as pl
@@ -76,15 +77,15 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
     elif height == 'max':
         height = 170
     if height > 215.0:
-        print 'figure exceeding b5 paper size'
+        print('figure exceeding b5 paper size')
 
     # initialize figure
     if landscape is True:
-        print 'landscape figure'
+        print('landscape figure')
         xs = height
         ys = width
     else:
-        print 'portrait figure'
+        print('portrait figure')
         xs = width
         ys = height
 
@@ -92,7 +93,7 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
         xs = xs / 25.4
         ys = ys / 25.4
 
-    print 'init fig,  size = %0.1f x %0.1f inch' %(xs, ys)
+    print('init fig,  size = %0.1f x %0.1f inch' %(xs, ys))
 
     fig = pl.figure(figsize=(xs,ys))
 
@@ -271,7 +272,12 @@ def model_vs_data_figure(model_run_data,
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
 
-    degree_symbol = unichr(176)
+    PY3 = sys.version_info.major == 3
+
+    if PY3:
+        degree_symbol = chr(176)
+    else:
+        degree_symbol = unichr(176)
 
     xsize = figsize / 25.4
     golden_ratio = (1.0 + np.sqrt(5))/2.0
@@ -316,7 +322,7 @@ def model_vs_data_figure(model_run_data,
     #    AHe_data = None
 
     if show_thermochron_data is False:
-        print 'not showing thermochron data:'
+        print('not showing thermochron data:')
         AFT_data = None
         AHe_data = None
 
@@ -336,19 +342,19 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(3)
 
     if VR_model_data is not None:
-        print 'adding panel for VR data'
+        print('adding panel for VR data')
         vr_panel_ind = ncols
         ncols += 1
         width_ratios.append(3)
 
     if AFT_data is not None:
-        print 'adding panel for AFT data'
+        print('adding panel for AFT data')
         aft_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
 
     if AHe_data is not None:
-        print 'adding panel for AHe data'
+        print('adding panel for AHe data')
         ahe_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
@@ -454,7 +460,7 @@ def model_vs_data_figure(model_run_data,
 
     time_2d = np.zeros([nt_total, n_nodes])
 
-    for nn in xrange(n_nodes):
+    for nn in range(n_nodes):
         time_2d[:, nn] = time_array_bp / 1.0e6
 
     #
@@ -472,7 +478,7 @@ def model_vs_data_figure(model_run_data,
     act = active_nodes[::time_int_grid].ravel()
     ind = act == True
 
-    print 'gridding T or salinity data vs time'
+    print('gridding T or salinity data vs time')
     gridding_ok = True
     # serial 1D interpolation, failproof method, 2D interpolation fails or
     # inaccurate with strongly different x,y scales
@@ -494,7 +500,7 @@ def model_vs_data_figure(model_run_data,
                                     max_depth_time[::-1])
 
         # filter interpolated values that are deeper than deepest fm.
-        for nti in xrange(len(xi)):
+        for nti in range(len(xi)):
             zi.mask[yi > max_depth_time2[nti], nti] = True
 
         #tc = axb.pcolormesh(xg, yg, zi2, cmap='jet')
@@ -520,17 +526,17 @@ def model_vs_data_figure(model_run_data,
     # check and reduce number of strat units shown
     n_strat_units_shown = np.sum(strat_transition)
     if n_strat_units_shown > max_strat_units:
-        print 'reducing number of strat units shown from %i to %i' % (n_strat_units_shown, max_strat_units)
+        print('reducing number of strat units shown from %i to %i' % (n_strat_units_shown, max_strat_units))
         sint = int(np.ceil(n_strat_units_shown / max_strat_units))
 
         ind = np.where(strat_transition == True)[0]
         strat_transition[:] = False
         strat_transition[ind[::sint]] = True
 
-    print 'strat units shown in fig:'
+    print('strat units shown in fig:')
     for i, s in enumerate(strat_transition):
         if s == True:
-            print major_strat[i]
+            print(major_strat[i])
 
     if (AFT_data is not None or AHe_data is not None) \
             and show_provenance_hist is True:
@@ -570,7 +576,7 @@ def model_vs_data_figure(model_run_data,
                 #axb.fill(xf, yf, color=cf, zorder=0)
                 #leg_prov_fill = mpatches.Patch(color=cf)
 
-                combs = list(itertools.combinations(range(len(xb)), 2))
+                combs = list(itertools.combinations(list(range(len(xb))), 2))
                 for comb in combs:
 
                     i1, i2 = comb
@@ -592,7 +598,7 @@ def model_vs_data_figure(model_run_data,
     else:
         ind = np.array(strat_transition) == True
         n_strat_trans = ind.sum()
-        for i in xrange(n_strat_trans):
+        for i in range(n_strat_trans):
             leg_strat_unit, = axb.plot(time_array_bp / 1e6,
                                        z_nodes[:, ind][:, i],
                                        color='black',
@@ -604,7 +610,7 @@ def model_vs_data_figure(model_run_data,
     if (AFT_data is not None or show_thermochron_data is False) \
             and show_prov_ages_simple is True:
 
-        print 'showing errorbar for AFT start times:'
+        print('showing errorbar for AFT start times:')
 
         x = np.array(prov_ages).mean()
         xerr = np.abs(x - prov_ages[0])
@@ -643,7 +649,7 @@ def model_vs_data_figure(model_run_data,
         z_trans = np.insert(z_trans, [0], np.array([0]))
         strat_trans = np.array(major_strat)[ind]
         for ax in depth_panels[1:]:
-            for i in xrange(n_strat_trans):
+            for i in range(n_strat_trans):
                 leg_strat_unit = ax.axhline(y=z_nodes[:, ind][-1, i],
                                             color='gray',
                                             lw=0.5, zorder=1)
@@ -713,7 +719,7 @@ def model_vs_data_figure(model_run_data,
         if show_violin_plot is True:
             violin_width = max_depth / 20.0
             pdf_threshold = 1e-5
-            for sample_no in xrange(len(aft_age)):
+            for sample_no in range(len(aft_age)):
                 pdf_plot = aft_age_pdfs[sample_no]
 
                 if np.any(np.isnan(pdf_plot)) == False and \
@@ -740,7 +746,7 @@ def model_vs_data_figure(model_run_data,
             data_ext_label.append('age distribution')
 
         # show single grain AFT ages, without errorbar
-        for sample_no in xrange(len(single_grain_aft_ages)):
+        for sample_no in range(len(single_grain_aft_ages)):
             x = single_grain_aft_ages[sample_no]
 
             if x is not None:
@@ -763,8 +769,8 @@ def model_vs_data_figure(model_run_data,
             data_label.append('AFT age')
 
     if AFT_data is not None and simulated_AFT_data is not None:
-        for n_prov in xrange(n_prov_scenarios):
-            for n_kin in xrange(n_kinetic_scenarios):
+        for n_prov in range(n_prov_scenarios):
+            for n_kin in range(n_kinetic_scenarios):
                 leg_model, = ax_afta.plot(
                     aft_age_nodes[active_nodes[-1], n_prov, n_kin],
                     z_nodes[-1, active_nodes[-1]],
@@ -811,8 +817,8 @@ def model_vs_data_figure(model_run_data,
         data_ext_label.append('age of deposition')
 
         ahe_age_nodes_array = np.array(ahe_age_nodes)
-        for n_prov in xrange(n_prov_scenarios):
-            for n_rad in xrange(n_grain_radius):
+        for n_prov in range(n_prov_scenarios):
+            for n_rad in range(n_grain_radius):
                 leg_model, = ax_ahe.plot(ahe_age_nodes_array[active_nodes[-1], n_rad, n_prov],
                                          z_nodes[-1, active_nodes[-1]],
                                          **line_props)
@@ -982,7 +988,7 @@ def model_vs_data_figure(model_run_data,
 
     for ax in all_panels[3:]:
         # reduce number of tick labels
-        print ax.get_xticks()
+        print(ax.get_xticks())
         ax.set_xticks(ax.get_xticks()[::2])
 
     if contour_variable == 'salinity':

@@ -38,7 +38,7 @@ import lib.pybasin_figures as pybasin_figures
 try:
     import lib.helium_diffusion_models as he
 except ImportError:
-    print 'warning, failed to import AHe module'
+    print('warning, failed to import AHe module')
 
 
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
@@ -71,8 +71,8 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
     T_rmse = np.sqrt(np.mean(T_data_well['residual']**2))
     T_gof = np.mean(T_data_well['P_fit'])
 
-    print 'Temperature data:'
-    print T_data_well
+    print('Temperature data:')
+    print(T_data_well)
 
 
     return T_gof, T_rmse
@@ -280,8 +280,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
         else:
             aft_data_well.ix[sample_ix, 'age_error'] = np.nan
-            print 'no model-data comparison for sample %s, ' \
-                  'missing age data?' % sample_ix
+            print('no model-data comparison for sample %s, ' \
+                  'missing age data?' % sample_ix)
 
     # calculate mean GOF from single grain GOFs for each sample
     aft_age_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
@@ -289,10 +289,10 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
     if verbose is True:
 
-        print aft_data_well[['sample', 'depth',
+        print(aft_data_well[['sample', 'depth',
                             'aft_age', 'aft_age_stderr_plus',
                             'simulated_AFT_min', 'simulated_AFT_max',
-                            'GOF_aft_ages', 'age_error']]
+                            'GOF_aft_ages', 'age_error']])
 
     return (aft_age_gof, aft_age_error, single_grain_aft_ages, single_grain_aft_ages_se_min,
             single_grain_aft_ages_se_plus,
@@ -315,7 +315,7 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
     :return:
     """
 
-    print 'calculating GOF AHe data'
+    print('calculating GOF AHe data')
 
     ahe_age_pdfs_all_samples = []
     ahe_ages_all_samples = []
@@ -484,6 +484,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
 
     if calculate_thermochron_for_all_nodes is True:
+        print('calculating FT ages and lengths for all n=%i nodes' % n_nodes)
         # simulate AFT all nodes
         simulated_AFT_data =\
             pybasin_lib.simulate_aft(
@@ -515,7 +516,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     # get T history for samples only
     T_samples = np.zeros((nt, n_aft_samples))
-    for h in xrange(nt):
+    for h in range(nt):
         T_samples[h, :] = \
             np.interp(aft_data_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -523,7 +524,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     # get burial history of samples
     z_aft_samples = np.zeros((nt, n_aft_samples))
-    for h in xrange(nt):
+    for h in range(nt):
         z_aft_samples[h, :] = \
             np.interp(aft_data_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -533,7 +534,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
     n_prov = prov_start_nodes.shape[1]
     prov_start_samples = np.zeros((n_aft_samples, n_prov))
     prov_end_samples = np.zeros((n_aft_samples, n_prov))
-    for h in xrange(n_prov):
+    for h in range(n_prov):
         prov_start_samples[:, h] = \
             np.interp(aft_data_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -546,13 +547,14 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
     # get active node array for samples only
     active_nodes_aft_samples = np.zeros((nt, n_aft_samples),
                                         dtype=bool)
-    for h in xrange(nt):
+    for h in range(nt):
         active_nodes_aft_samples[h, :] = \
             np.interp(aft_data_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       active_nodes[h, active_nodes[-1]])
 
     # select prov. history for samples:
+    print('calculating AFT ages and lengths for n=%i samples' % n_aft_samples)
     simulated_AFT_data_samples =\
         pybasin_lib.simulate_aft(
             resample_t, nt_prov, n_aft_samples, time_array_bp,
@@ -617,9 +619,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
     if calculate_thermochron_for_all_nodes is True:
 
-        print '-' * 10
-        print 'calculating AHe for all nodes'
-        print '(note that this may take a while....)'
+        print('-' * 10)
+        print('calculating AHe for all nodes')
 
         ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
         U_nodes = np.zeros((n_nodes, 2))
@@ -703,7 +704,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
     # get T history for samples only
     T_ahe_samples = np.zeros((nt, n_ahe_samples))
-    for h in xrange(nt):
+    for h in range(nt):
         T_ahe_samples[h, :] = \
             np.interp(ahe_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -711,7 +712,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
 
     # get burial history of samples
     z_ahe_samples = np.zeros((nt, n_ahe_samples))
-    for h in xrange(nt):
+    for h in range(nt):
         z_ahe_samples[h, :] = \
             np.interp(ahe_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -721,7 +722,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
     n_prov = prov_start_nodes.shape[1]
     prov_start_ahe_samples = np.zeros((n_ahe_samples, n_prov))
     prov_end_ahe_samples = np.zeros((n_ahe_samples, n_prov))
-    for h in xrange(n_prov):
+    for h in range(n_prov):
         prov_start_ahe_samples[:, h] = \
             np.interp(ahe_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -734,7 +735,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
     # get active node array for samples only
     active_nodes_ahe_samples = np.zeros((nt, n_ahe_samples),
                                         dtype=bool)
-    for h in xrange(nt):
+    for h in range(nt):
         active_nodes_ahe_samples[h, :] = \
             np.interp(ahe_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
@@ -756,6 +757,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
         U_samples.append(U_sample)
         Th_sample = ahe_data['Th'][ind_sample].values * 1e-6
         Th_samples.append(Th_sample)
+
+    print('calculating AHe for %i samples' % n_ahe_samples)
 
     simulated_ahe_data_samples =\
         pybasin_lib.simulate_ahe(
@@ -869,9 +872,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             end_ind = np.where(time_array_bp / 1e6 == end)[0][0]
 
         else:
-            print 'could not find exact start and end of ' \
-                  'exhumation in time array'
-            print 'using closest time instead'
+            print('could not find exact start and end of ' \
+                  'exhumation in time array')
+            print('using closest time instead')
             start_ind = np.argmin(np.abs(time_array_bp / 1e6 - start))
             end_ind = np.argmin(np.abs(time_array_bp / 1e6 - end))
 
@@ -909,9 +912,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     if pybasin_params.use_strat_map_input is True \
             and os.path.isfile(cebs_input) is True:
 
-        print 'reading model input from cebs.py'
+        print('reading model input from cebs.py')
 
-        import cebs
+        from . import cebs
         model_results_df = cebs.present_temp_in_given_depth(
             z_nodes, model_scenario_number, T_nodes, model_results_df)
         model_results_df = cebs.thermal_conductivity(
@@ -936,8 +939,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # interpolate vitrinite reflectance data
         if True in ind.values \
                 or pybasin_params.calculate_thermochron_for_all_nodes is True:
-            print 'calculating vitrinite reflectance for n=%i nodes' \
-                  % n_nodes
+            print('calculating vitrinite reflectance for n=%i nodes' \
+                  % n_nodes)
 
             vr_nodes = pybasin_lib.calculate_vr(T_nodes,
                                                 active_nodes,
@@ -1005,7 +1008,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         if True in ind.values:
             location_has_AFT = True
         else:
-            print 'no AFT data found for this location'
+            print('no AFT data found for this location')
 
         (modeled_aft_age_samples,
          modeled_aft_age_samples_min,
@@ -1213,7 +1216,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             fna = os.path.join(output_dir, 'ahe_samples_%s_%s_ms%i.csv'
                               % (today_str, well,
                                  model_scenario_number))
-            print 'saving ahe sample data as %s' % fna
+            print('saving ahe sample data as %s' % fna)
             ahe_samples_well.to_csv(fna)
 
     # calculate model error salinity data
@@ -1256,7 +1259,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     z_aft_samples, T_samples]
 
     else:
-        print 'no AFT data found for this location'
+        print('no AFT data found for this location')
         AFT_data = None
 
     if pybasin_params.simulate_VR is True:
@@ -1427,11 +1430,11 @@ def update_model_params_and_run_model(model_scenario_params,
     if exhumation_magnitude is not None:
         pybasin_params.exhumed_thicknesses[exhumation_phase_id] = \
             exhumation_magnitude
-        print 'exhumation = %0.1f m' % exhumation_magnitude
+        print('exhumation = %0.1f m' % exhumation_magnitude)
     if exhumation_start is not None:
         pybasin_params.exhumation_period_starts[exhumation_phase_id] = \
             exhumation_start
-        print 'start of exhumation = %0.2f Ma' % exhumation_start
+        print('start of exhumation = %0.2f Ma' % exhumation_start)
 
     # calculate exhumation duration from standard param file if it is unchanged
     if exhumation_duration is None:
@@ -1455,8 +1458,8 @@ def update_model_params_and_run_model(model_scenario_params,
     if exhumation_duration is not None:
         exhumation_duration = exhumation_duration_temp
 
-    print 'adjusted duration of exhumation = %0.2f My' \
-          % exhumation_duration_temp
+    print('adjusted duration of exhumation = %0.2f My' \
+          % exhumation_duration_temp)
 
     if exhumation_segment_factor is not None:
         pybasin_params.exhumation_segment_factor = exhumation_segment_factor
@@ -1470,16 +1473,16 @@ def update_model_params_and_run_model(model_scenario_params,
                 = basal_heat_flow
         elif basal_heat_flow_scenario_period == 'all':
             pybasin_params.heatflow_history[:] = basal_heat_flow
-            print 'constant basal heat flow = %0.2e' % basal_heat_flow
+            print('constant basal heat flow = %0.2e' % basal_heat_flow)
         elif basal_heat_flow_scenario_period == 'last':
             pybasin_params.heatflow_history[-1] = basal_heat_flow
         elif basal_heat_flow_scenario_period == 'first':
             pybasin_params.heatflow_history[0] = basal_heat_flow
 
-    print 'basal heat flow history:'
+    print('basal heat flow history:')
     for a, b in zip(pybasin_params.heatflow_ages,
                     pybasin_params.heatflow_history):
-        print '%0.2f Ma: %0.3e W/m2' % (a, b)
+        print('%0.2f Ma: %0.3e W/m2' % (a, b))
 
     if alpha is not None:
         pybasin_params.alpha = alpha
@@ -1588,17 +1591,17 @@ def update_model_params_and_run_model(model_scenario_params,
     well_strat = well_strat_orig.copy()
 
     # screen output GOF data
-    print ''
-    print 'temperature GOF = %0.2f' % T_gof
+    print('')
+    print('temperature GOF = %0.2f' % T_gof)
     if pybasin_params.simulate_VR is True:
-        print 'vitrinite reflectance GOF = %0.2f' % vr_gof
+        print('vitrinite reflectance GOF = %0.2f' % vr_gof)
     if pybasin_params.simulate_AFT is True:
-        print 'AFT age GOF = %0.2f' % aft_age_gof
-        print 'AFT age error = %0.2f' % aft_age_error
+        print('AFT age GOF = %0.2f' % aft_age_gof)
+        print('AFT age error = %0.2f' % aft_age_error)
     if pybasin_params.simulate_AHe is True:
-        print 'AHe GOF = %0.2f' % ahe_age_gof
-        print 'AHe age error = %0.2f' % ahe_age_error
-    print ''
+        print('AHe GOF = %0.2f' % ahe_age_gof)
+        print('AHe age error = %0.2f' % ahe_age_error)
+    print('')
 
     if return_objective_function is True:
         objective_function = 0
@@ -1608,7 +1611,7 @@ def update_model_params_and_run_model(model_scenario_params,
         if 'AHe' in calibration_target and np.isnan(ahe_age_error) == False:
             objective_function += ahe_age_error
 
-        print 'objective function = %0.2f\n' % objective_function
+        print('objective function = %0.2f\n' % objective_function)
 
         if np.isnan(objective_function) == True:
             msg = 'error, nan objective function'
@@ -1647,7 +1650,7 @@ def update_model_params_and_run_model(model_scenario_params,
 def read_model_input_data(input_dir, pybasin_params):
 
     # read all input data
-    print 'reading input data'
+    print('reading input data')
     # stratigraphy description
     strat_info = pd.read_csv(os.path.join(input_dir, 'stratigraphy_info.csv'))
     strat_info = strat_info.set_index('strat_unit')
@@ -1709,16 +1712,16 @@ def read_model_input_data(input_dir, pybasin_params):
             # read apatite U-Th/He (AHe) data
             ahe_samples = pd.read_csv(ahe_sample_fn)
         else:
-            print 'warning, could not find input file %s ' % ahe_sample_fn
-            print 'continuing without AHe sample data'
+            print('warning, could not find input file %s ' % ahe_sample_fn)
+            print('continuing without AHe sample data')
             ahe_samples = None
 
         if os.path.exists(ahe_data_fn):
             # read apatite U-Th/He (AHe) data
             ahe_data = pd.read_csv(ahe_data_fn)
         else:
-            print 'warning, could not find input file %s ' % ahe_data_fn
-            print 'continuing without AHe age data'
+            print('warning, could not find input file %s ' % ahe_data_fn)
+            print('continuing without AHe age data')
             ahe_data = None
 
     else:
@@ -1751,11 +1754,11 @@ def read_model_input_data(input_dir, pybasin_params):
     # check if lithology data is given for each lithology
     try:
         assert litho_props.index[:-1].tolist() == litho_cols
-    except AssertionError, msg:
-        print '\nerror, something wrong with input data'
-        print 'not all lithology units found in strat info file are also in the ' \
-              'lithology_properties file'
-        print msg
+    except AssertionError as msg:
+        print('\nerror, something wrong with input data')
+        print('not all lithology units found in strat info file are also in the ' \
+              'lithology_properties file')
+        print(msg)
         raise AssertionError(msg)
 
     # create new copy of dataframe to store results
@@ -1809,7 +1812,7 @@ def select_well_strat(well, well_strats):
 def select_well_salinity_bnd(well, salinity_bnd_df):
 
     if well in salinity_bnd_df.columns:
-        print 'using surface salinity bnd for well %s from file' % well
+        print('using surface salinity bnd for well %s from file' % well)
         #cols = ['age_start', 'age_end', 'surface_salinity_%s' % well]
         cols = ['age_start', 'age_end', well]
         surface_salinity_well = salinity_bnd_df[cols]
@@ -1853,14 +1856,17 @@ def setup_model_scenarios(model_scenarios, correct_exhumation_duration):
     # go through param list to weed out scenarios with exhumation end < 0 Ma
     model_scenario_param_list = []
     for i, model_params in enumerate(model_scenario_param_list_raw):
-        if model_params[2] <= model_params[1]:
-            model_scenario_param_list.append(model_params)
-        elif correct_exhumation_duration is True:
-            model_params_l = list(model_params)
-            model_params_l[2] = model_params_l[1]
-            model_scenario_param_list.append(model_params_l)
+        if model_params[2] is not None and model_params[1] is not None:
+            if model_params[2] <= model_params[1]:
+                model_scenario_param_list.append(model_params)
+            elif correct_exhumation_duration is True:
+                model_params_l = list(model_params)
+                model_params_l[2] = model_params_l[1]
+                model_scenario_param_list.append(model_params_l)
+            else:
+                pass
         else:
-            pass
+            model_scenario_param_list.append(model_params)
 
     return model_scenario_param_list, params_to_change
 
@@ -1921,7 +1927,7 @@ def main():
         scenario_name = d.split()[-1]
         model_input_subfolder = os.path.join(scriptdir, d.rstrip())
 
-    print 'running model input data from folder %s' % model_input_subfolder
+    print('running model input data from folder %s' % model_input_subfolder)
 
     mpath = os.path.join(model_input_subfolder, 'pybasin_params.py')
 
@@ -1942,21 +1948,24 @@ def main():
     #pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
     if (pybasin_params.save_model_run_data is True
             and os.path.exists(datafile_output_dir) is False):
-        print 'creating directory %s to store model result datafiles' \
-            % datafile_output_dir
+        print('creating directory %s to store model result datafiles' \
+            % datafile_output_dir)
         os.mkdir(datafile_output_dir)
 
     csv_output_dir = os.path.join(output_dir, 'burial_history_csv_files')
     if os.path.exists(csv_output_dir) is False:
-        print 'creating directory %s to store burial history .csv datafiles' \
-            % csv_output_dir
+        print('creating directory %s to store burial history .csv datafiles' \
+            % csv_output_dir)
         os.mkdir(csv_output_dir)
 
     fig_output_dir = os.path.join(output_dir, 'model_data_fig')
     if os.path.exists(fig_output_dir) is False:
-        print 'creating directory %s to store model-data comparison figures' \
-            % fig_output_dir
+        print('creating directory %s to store model-data comparison figures' \
+            % fig_output_dir)
         os.mkdir(fig_output_dir)
+
+    today = datetime.datetime.now()
+    today_str = '%i-%i-%i' % (today.day, today.month, today.year)
 
     (well_strats, strat_info_mod, salinity_bnd_df,
      T_data_df, vr_data_df,
@@ -1982,7 +1991,7 @@ def main():
             ind = wells.index(model_scenarios.start_well)
             wells = wells[ind:]
 
-    print 'running the following wells: ', wells
+    print('running the following wells: ', wells)
 
     n_scenarios = len(wells) * len(model_scenario_param_list)
 
@@ -1997,9 +2006,9 @@ def main():
     #######################
     for well_number, well in enumerate(wells):
 
-        print 'x' * 20
-        print 'well %s, %i/%i' % (well, well_number + 1,
-                                  len(wells))
+        print('x' * 20)
+        print('well %s, %i/%i' % (well, well_number + 1,
+                                  len(wells)))
 
         if np.any(well_strats['well'] == well) == False:
             raise IOError('error, could not find well %s in well strat file in directory %s' % (well, input_dir))
@@ -2035,13 +2044,13 @@ def main():
             # copy initial parameters from best model run
             max_ind = df_init_well.index[0]
 
-            print 'using initial parameters from best gof run:', \
-                    df_init_well.loc[max_ind]
+            print('using initial parameters from best gof run:', \
+                    df_init_well.loc[max_ind])
 
             model_scenario_params = []
 
-            print 'initial model params'
-            print model_scenario_param_list
+            print('initial model params')
+            print(model_scenario_param_list)
 
             for param_change in params_to_change:
                 if param_change in df_init_well.columns:
@@ -2051,8 +2060,8 @@ def main():
                     model_scenario_params.append(None)
             model_scenario_param_list = [model_scenario_params]
 
-            print 'model params after reading from list:'
-            print model_scenario_param_list
+            print('model params after reading from list:')
+            print(model_scenario_param_list)
 
         if pybasin_params.calibrate_model_params is True:
 
@@ -2091,8 +2100,8 @@ def main():
                 # copy initial parameters from best model run
                 max_ind = np.argmax(df_init_well['obj_function'])
 
-                print 'using initial parameters from best gof run:', \
-                        df_init_well.loc[max_ind]
+                print('using initial parameters from best gof run:', \
+                        df_init_well.loc[max_ind])
 
                 model_scenario_params = []
 
@@ -2147,9 +2156,9 @@ def main():
                                            args=args,
                                            method=pybasin_params.opt_method)
 
-            print 'final optimized parameter values:'
-            print pybasin_params.params_to_change
-            print opt_results.x
+            print('final optimized parameter values:')
+            print(pybasin_params.params_to_change)
+            print(opt_results.x)
 
             # copy calibrated parameter values
             model_scenario_params = opt_results.x
@@ -2215,7 +2224,7 @@ def main():
                                       % (well, today_str,
                                          model_scenario_number,
                                          fa))
-                        print 'saving model-data comparison figure %s' % fn
+                        print('saving model-data comparison figure %s' % fn)
                         fig.savefig(fn, dpi=200)
 
                     pl.clf()
@@ -2225,7 +2234,7 @@ def main():
                                       % (well, today_str,
                                          model_scenario_number,
                                          pybasin_params.fig_adj))
-                    print 'saving model-data comparison figure %s' % fn
+                    print('saving model-data comparison figure %s' % fn)
                     fig.savefig(fn, dpi=200)
                     pl.clf()
 
@@ -2238,7 +2247,7 @@ def main():
             fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
                               % (today_str, well_txt,
                                  n_scenarios))
-            print 'saving model results .csv file %s' % fn
+            print('saving model results .csv file %s' % fn)
             model_results_df.to_csv(fn, index_label='model_scenario_number')
 
         else:
@@ -2268,9 +2277,9 @@ def main():
             for well_scenario_no, model_scenario_params \
                     in enumerate(model_scenario_param_list):
 
-                print '-' * 10
-                print 'model scenario %i / %i' % (model_scenario_number,
-                                                  len(model_scenario_param_list))
+                print('-' * 10)
+                print('model scenario %i / %i' % (model_scenario_number,
+                                                  len(model_scenario_param_list)))
 
                 # estimate total runtime and time left
                 if (model_scenario_number / 250 == model_scenario_number / 250.0
@@ -2291,9 +2300,9 @@ def main():
                     tekst += 'time per scenario = %s\n' \
                              % datetime.timedelta(seconds=time_per_scenario)
 
-                    print tekst
+                    print(tekst)
 
-                    print 'writing estimated runtime to runtime.txt'
+                    print('writing estimated runtime to runtime.txt')
 
                     fout = open('runtime_%s.txt' % well, 'w')
                     fout.write(tekst)
@@ -2397,7 +2406,7 @@ def main():
                     fn = os.path.join(fig_output_dir,
                                       'solute_flux_data_%s_%s_ms%i.csv'
                                       % (well, today_str, n_scenarios))
-                    print 'saving solute flux data to %s' % fn
+                    print('saving solute flux data to %s' % fn)
                     dfqs.to_csv(fn, index=False)
 
                 if pybasin_params.simulate_VR is True and pybasin_params.save_model_run_data is True:
@@ -2435,7 +2444,7 @@ def main():
                     fn = os.path.join(fig_output_dir,
                                       'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
                                       % (well, today_str, n_scenarios))
-                    print 'saving depth, temperature and VR data to %s' % fn
+                    print('saving depth, temperature and VR data to %s' % fn)
                     dfc.to_csv(fn, index=False)
 
 
@@ -2448,7 +2457,7 @@ def main():
                                   'model_data_%s_%s_ms%i.pck'
                                   % (well, today_str,
                                      model_scenario_number))
-                    print 'saving figure data for model run as %s' % fn
+                    print('saving figure data for model run as %s' % fn)
                     fout = open(fn, 'wb')
                     pickle.dump(model_run_data_fig, fout)
                     fout.close()
@@ -2478,7 +2487,7 @@ def main():
                                           % (well, today_str,
                                              model_scenario_number,
                                              fa))
-                            print 'saving model-data comparison figure %s' % fn
+                            print('saving model-data comparison figure %s' % fn)
                             fig.savefig(fn, dpi=200)
 
                         pl.clf()
@@ -2488,7 +2497,7 @@ def main():
                                           % (well, today_str,
                                              model_scenario_number,
                                              pybasin_params.fig_adj))
-                        print 'saving model-data comparison figure %s' % fn
+                        print('saving model-data comparison figure %s' % fn)
                         fig.savefig(fn, dpi=200)
                         pl.clf()
 
@@ -2502,7 +2511,7 @@ def main():
                     fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
                                       % (today_str, well_txt,
                                          n_scenarios))
-                    print 'saving model results .csv file %s' % fn
+                    print('saving model results .csv file %s' % fn)
                     model_results_df.to_csv(fn, index_label='model_scenario_number')
 
                 save_counter += 1
@@ -2581,15 +2590,12 @@ def main():
                             = T_resampled[:, sample_i]
 
                     # save AFT time-temperature paths
-                    today = datetime.datetime.now()
-                    today_str = '%i-%i-%i' % (today.day, today.month,
-                                              today.year)
                     fn = os.path.join(output_dir,
                                       'aft_sample_time_temp_%s_%s_ms%i.csv'
                                       % (well, today_str,
                                          model_scenario_number))
-                    print 'saving time-temperature paths AFT samples to %s' \
-                          % fn
+                    print('saving time-temperature paths AFT samples to %s' \
+                          % fn)
                     df_tt.to_csv(fn, index=False)
 
                     # save modeled T-t paths, all nodes
@@ -2627,12 +2633,12 @@ def main():
                                       % (well, today_str,
                                          model_scenario_number))
 
-                    print 'saving time-temperature paths AFT samples to %s' \
-                          % fn
+                    print('saving time-temperature paths AFT samples to %s' \
+                          % fn)
                     df_tt2.to_csv(fn, index_label='timestep')
 
                 model_scenario_number += 1
-            print 'done with all model scenarios'
+            print('done with all model scenarios')
 
             # saving model results to a .csv file
             if wells[0] == wells[-1]:
@@ -2642,10 +2648,10 @@ def main():
             fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i_final.csv'
                               % (today_str, well_txt,
                                  n_scenarios))
-            print 'saving model results .csv file %s' % fn
+            print('saving model results .csv file %s' % fn)
             model_results_df.to_csv(fn, index_label='model_scenario_number')
 
-    print 'done'
+    print('done')
 
 if __name__ == '__main__':
     main()
