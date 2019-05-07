@@ -225,7 +225,6 @@ def subdivide_strat_units(input_df, max_thickness):
 
 
 def add_exhumation_phases(well_strat,
-                          exhumation_phase_ids,
                           exhumation_period_starts,
                           exhumation_period_ends,
                           exhumed_strat_units,
@@ -266,10 +265,9 @@ def add_exhumation_phases(well_strat,
         return well_strat
 
     # add exhumation phases
-    for (exhumation_phase_id, exhumation_period_start, exhumation_period_end,
+    for (exhumation_period_start, exhumation_period_end,
          exhumed_strat_unit, original_thickness, exhumed_thickness) \
-            in zip(exhumation_phase_ids,
-                   exhumation_period_starts,
+            in zip(exhumation_period_starts,
                    exhumation_period_ends,
                    exhumed_strat_units,
                    original_thicknesses,
@@ -1172,7 +1170,6 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
 
 def get_geo_history(well_strat, strat_info_mod,
                     max_decompaction_error,
-                    exhumation_phase_ids,
                     exhumation_period_starts,
                     exhumation_period_ends,
                     exhumed_strat_units,
@@ -1263,7 +1260,6 @@ def get_geo_history(well_strat, strat_info_mod,
     geohist_df = \
         add_exhumation_phases(
             well_strat,
-            exhumation_phase_ids,
             exhumation_period_starts,
             exhumation_period_ends,
             exhumed_strat_units,
@@ -2006,7 +2002,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
                           Ts, surface_salinity_well, litho_props,
                           output_dir, model_scenario_number,
-                          save_csv_files=False):
+                          save_csv_files=True):
     """
     run burial and thermal history model
 
@@ -2025,7 +2021,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     geohist_df = get_geo_history(
         well_strat, strat_info_mod,
         pybasin_params.max_decompaction_error,
-        pybasin_params.exhumation_phase_ids,
         pybasin_params.exhumation_period_starts,
         pybasin_params.exhumation_period_ends,
         pybasin_params.exhumed_strat_units,

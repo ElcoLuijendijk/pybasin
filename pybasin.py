@@ -20,16 +20,15 @@ from runpy import run_path
 # flow solution a lot...)
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-import pdb
 import datetime
 import pickle
 import itertools
 import time
+import inspect
 import numpy as np
 import pandas as pd
 import scipy.stats
 import matplotlib.pyplot as pl
-import scipy.optimize as opt
 
 import lib.pybasin_lib as pybasin_lib
 import lib.pybasin_figures as pybasin_figures
@@ -48,8 +47,8 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
                                            T_nodes[-1, active_nodes[-1]])
 
     # calculate model error temperature data
-    #ind = [T_data_well['temperature_unc_1sigma'].isnull()]
-    #T_data_well['temperature_unc_1sigma'][ind] = pybasin_params.vr_unc_sigma
+    # ind = [T_data_well['temperature_unc_1sigma'].isnull()]
+    # T_data_well['temperature_unc_1sigma'][ind] = pybasin_params.vr_unc_sigma
     T_data_well['residual'] = (T_data_well['temperature']
                                - T_data_well['simulated_T'])
     T_data_well['residual_norm'] = (T_data_well['residual']
@@ -214,18 +213,17 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                     aft_data_well.loc[sample_ix, 'simulated_AFT_min']
                     >= age_bin)[0][-1]
 
-            #if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
+            # if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
             #    end_ind = 0
-            #else:
-            # np.where(0.0 >= age_bins)[0]
+            # else:
+            #    np.where(0.0 >= age_bins)[0]
             end_ind = np.where(aft_data_well.loc[sample_ix, 'simulated_AFT_max'] < age_bin)[0][0]
 
             pdf_fit_sum = np.sum(age_pdf[start_ind:end_ind])
-            pdf_nofit_sum = np.sum(age_pdf[:start_ind]) \
-                + np.sum(age_pdf[end_ind:])
+            pdf_nofit_sum = np.sum(age_pdf[:start_ind]) + np.sum(age_pdf[end_ind:])
             aft_data_well.loc[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
 
-            #if aft_data_well.loc[sample_ix, 'aft_age'] == 0 \
+            # if aft_data_well.loc[sample_ix, 'aft_age'] == 0 \
             #        and aft_data_well.loc[sample_ix, 'aft_age_stderr_plus'] == 0:
 
             #    print modeled_aft_age_samples_min[i],  modeled_aft_age_samples_max[i], pdf_fit_sum
@@ -471,20 +469,18 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     """
 
-    :return:
     """
 
-    #
-    #resample_t = pybasin_params.resample_AFT_timesteps
-    #nt_prov = pybasin_params.provenance_time_nt
-    #pybasin_params.annealing_kinetics_values,
-    #pybasin_params.annealing_kinetic_param,
+    # resample_t = pybasin_params.resample_AFT_timesteps
+    # nt_prov = pybasin_params.provenance_time_nt
+    # pybasin_params.annealing_kinetics_values,
+    # pybasin_params.annealing_kinetic_param,
 
     # pybasin_params.make_model_data_fig is True:
 
 
     if calculate_thermochron_for_all_nodes is True:
-        print('calculating FT ages and lengths for all n=%i nodes' % n_nodes)
+        print('calculating AFT ages and lengths for all n=%i nodes' % n_nodes)
         # simulate AFT all nodes
         simulated_AFT_data =\
             pybasin_lib.simulate_aft(
@@ -512,7 +508,6 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
     if n_aft_samples == 0:
         return (None, None, None, None, None, None, None, None, None,
                 simulated_AFT_data, None, None)
-
 
     # get T history for samples only
     T_samples = np.zeros((nt, n_aft_samples))
@@ -792,7 +787,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   model_results_df,
                                   T_data, vr_data_df,
                                   aft_samples, aft_ages,
-                                  ahe_samples, ahe_data, salinity_data):
+                                  ahe_samples, ahe_data, salinity_data,
+                                  save_csv_files=True):
     """
     run basin & thermal history model and compare modeled  and observed temperature, salinity,
     vitrinite reflectance, apatite fission track ages and/or apatite (U-Th)/He ages
@@ -825,7 +821,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           surface_temp, surface_salinity_well,
                                           litho_props,
                                           csv_output_dir,
-                                          model_scenario_number)
+                                          model_scenario_number,
+                                          save_csv_files=save_csv_files)
 
     if pybasin_params.simulate_salinity is False:
         [geohist_df, time_array, time_array_bp,
@@ -1315,208 +1312,89 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_df)
 
 
-def update_model_params_and_run_model(model_scenario_params,
-                                      pybasin_params,
-                                      params_to_change,
-                                      exhumation_scenarios_period,
-                                      basal_heat_flow_scenario_period,
-                                      model_results_df, model_results_df2,
-                                      well_number, well, well_strat,
-                                      well_strat_orig,
-                                      strat_info_mod,
-                                      surface_temp, surface_salinity_well,
-                                      litho_props,
-                                      csv_output_dir,
-                                      output_dir,
-                                      model_scenario_number,
-                                      return_objective_function,
-                                      calibration_target,
-                                      record_data,
-                                      param_bounds_min,
-                                      param_bounds_max,
-                                      T_data, vr_data_df,
-                                      aft_samples, aft_ages,
-                                      ahe_samples, ahe_data,
-                                      salinity_data):
+def update_model_params_and_run_model_new(model_scenario_number,
+                                          pybasin_params,
+                                          param_names, param_set,
+                                          well_number, well,
+                                          model_results_df, model_results_df2,
+                                          well_strat, well_strat_orig,
+                                          strat_info_mod,
+                                          surface_temp,
+                                          surface_salinity_well,
+                                          litho_props,
+                                          T_data, vr_data_df,
+                                          aft_samples, aft_ages,
+                                          ahe_samples, ahe_data,
+                                          salinity_data,
+                                          csv_output_dir,
+                                          output_dir,
+                                          record_data=True,
+                                          save_burial_csv_files=True):
+
     """
     update the model parameters class and run the model one time
 
-    returns either an objective function that measures the misfit of the model to observed data
-    or a tuple with the model result variables
+    new version, uses beo style parameter space / sensitivity analysis runs
 
-    :param model_scenario_params:
-    :param pybasin_params:
-    :param params_to_change:
-    :param exhumation_scenarios_period:
-    :param basal_heat_flow_scenario_period:
-    :param model_results_df:
-    :param model_results_df2:
-    :param well_number:
-    :param well:
-    :param well_strat:
-    :param well_strat_orig:
-    :param strat_info_mod:
-    :param surface_temp:
-    :param surface_salinity_well:
-    :param litho_props:
-    :param csv_output_dir:
-    :param output_dir:
-    :param model_scenario_number:
-    :param return_objective_function:
-    :param calibration_target:
-    :param record_data:
-    :param param_bounds_min:
-    :param param_bounds_max:
-    :param T_data:
-    :param vr_data_df:
-    :param aft_samples:
-    :param aft_ages:
-    :param ahe_samples:
-    :param ahe_data:
-    :param salinity_data:
-    :return:
+    returns a tuple with the model result variables
     """
+
     well_strat = well_strat_orig.copy()
 
-    (exhumation_magnitude, exhumation_start, exhumation_duration,
-     exhumation_segment_factor, exhumation_duration_factor,
-     basal_heat_flow,
-     alpha, C0, C1, C2, C3) = (None, None, None,
-                               None, None,
-                               None,
-                               None, None, None, None, None)
+    # update default parameters in pybasin_params class
+    for scenario_param_name, scenario_parameter in zip(param_names, param_set):
 
-    if pybasin_params.calibrate_model_params is True \
-            and param_bounds_min is not None and param_bounds_max is not None:
-        for i in range(len(model_scenario_params)):
-            if model_scenario_params[i] > param_bounds_max[i]:
-                model_scenario_params[i] = param_bounds_max[i]
-            if model_scenario_params[i] < param_bounds_min[i]:
-                model_scenario_params[i] = param_bounds_min[i]
+        if scenario_parameter is not None:
+            # find model parameter name to adjust
+            model_param_name = scenario_param_name[:-2]
 
-    if 'exhumation_magnitude' in params_to_change:
-        ind = params_to_change.index('exhumation_magnitude')
-        exhumation_magnitude = model_scenario_params[ind]
-    if 'exhumation_start' in params_to_change:
-        exhumation_start = \
-            model_scenario_params[params_to_change.index('exhumation_start')]
-    if 'exhumation_duration' in params_to_change:
-        exhumation_duration = \
-            model_scenario_params[params_to_change.index('exhumation_duration')]
-    if 'exhumation_segment_factor' in params_to_change:
-        exhumation_segment_factor = \
-        model_scenario_params[params_to_change.index('exhumation_segment_factor')]
-    if 'exhumation_duration_factor' in params_to_change:
-        exhumation_duration_factor = \
-        model_scenario_params[params_to_change.index('exhumation_duration_factor')]
-    if 'basal_heat_flow' in params_to_change:
-        basal_heat_flow = \
-            model_scenario_params[params_to_change.index('basal_heat_flow')]
-    if 'AFT_alpha' in params_to_change:
-        alpha = model_scenario_params[params_to_change.index('AFT_alpha')]
-    if 'AFT_C0' in params_to_change:
-        C0 = model_scenario_params[params_to_change.index('AFT_C0')]
-    if 'AFT_C1' in params_to_change:
-        C1 = model_scenario_params[params_to_change.index('AFT_C1')]
-    if 'AFT_C2' in params_to_change:
-        C2 = model_scenario_params[params_to_change.index('AFT_C2')]
-    if 'AFT_C3' in params_to_change:
-        C3 = model_scenario_params[params_to_change.index('AFT_C3')]
+            print('updating parameter %s from %s to %s' \
+                  % (model_param_name,
+                     str(getattr(pybasin_params, model_param_name)),
+                     str(scenario_parameter)))
 
-    # update parameter file with new value of exhumation
-    exhumation_phase_id = \
-        pybasin_params.exhumation_phase_ids.index(
-            exhumation_scenarios_period)
-    if exhumation_magnitude is not None:
-        pybasin_params.exhumed_thicknesses[exhumation_phase_id] = \
-            exhumation_magnitude
-        print('exhumation = %0.1f m' % exhumation_magnitude)
-    if exhumation_start is not None:
-        pybasin_params.exhumation_period_starts[exhumation_phase_id] = \
-            exhumation_start
-        print('start of exhumation = %0.2f Ma' % exhumation_start)
+            # update model parameter
+            setattr(pybasin_params, model_param_name, scenario_parameter)
 
-    # calculate exhumation duration from standard param file if it is unchanged
-    if exhumation_duration is None:
+    # check exhumation timing:
+    n_exh_phases = len(pybasin_params.exhumation_period_starts)
+
+    for exhumation_phase_id in range(n_exh_phases):
         exhumation_duration_temp = \
             pybasin_params.exhumation_period_starts[exhumation_phase_id] - \
             pybasin_params.exhumation_period_ends[exhumation_phase_id]
-    else:
-        exhumation_duration_temp = exhumation_duration
 
-    # check if exhumation duration exceeds starting age of exhumation
-    if (exhumation_duration_temp
-          >= (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-              - pybasin_params.max_hf_timestep) / 1e6):
-        exhumation_duration_temp = \
+        # check if exhumation duration exceeds starting age of exhumation
+        if (exhumation_duration_temp
+              >= (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+                  - pybasin_params.max_hf_timestep) / 1e6):
+            exhumation_duration_temp = \
+                (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+                 - (pybasin_params.max_hf_timestep * 3) / 1e6)
+
+        pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
             (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-             - (pybasin_params.max_hf_timestep * 3) / 1e6)
+             - exhumation_duration_temp)
 
-    pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
-        (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-         - exhumation_duration_temp)
-    if exhumation_duration is not None:
-        exhumation_duration = exhumation_duration_temp
+        print('adjusted duration of exhumation = %0.2f My' \
+              % exhumation_duration_temp)
 
-    print('adjusted duration of exhumation = %0.2f My' \
-          % exhumation_duration_temp)
+    # get values of all input parameters in pybasin_params class
+    attributes = inspect.getmembers(
+        pybasin_params, lambda attribute: not (inspect.isroutine(attribute)))
+    attribute_dict = [attribute for attribute in attributes
+                      if not (attribute[0].startswith('__') and
+                              attribute[0].endswith('__'))]
 
-    if exhumation_segment_factor is not None:
-        pybasin_params.exhumation_segment_factor = exhumation_segment_factor
-    if exhumation_duration_factor is not None:
-        pybasin_params.exhumation_duration_factor = exhumation_duration_factor
+    # store input parameter values in dataframe:
+    for a in attribute_dict:
+        if a[0] in model_results_df.columns:
+            if type(a[1]) is list or type(a[1]) is np.ndarray:
+                model_results_df.loc[model_scenario_number, a[0]] = str(a[1])
+            else:
+                model_results_df.loc[model_scenario_number, a[0]] = a[1]
 
-    # adjust entire heat flow history
-    if basal_heat_flow is not None:
-        if type(basal_heat_flow_scenario_period) == list:
-            pybasin_params.heatflow_history[basal_heat_flow_scenario_period] \
-                = basal_heat_flow
-        elif basal_heat_flow_scenario_period == 'all':
-            pybasin_params.heatflow_history[:] = basal_heat_flow
-            print('constant basal heat flow = %0.2e' % basal_heat_flow)
-        elif basal_heat_flow_scenario_period == 'last':
-            pybasin_params.heatflow_history[-1] = basal_heat_flow
-        elif basal_heat_flow_scenario_period == 'first':
-            pybasin_params.heatflow_history[0] = basal_heat_flow
-
-    print('basal heat flow history:')
-    for a, b in zip(pybasin_params.heatflow_ages,
-                    pybasin_params.heatflow_history):
-        print('%0.2f Ma: %0.3e W/m2' % (a, b))
-
-    if alpha is not None:
-        pybasin_params.alpha = alpha
-    if C0 is not None:
-        pybasin_params.C0 = C0
-    if C1 is not None:
-        pybasin_params.C1 = C1
-    if C2 is not None:
-        pybasin_params.C2 = C2
-    if C3 is not None:
-        pybasin_params.C3 = C3
-
-    if record_data is True:
-        # record scenario params in dataframe:
-        model_results_df.ix[model_scenario_number, 'exhumation_magnitude'] = \
-            pybasin_params.exhumed_thicknesses[exhumation_phase_id]
-        model_results_df.ix[model_scenario_number, 'exhumation_start'] = \
-            pybasin_params.exhumation_period_starts[exhumation_phase_id]
-        model_results_df.ix[model_scenario_number, 'exhumation_duration'] = \
-            (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-             - pybasin_params.exhumation_period_ends[exhumation_phase_id])
-        model_results_df.ix[model_scenario_number, 'exhumation_segment_factor'] = \
-            pybasin_params.exhumation_segment_factor
-        model_results_df.ix[model_scenario_number, 'exhumation_duration_factor'] = \
-            pybasin_params.exhumation_duration_factor
-        model_results_df.ix[model_scenario_number, 'basal_heat_flow'] = \
-            pybasin_params.heatflow_history[0]
-
-        model_results_df.ix[model_scenario_number, 'AFT_eq_alpha'] = alpha
-        model_results_df.ix[model_scenario_number, 'AFT_eq_C0'] = C0
-        model_results_df.ix[model_scenario_number, 'AFT_eq_C1'] = C1
-        model_results_df.ix[model_scenario_number, 'AFT_eq_C2'] = C2
-        model_results_df.ix[model_scenario_number, 'AFT_eq_C3'] = C3
-
+    # run model:
     (model_run_data,
      T_model_data, T_gof,
      C_data,
@@ -1535,7 +1413,8 @@ def update_model_params_and_run_model(model_scenario_params,
                                       T_data, vr_data_df,
                                       aft_samples, aft_ages,
                                       ahe_samples, ahe_data,
-                                      salinity_data)
+                                      salinity_data,
+                                      save_csv_files=save_burial_csv_files)
 
     if record_data is True:
         # store gof in model results dataframe
@@ -1554,7 +1433,7 @@ def update_model_params_and_run_model(model_scenario_params,
             model_results_df.ix[model_scenario_number, 'ahe_error'] = \
                 ahe_age_error
 
-        # calculate cumlative salt loss due to diffusion
+        # calculate cumulative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
             (C_nodes, surface_salinity_array, salinity_lwr_bnd,
              salinity_well_depth,
@@ -1581,12 +1460,6 @@ def update_model_params_and_run_model(model_scenario_params,
                                  'cumalative_solute_flux_bottom_kg_m-2'] = \
                 np.sum(total_solute_flux_bottom)
 
-    if return_objective_function is True:
-        # save calibration step input & results:
-        pass
-
-    #model_results_df2
-
     # restore well strat file to original
     well_strat = well_strat_orig.copy()
 
@@ -1603,70 +1476,40 @@ def update_model_params_and_run_model(model_scenario_params,
         print('AHe age error = %0.2f' % ahe_age_error)
     print('')
 
-    if return_objective_function is True:
-        objective_function = 0
-
-        if 'AFT_age' in calibration_target and np.isnan(aft_age_error) == False:
-            objective_function += aft_age_error
-        if 'AHe' in calibration_target and np.isnan(ahe_age_error) == False:
-            objective_function += ahe_age_error
-
-        print('objective function = %0.2f\n' % objective_function)
-
-        if np.isnan(objective_function) == True:
-            msg = 'error, nan objective function'
-            raise ValueError(msg)
-
-        # save model results for each calibration run to dataframe
-        # disabled for now, generates error when combined with
-        # aft_benchmarks.py script
-        save_obj_func_df = False
-        if save_obj_func_df is True:
-            #model_results_df2.cols = model_results_df.cols
-            ind = model_results_df2.index.max() + 1
-            for col in model_results_df.columns:
-                model_results_df2.loc[ind, col] = \
-                    model_results_df.ix[model_scenario_number, col]
-
-            model_results_df2.loc[ind, 'objective_function'] = objective_function
-
-            fnw = '%s_calibration_results.csv' % well
-            fn = os.path.join(output_dir, fnw)
-            model_results_df2.to_csv(fn)
-
-        return objective_function
-
-    else:
-
-        return (model_run_data,
-                T_model_data, T_gof,
-                C_data,
-                vr_gof, VR_model_data,
-                aft_age_gof, aft_age_error, AFT_data,
-                ahe_age_gof, ahe_age_error,
-                AHe_model_data)
+    return (model_run_data,
+            T_model_data, T_gof,
+            C_data,
+            vr_gof, VR_model_data,
+            aft_age_gof, aft_age_error, AFT_data,
+            ahe_age_gof, ahe_age_error,
+            AHe_model_data)
 
 
 def read_model_input_data(input_dir, pybasin_params):
 
+    """
+    Read all model input data .csv files using Pandas
+
+    """
+
     # read all input data
     print('reading input data')
     # stratigraphy description
-    strat_info = pd.read_csv(os.path.join(input_dir, 'stratigraphy_info.csv'))
+    strat_info = pd.read_csv(os.path.join(input_dir, 'stratigraphy_info.csv'), skip_blank_lines=True)
     strat_info = strat_info.set_index('strat_unit')
 
     # well stratigraphy
-    well_strats = pd.read_csv(os.path.join(input_dir, 'well_stratigraphy.csv'))
+    well_strats = pd.read_csv(os.path.join(input_dir, 'well_stratigraphy.csv'), skip_blank_lines=True)
 
     # surface temperature history
     surface_temp = pd.read_csv(os.path.join(input_dir,
-                                            'surface_temperature.csv'))
+                                            'surface_temperature.csv'), skip_blank_lines=True)
 
     #
     if pybasin_params.simulate_salinity is True:
         #df_sal = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
         df_sal_inp = pd.read_csv(os.path.join(input_dir,
-                                           'surface_salinity.csv'))
+                                           'surface_salinity.csv'), skip_blank_lines=True)
         df_sal_inp = df_sal_inp.set_index('well')
         df_sal = df_sal_inp.transpose()
         df_sal['age_start'] = pd.to_numeric(df_sal['age_start'])
@@ -1676,31 +1519,25 @@ def read_model_input_data(input_dir, pybasin_params):
 
     # lithology properties
     litho_props = pd.read_csv(os.path.join(input_dir,
-                                           'lithology_properties.csv'))
+                                           'lithology_properties.csv'), skip_blank_lines=True)
     litho_props = litho_props.set_index('lithology')
 
     # present-day temperature data
-    T_data_df = pd.read_csv(os.path.join(input_dir, 'temperature_data.csv'))
+    T_data_df = pd.read_csv(os.path.join(input_dir, 'temperature_data.csv'), skip_blank_lines=True)
 
     if pybasin_params.simulate_VR is True:
         # vitrinite reflectance data
         vr_data_df = pd.read_csv(os.path.join(input_dir,
-                                              'vitrinite_reflectance.csv'))
+                                              'vitrinite_reflectance.csv'), skip_blank_lines=True)
     else:
         vr_data_df = None
 
     # fission track data
     if pybasin_params.simulate_AFT is True:
-        aft_samples_raw = pd.read_csv(os.path.join(input_dir,
-                                                   'aft_samples.csv'))
-
-        # filter out samples with low grain count
-        ind = ((aft_samples_raw['n_grains'] > pybasin_params.min_grain_no)
-               | (aft_samples_raw['n_grains'].isnull()))
-        aft_samples = aft_samples_raw[ind]
+        aft_samples = pd.read_csv(os.path.join(input_dir, 'aft_samples.csv'), skip_blank_lines=True)
 
         # load AFT age data
-        aft_ages = pd.read_csv(os.path.join(input_dir, 'aft_data.csv'))
+        aft_ages = pd.read_csv(os.path.join(input_dir, 'aft_data.csv'), skip_blank_lines=True)
     else:
         aft_samples = None
         aft_ages = None
@@ -1710,7 +1547,7 @@ def read_model_input_data(input_dir, pybasin_params):
         ahe_data_fn = os.path.join(input_dir, 'ahe_data.csv')
         if os.path.exists(ahe_sample_fn):
             # read apatite U-Th/He (AHe) data
-            ahe_samples = pd.read_csv(ahe_sample_fn)
+            ahe_samples = pd.read_csv(ahe_sample_fn, skip_blank_lines=True)
         else:
             print('warning, could not find input file %s ' % ahe_sample_fn)
             print('continuing without AHe sample data')
@@ -1718,7 +1555,7 @@ def read_model_input_data(input_dir, pybasin_params):
 
         if os.path.exists(ahe_data_fn):
             # read apatite U-Th/He (AHe) data
-            ahe_data = pd.read_csv(ahe_data_fn)
+            ahe_data = pd.read_csv(ahe_data_fn, skip_blank_lines=True)
         else:
             print('warning, could not find input file %s ' % ahe_data_fn)
             print('continuing without AHe age data')
@@ -1733,7 +1570,7 @@ def read_model_input_data(input_dir, pybasin_params):
         #Cs = pd.read_csv(os.path.join(input_dir, 'surface_salinity.csv'))
 
         # and read salinity data
-        salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'))
+        salinity_data = pd.read_csv(os.path.join(input_dir, 'salinity_data.csv'), skip_blank_lines=True)
 
     else:
         salinity_data = None
@@ -1789,10 +1626,8 @@ def read_model_input_data(input_dir, pybasin_params):
 def select_well_strat(well, well_strats):
 
     """
+    find the stratigraphy for a particular well
 
-    :param well:
-    :param well_strats:
-    :return:
     """
 
     well_strat = well_strats[well_strats['well'] == well]
@@ -1824,51 +1659,46 @@ def select_well_salinity_bnd(well, salinity_bnd_df):
     return surface_salinity_well
 
 
-def setup_model_scenarios(model_scenarios, correct_exhumation_duration):
+def setup_model_scenarios_new(ParameterRanges):
+
+    """
+    New function to generate parameter lists, borrowed from Beo
 
     """
 
-    :param model_scenarios:
-    :return:
-    """
+    pr = ParameterRanges
 
-    # record names of parameters
-    params_to_change = ['exhumation_magnitude', 'exhumation_start',
-                        'exhumation_duration',
-                        'exhumation_segment_factor', 'exhumation_duration_factor',
-                        'basal_heat_flow',
-                        'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha']
 
-    # construct list with exhumation and heatflow estimates
-    model_scenario_param_list_raw = \
-        list(itertools.product(model_scenarios.exhumation_magnitudes,
-                               model_scenarios.exhumation_starts,
-                               model_scenarios.exhumation_durations,
-                               model_scenarios.exhumation_segment_factors,
-                               model_scenarios.exhumation_duration_factors,
-                               model_scenarios.basal_heat_flow_scenarios,
-                               model_scenarios.AFT_C0,
-                               model_scenarios.AFT_C1,
-                               model_scenarios.AFT_C2,
-                               model_scenarios.AFT_C3,
-                               model_scenarios.AFT_alpha))
+    # create list with param values for each model run
+    scenario_param_names_raw = dir(pr)
+    scenario_param_names = [m for m in scenario_param_names_raw
+                            if '__' not in m and '_s' in m]
 
-    # go through param list to weed out scenarios with exhumation end < 0 Ma
-    model_scenario_param_list = []
-    for i, model_params in enumerate(model_scenario_param_list_raw):
-        if model_params[2] is not None and model_params[1] is not None:
-            if model_params[2] <= model_params[1]:
-                model_scenario_param_list.append(model_params)
-            elif correct_exhumation_duration is True:
-                model_params_l = list(model_params)
-                model_params_l[2] = model_params_l[1]
-                model_scenario_param_list.append(model_params_l)
-            else:
-                pass
-        else:
-            model_scenario_param_list.append(model_params)
+    scenario_parameter_list = [getattr(pr, p)
+                               for p in scenario_param_names]
 
-    return model_scenario_param_list, params_to_change
+    # construct list with all parameter combinations
+    if pr.parameter_combinations is True:
+        scenario_parameter_combinations = \
+            list(itertools.product(*scenario_parameter_list))
+    else:
+        nscens = np.sum(np.array([len(sp) for sp in scenario_parameter_list
+                                  if sp is not None]))
+        nparams = len(scenario_parameter_list)
+        scenario_parameter_combinations = []
+
+        if pr.initial_base_run is True:
+            scenario_parameter_combinations.append([None] * nparams)
+
+        for j, sl in enumerate(scenario_parameter_list):
+            if sl[0] is not None:
+                sc = [None] * nparams
+                for sli in sl:
+                    sci = list(sc)
+                    sci[j] = sli
+                    scenario_parameter_combinations.append(sci)
+
+    return scenario_param_names, scenario_parameter_combinations
 
 
 def setup_model_output_df(n_scenarios):
@@ -1933,20 +1763,21 @@ def main():
 
     param_module = imp.load_source('pybasin_params', mpath)
 
-    pybasin_params = param_module.pybasin_params
-    model_scenarios = param_module.model_scenarios
+    Parameters = param_module.ModelParameters
+    #model_scenarios = param_module.model_scenarios
+    ParameterRanges = param_module.ParameterRanges
 
     year = 365.25 * 24.0 * 60 * 60.
 
     input_dir = model_input_subfolder
-    output_dir = pybasin_params.output_dir
-    datafile_output_dir = pybasin_params.datafile_output_dir
+    output_dir = Parameters.output_dir
+    datafile_output_dir = Parameters.datafile_output_dir
 
     if os.path.exists(output_dir) is False:
         os.mkdir(output_dir)
 
     #pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
-    if (pybasin_params.save_model_run_data is True
+    if (Parameters.save_model_run_data is True
             and os.path.exists(datafile_output_dir) is False):
         print('creating directory %s to store model result datafiles' \
             % datafile_output_dir)
@@ -1958,7 +1789,7 @@ def main():
             % csv_output_dir)
         os.mkdir(csv_output_dir)
 
-    fig_output_dir = os.path.join(output_dir, 'model_data_fig')
+    fig_output_dir = output_dir
     if os.path.exists(fig_output_dir) is False:
         print('creating directory %s to store model-data comparison figures' \
             % fig_output_dir)
@@ -1972,30 +1803,45 @@ def main():
      aft_samples, aft_ages,
      ahe_samples, ahe_data,
      salinity_data, surface_temp, litho_props) \
-        = read_model_input_data(input_dir, pybasin_params)
+        = read_model_input_data(input_dir, Parameters)
 
-    model_scenario_param_list, params_to_change = setup_model_scenarios(model_scenarios,
-                                                      pybasin_params.correct_exhumation_duration)
+    #model_scenario_param_list, params_to_change = setup_model_scenarios(model_scenarios,
+    #                                                  pybasin_params.correct_exhumation_duration)
+
+    model_scenario_param_names, model_scenario_param_list = setup_model_scenarios_new(ParameterRanges)
 
     # check sys arguments to run a particular well
     if args.wells is not None:
         wells_str = args.wells
         wells = wells_str.split(",")
     else:
-        wells = model_scenarios.wells
-        
-    # option to run all wells found in wells_stratigraphy.csv input file
-    if 'all' in wells:
-        wells = np.unique(well_strats['well']).tolist()
-        if model_scenarios.start_well is not None:
-            ind = wells.index(model_scenarios.start_well)
-            wells = wells[ind:]
+        wells = Parameters.wells
 
     print('running the following wells: ', wells)
 
     n_scenarios = len(wells) * len(model_scenario_param_list)
 
-    model_results_df, model_results_df2 = setup_model_output_df(n_scenarios)
+    # get attributes
+    params = inspect.getmembers(
+        Parameters, lambda attribute: not (inspect.isroutine(attribute)))
+    param_names = [attribute[0] for attribute in params
+                       if not (attribute[0].startswith('__') and
+                               attribute[0].endswith('__'))]
+
+    #model_results_df, model_results_df2 = setup_model_output_df(n_scenarios)
+    columns = ['model_run', 'model_error', 'well', 'computational_time'] + param_names
+    columns += ['well',
+                'T_gof', 'vr_gof', 'aft_age_gof', 'aft_age_error',
+                'ahe_gof', 'ahe_error', 'mean_gof',
+                'resetting_depth_model_min',
+                'resetting_depth_model_max',
+                'resetting_depth_data_min',
+                'non-resetting_depth_data_max']
+
+    # set up dataframe to store model results
+    index = np.arange(n_scenarios)
+    model_results_df = pd.DataFrame(index=index, columns=columns)
+    model_results_df2 = pd.DataFrame(columns=columns, index=[1])
 
     model_scenario_number = 0
 
@@ -2016,8 +1862,8 @@ def main():
         well_strat, well_strat_orig = select_well_strat(well, well_strats)
 
         # read well specific surface salinity bnd condition
-        if (pybasin_params.simulate_salinity is True
-                and pybasin_params.well_specific_surface_salinity_bnd is True):
+        if (Parameters.simulate_salinity is True
+                and Parameters.well_specific_surface_salinity_bnd is True):
 
             surface_salinity_well = select_well_salinity_bnd(well, salinity_bnd_df)
             #else:
@@ -2027,175 +1873,129 @@ def main():
         else:
             surface_salinity_well = None
 
-        if pybasin_params.load_initial_params is True:
+        # estimate max number of nodes
+        well_strat['thickness'] = well_strat['depth_bottom'] - well_strat['depth_top']
+        well_strat['n_nodes_est'] = np.ceil(well_strat['thickness'] / Parameters.max_thickness)
+        # buffer of 20000 m for number of nodes to be safe
+        n_nodes_est = int(np.sum(well_strat['n_nodes_est']) + 2e4 / Parameters.max_thickness)
 
-            # load parameter file. assumes there is only one row for each well
-            fn = os.path.join(input_dir, pybasin_params.initial_params_file)
-            df_init = pd.read_csv(fn)
+        dfc = pd.DataFrame(columns=['well'],
+                           index=np.arange(n_nodes_est))
+        dfc['well'] = well
 
-            if well not in df_init['well']:
-                msg = 'error, well %s not in initial parameter file %s' \
-                      % (well, pybasin_params.initial_params_file)
-                raise IndexError(msg)
+        if Parameters.simulate_salinity is True:
+            n_ts_est = int(strat_info_mod['age_bottom'].max() * 1e6 / Parameters.max_hf_timestep * 3)
+            dfqs = pd.DataFrame(columns=['well'],
+                                index=np.arange(n_ts_est))
+            dfqs['well'] = well
 
-            ind = df_init['well'] == well
-            df_init_well = df_init.loc[ind]
+        save_counter = 0
 
-            # copy initial parameters from best model run
-            max_ind = df_init_well.index[0]
+        # determine interval for saving output to csv file
+        save_counter_interval = Parameters.csv_save_interval
 
-            print('using initial parameters from best gof run:', \
-                    df_init_well.loc[max_ind])
+        # go through model scenarios specified in the model_scenarios.py file:
+        for well_scenario_no, model_scenario_params \
+                in enumerate(model_scenario_param_list):
 
-            model_scenario_params = []
+            print('-' * 10)
+            print('model scenario %i / %i' % (model_scenario_number,
+                                              len(model_scenario_param_list)))
 
-            print('initial model params')
-            print(model_scenario_param_list)
+            # estimate total runtime and time left
+            if (model_scenario_number / 250 == model_scenario_number / 250.0
+                    and model_scenario_number > 0):
 
-            for param_change in params_to_change:
-                if param_change in df_init_well.columns:
-                    model_scenario_params.append(
-                        df_init_well.loc[max_ind, param_change])
-                else:
-                    model_scenario_params.append(None)
-            model_scenario_param_list = [model_scenario_params]
+                now = time.time()
+                time_passed = (now - start_time)
+                time_per_scenario = time_passed / model_scenario_number
+                time_left = \
+                    (n_scenarios - model_scenario_number) * time_per_scenario
 
-            print('model params after reading from list:')
-            print(model_scenario_param_list)
+                tekst = 'model scenario %i / %i\n' % (model_scenario_number,
+                                                      n_scenarios)
+                tekst += 'time passed = %s\n' \
+                         % datetime.timedelta(seconds=time_passed)
+                tekst += 'time left = %s\n' \
+                         % datetime.timedelta(seconds=time_left)
+                tekst += 'time per scenario = %s\n' \
+                         % datetime.timedelta(seconds=time_per_scenario)
 
-        if pybasin_params.calibrate_model_params is True:
+                print(tekst)
 
-            return_objective_function = True
+                print('writing estimated runtime to runtime.txt')
+
+                fout = open('runtime_%s.txt' % well, 'w')
+                fout.write(tekst)
+                fout.close()
+
+            # restore original well strat dataframe
+            well_strat = well_strat_orig.copy()
+            return_objective_function = False
             record_data = True
 
-            if pybasin_params.load_initial_params is True:
-
-                fn = os.path.join(input_dir, pybasin_params.initial_params_file)
-                df_init = pd.read_csv(fn)
-                ind = df_init['well'] == well
-                df_init_well = df_init.loc[ind]
-
-                # find best model run for current calibration targets
-                for i, cal_target in enumerate(pybasin_params.calibration_target):
-
-                    if 'AHe' in cal_target:
-                        obj_col = 'ahe_gof'
-                    elif 'AFT' in cal_target:
-                        obj_col = 'aft_age_gof'
-                    elif cal_target == 'T':
-                        obj_col = 'T_gof'
-                    elif cal_target == 'vr':
-                        obj_col = 'vr_gof'
-
-                    if i == 0:
-                        df_init_well['obj_function'] = df_init_well[obj_col]
-                    else:
-                        ind = (df_init_well[obj_col] < df_init_well['obj_function']) \
-                              & (df_init_well[obj_col].isnull() == False) \
-                              | (df_init_well['obj_function'].isnull())
-                        if True in ind.values:
-                            df_init_well.loc[ind, 'obj_function'] = \
-                                df_init_well.loc[ind, obj_col]
-
-                # copy initial parameters from best model run
-                max_ind = np.argmax(df_init_well['obj_function'])
-
-                print('using initial parameters from best gof run:', \
-                        df_init_well.loc[max_ind])
-
-                model_scenario_params = []
-
-                for param_change in pybasin_params.params_to_change:
-                    model_scenario_params.append(
-                        df_init_well.loc[max_ind, param_change])
-
-            else:
-                # get initial param values from pybasin_params.py file
-                model_scenario_params = pybasin_params.start_param_values
-
-            args = (pybasin_params,
-                    pybasin_params.params_to_change,
-                    model_scenarios.exhumation_scenarios_period,
-                    model_scenarios.basal_heat_flow_scenario_period,
-                    model_results_df, model_results_df2,
-                    well_number, well, well_strat.copy(), well_strat_orig,
-                    strat_info_mod,
-                    surface_temp, surface_salinity_well,
-                    litho_props,
-                    csv_output_dir,
-                    output_dir,
-                    model_scenario_number,
-                    return_objective_function,
-                    pybasin_params.calibration_target,
-                    record_data,
-                    pybasin_params.param_bounds_min,
-                    pybasin_params.param_bounds_max,
-                    T_data_df, vr_data_df,
-                    aft_samples, aft_ages,
-                    ahe_samples, ahe_data, salinity_data)
-
-            # calibrate model parameters using the scipy.optimize module:
-            if (pybasin_params.opt_method == 'L-BFGS-B'
-                    or pybasin_params.opt_method == 'TNC'
-                    or pybasin_params.opt_method == 'SLSQP'):
-
-                # constrained calibration
-                bounds = [(minval, maxval) for minval, maxval
-                          in zip(pybasin_params.param_bounds_min,
-                                 pybasin_params.param_bounds_max)]
-                opt_results = opt.minimize(update_model_params_and_run_model,
-                                           model_scenario_params,
-                                           args=args,
-                                           method=pybasin_params.opt_method,
-                                           bounds=bounds)
-
-            else:
-                # unconstrained calibration
-                opt_results = opt.minimize(update_model_params_and_run_model,
-                                           model_scenario_params,
-                                           args=args,
-                                           method=pybasin_params.opt_method)
-
-            print('final optimized parameter values:')
-            print(pybasin_params.params_to_change)
-            print(opt_results.x)
-
-            # copy calibrated parameter values
-            model_scenario_params = opt_results.x
-
-            # run the model once more with final param values
             (model_run_data,
              T_model_data, T_gof,
              C_data,
              vr_gof, VR_model_data,
              aft_age_gof, aft_age_error, AFT_data,
              ahe_age_gof, ahe_age_error,
-             AHe_model_data) = update_model_params_and_run_model(
-                 model_scenario_params,
-                 pybasin_params,
-                 pybasin_params.params_to_change,
-                 model_scenarios.exhumation_scenarios_period,
-                 model_scenarios.basal_heat_flow_scenario_period,
-                 model_results_df,
-                 model_results_df2,
-                 well_number, well, well_strat, well_strat_orig,
-                 strat_info_mod,
-                 surface_temp, surface_salinity_well,
-                 litho_props,
-                 csv_output_dir,
-                 output_dir,
-                 model_scenario_number,
-                 False,
-                 pybasin_params.calibration_target,
-                 record_data,
-                 pybasin_params.param_bounds_min,
-                 pybasin_params.param_bounds_max,
-                 T_data_df, vr_data_df,
-                 aft_samples, aft_ages,
-                 ahe_samples, ahe_data,
-                 salinity_data)
+             AHe_model_data) = update_model_params_and_run_model_new(
+                model_scenario_number,
+                Parameters,
+                model_scenario_param_names, model_scenario_params,
+                well_number, well,
+                model_results_df, model_results_df2,
+                well_strat, well_strat_orig,
+                strat_info_mod,
+                surface_temp,
+                surface_salinity_well,
+                litho_props,
+                T_data_df, vr_data_df,
+                aft_samples, aft_ages,
+                ahe_samples, ahe_data,
+                salinity_data,
+                csv_output_dir,
+                output_dir)
 
-            model_run_data_fig = model_run_data
+
+                #model_scenario_params, pybasin_params,
+                #params_to_change,
+                #model_scenarios.exhumation_scenarios_period,
+                #model_scenarios.basal_heat_flow_scenario_period,
+                #model_results_df,
+                #model_results_df2,
+                #well_number, well, well_strat, well_strat_orig,
+                #strat_info_mod,
+                #surface_temp, surface_salinity_well,
+                #litho_props,
+                #csv_output_dir,
+                #output_dir,
+                #model_scenario_number,
+                #return_objective_function,
+                #pybasin_params.calibration_target,
+                #record_data,
+                #pybasin_params.param_bounds_min,
+                #pybasin_params.param_bounds_max,
+                #T_data_df, vr_data_df,
+                #aft_samples, aft_ages,
+                #ahe_samples, ahe_data,
+                #salinity_data)
+
+            # model_scenario_params, params_to_change,
+
+            # calculate mean goodness of fit of temperature, vitrinite
+            # and aft age data
+            # TODO: add salinity data...
+
+            # save model run data to .pck file
+            #model_run_data = [
+            #    time_array_bp,
+            #    surface_temp_array, basal_hf_array,
+            #    z_nodes, active_nodes, T_nodes,
+            #    node_strat, node_age]
+
+            model_run_data_fig = list(model_run_data)
 
             model_run_data_fig.append(T_model_data)
             model_run_data_fig.append(C_data)
@@ -2206,19 +2006,121 @@ def main():
             today = datetime.datetime.now()
             today_str = '%i-%i-%i' % (today.day, today.month, today.year)
 
+            # save salinity and T data
+            (time_array_bp,
+             surface_temp_array, basal_hf_array,
+             z_nodes, active_nodes, T_nodes,
+             node_strat, node_age) = model_run_data
+
+            #l = len(z_nodes[-1, active_nodes[-1]]) - 1
+            #dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
+            #    z_nodes[-1, active_nodes[-1]]
+            #dfc['depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
+
+            #dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
+            #    T_nodes[-1, active_nodes[-1]]
+
+            if Parameters.simulate_salinity is True:
+                (C_nodes, surface_salinity_array, salinity_lwr_bnd,
+                 salinity_well_depth,
+                 salinity_well,
+                 salinity_well_sigma,
+                 salinity_rmse,
+                 q_solute_bottom, q_solute_top) = C_data
+                dfc.loc[:l, 'salinity_s%i' % model_scenario_number] = \
+                    C_nodes[-1, active_nodes[-1]]
+
+                # save solute flux data
+                columns= ['solute_flux_top_kg_m-2_s-1',
+                          'solute_flux_bottom_kg_m-2_s-1']
+
+                lqs = len(time_array_bp) - 1
+
+                dfqs.loc[:lqs, 'solute_flux_top_kg_m-2_s-1_s%i'
+                         % model_scenario_number] = q_solute_top
+                dfqs.loc[:lqs, 'solute_flux_bottom_kg_m-2_s-1_s%i'
+                         % model_scenario_number] = q_solute_bottom
+                dfqs.loc[:lqs, 'time_yr_s%i' % model_scenario_number] = \
+                    time_array_bp
+                fn = os.path.join(fig_output_dir,
+                                  'solute_flux_data_%s_%s_ms%i.csv'
+                                  % (well, today_str, n_scenarios))
+                print('saving solute flux data to %s' % fn)
+                dfqs.to_csv(fn, index=False)
+
+            if Parameters.simulate_VR is True and Parameters.save_model_run_data is True:
+                [vr_nodes,
+                 vr_depth,
+                 vr_obs,
+                 vr_min,
+                 vr_max,
+                 vr_obs_sigma,
+                 vr_GOF] = VR_model_data
+
+                nn = len(z_nodes[-1, active_nodes[-1]])
+                ind_nn = dfc.index[:nn]
+
+                dfc.loc[ind_nn, 'depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
+                dfc.loc[ind_nn, 'T_s%i' % model_scenario_number] = T_nodes[-1, active_nodes[-1]]
+                dfc.loc[ind_nn, 'VR_s%i' % model_scenario_number] = vr_nodes[-1, active_nodes[-1]]
+
+                #if pybasin_params.simulate_AFT is True:
+                #    simulated_AFT_data = AFT_data[0]
+                #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+                #     aft_ln_mean_nodes, aft_ln_std_nodes,
+                #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
+
+                    #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
+                #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
+                #dfc.loc[:l, 'AFT_depth_s%i' % model_scenario_number] = \
+                #    z_nodes[-1, active_nodes[-1]]
+                #dfc.loc[:l, 'AFT_age_min_s%i' % model_scenario_number] = \
+                #    aft_age_nodes_min
+                #dfc.loc[:l, 'AFT_age_max_s%i' % model_scenario_number] = \
+                #    aft_age_nodes_max
+
+                # save depth vs T and salinity data
+                fn = os.path.join(fig_output_dir,
+                                  'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
+                                  % (well, today_str, n_scenarios))
+                print('saving depth, temperature and VR data to %s' % fn)
+                dfc.to_csv(fn, index=False)
+
+
             #############################
             # make a model vs data figure
             #############################
-            if pybasin_params.make_model_data_fig is True:
+            if Parameters.save_model_run_data is True:
+
+                fn = os.path.join(output_dir,
+                              'model_data_%s_%s_ms%i.pck'
+                              % (well, today_str,
+                                 model_scenario_number))
+                print('saving figure data for model run as %s' % fn)
+                fout = open(fn, 'wb')
+                pickle.dump(model_run_data_fig, fout)
+                fout.close()
+
+            if Parameters.make_model_data_fig is True:
                 fig = pybasin_figures.model_vs_data_figure(
                     model_run_data_fig,
-                    contour_variable=pybasin_params.contour_variable,
-                    show_strat_column=pybasin_params.show_strat_column,
-                    show_thermochron_data=pybasin_params.show_thermochron_data)
+                    contour_variable=Parameters.contour_variable,
+                    show_strat_column=Parameters.show_strat_column,
+                    show_thermochron_data=
+                    Parameters.show_thermochron_data)
             #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
-                if type(pybasin_params.fig_adj) is list:
-                    for fa in pybasin_params.fig_adj:
+                #fn = os.path.join(fig_output_dir,
+                #                  'model_data_fig_%s_%s_ms%i.%s'
+                #                  % (well, today_str,
+                #                     model_scenario_number,
+                #                     pybasin_params.fig_adj))
+                #print 'saving model-data comparison figure %s' % fn
+                #fig.savefig(fn, dpi=200)
+                #pl.clf()
+
+                if type(Parameters.fig_adj) is list:
+                    for fa in Parameters.fig_adj:
                         fn = os.path.join(fig_output_dir,
                                       'model_data_fig_%s_%s_ms%i.%s'
                                       % (well, today_str,
@@ -2233,423 +2135,159 @@ def main():
                                       'model_data_fig_%s_%s_ms%i.%s'
                                       % (well, today_str,
                                          model_scenario_number,
-                                         pybasin_params.fig_adj))
+                                         Parameters.fig_adj))
                     print('saving model-data comparison figure %s' % fn)
                     fig.savefig(fn, dpi=200)
                     pl.clf()
 
             # save model results .csv file
-            if wells[0] == wells[-1]:
-                well_txt = wells[0]
-            else:
-                well_txt = '%s-%s' % (wells[0], wells[-1])
+            if save_counter == 0 or save_counter >= save_counter_interval:
 
-            fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
-                              % (today_str, well_txt,
-                                 n_scenarios))
-            print('saving model results .csv file %s' % fn)
-            model_results_df.to_csv(fn, index_label='model_scenario_number')
+                if wells[0] == wells[-1]:
+                    well_txt = wells[0]
+                else:
+                    well_txt = '%s-%s' % (wells[0], wells[-1])
+                fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
+                                  % (today_str, well_txt,
+                                     n_scenarios))
+                print('saving model results .csv file %s' % fn)
+                model_results_df.to_csv(fn, index_label='model_scenario_number')
 
-        else:
+            save_counter += 1
 
-            # estimate max number of nodes
-            well_strat['thickness'] = well_strat['depth_bottom'] - well_strat['depth_top']
-            well_strat['n_nodes_est'] = np.ceil(well_strat['thickness'] / pybasin_params.max_thickness)
-            # buffer of 20000 m for number of nodes to be safe
-            n_nodes_est = int(np.sum(well_strat['n_nodes_est']) + 2e4 / pybasin_params.max_thickness)
+            if save_counter >= save_counter_interval:
+                save_counter = 0
 
-            dfc = pd.DataFrame(columns=['well'],
-                               index=np.arange(n_nodes_est))
-            dfc['well'] = well
+            if Parameters.save_model_run_data is True:
+                # TODO save T-t paths if no aft is modeled....
+                pass
 
-            if pybasin_params.simulate_salinity is True:
-                n_ts_est = int(strat_info_mod['age_bottom'].max() * 1e6 / pybasin_params.max_hf_timestep * 3)
-                dfqs = pd.DataFrame(columns=['well'],
-                                    index=np.arange(n_ts_est))
-                dfqs['well'] = well
+            if (Parameters.save_model_run_data is True
+                    and Parameters.simulate_AFT is True):
 
-            save_counter = 0
+                [simulated_AFT_data,
+                 aft_sample,
+                 aft_age_depth,
+                 aft_age,
+                 aft_age_stderr_min,
+                 aft_age_stderr_plus,
+                 aft_length_mean,
+                 aft_length_std,
+                 aft_data_type,
+                 aft_age_samples,
+                 single_grain_aft_ages,
+                 single_grain_aft_ages_se_min,
+                 single_grain_aft_ages_se_plus,
+                 aft_age_bins,
+                 aft_age_pdfs,
+                 aft_age_GOF,
+                 aft_age_error,
+                 aft_sample_times,
+                 aft_sample_temps,
+                 time_array_bp,
+                 z_aft_samples, T_samples] = AFT_data
 
-            # determine interval for saving output to csv file
-            save_counter_interval = pybasin_params.csv_save_interval
+                # find max number of timesteps for AFT history
 
-            # go through model scenarios specified in the model_scenarios.py file:
-            for well_scenario_no, model_scenario_params \
-                    in enumerate(model_scenario_param_list):
+                time_resampled = \
+                    time_array_bp[::Parameters.resample_AFT_timesteps]
+                z_resampled = \
+                    z_aft_samples[::Parameters.resample_AFT_timesteps]
+                T_resampled = \
+                    T_samples[::Parameters.resample_AFT_timesteps]
+                active_nodes_resampled = \
+                    active_nodes[::Parameters.resample_AFT_timesteps]
 
-                print('-' * 10)
-                print('model scenario %i / %i' % (model_scenario_number,
-                                                  len(model_scenario_param_list)))
+                max_steps, n_samples = T_resampled.shape
 
-                # estimate total runtime and time left
-                if (model_scenario_number / 250 == model_scenario_number / 250.0
-                        and model_scenario_number > 0):
+                # todo: figure out some way to record which samples
+                # are deposited at which time
+                #z_resampled[active_nodes_resampled == False] = np.nan
+                #T_resampled[active_nodes_resampled == False] = np.nan
 
-                    now = time.time()
-                    time_passed = (now - start_time)
-                    time_per_scenario = time_passed / model_scenario_number
-                    time_left = \
-                        (n_scenarios - model_scenario_number) * time_per_scenario
+                cols = ['time_bp']
+                for sample_i in range(n_samples):
+                    cols = cols + ['name_sample_%i' % sample_i]
+                    cols = cols + ['depth_sample_%i' % sample_i]
+                    cols = cols + ['aft_age_sample_%i' % sample_i]
+                    cols = cols + ['temp_sample_%i' % sample_i]
 
-                    tekst = 'model scenario %i / %i\n' % (model_scenario_number,
-                                                          n_scenarios)
-                    tekst += 'time passed = %s\n' \
-                             % datetime.timedelta(seconds=time_passed)
-                    tekst += 'time left = %s\n' \
-                             % datetime.timedelta(seconds=time_left)
-                    tekst += 'time per scenario = %s\n' \
-                             % datetime.timedelta(seconds=time_per_scenario)
+                df_tt = pd.DataFrame(columns=cols,
+                                     index=np.arange(max_steps))
 
-                    print(tekst)
+                df_tt['time_bp'] = time_resampled
 
-                    print('writing estimated runtime to runtime.txt')
+                for sample_i in range(n_samples):
+                    df_tt.loc[0, 'name_sample_%i' % sample_i] = \
+                        aft_sample[sample_i]
+                    df_tt.loc[0, 'depth_sample_%i' % sample_i] = \
+                        aft_age_depth[sample_i]
+                    df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = \
+                        aft_age[sample_i]
+                    df_tt['temp_sample_%i' % sample_i] \
+                        = T_resampled[:, sample_i]
 
-                    fout = open('runtime_%s.txt' % well, 'w')
-                    fout.write(tekst)
-                    fout.close()
-
-                # restore original well strat dataframe
-                well_strat = well_strat_orig.copy()
-                return_objective_function = False
-                record_data = True
-
-                (model_run_data,
-                 T_model_data, T_gof,
-                 C_data,
-                 vr_gof, VR_model_data,
-                 aft_age_gof, aft_age_error, AFT_data,
-                 ahe_age_gof, ahe_age_error,
-                 AHe_model_data) = update_model_params_and_run_model(
-                    model_scenario_params, pybasin_params,
-                    params_to_change,
-                    model_scenarios.exhumation_scenarios_period,
-                    model_scenarios.basal_heat_flow_scenario_period,
-                    model_results_df,
-                    model_results_df2,
-                    well_number, well, well_strat, well_strat_orig,
-                    strat_info_mod,
-                    surface_temp, surface_salinity_well,
-                    litho_props,
-                    csv_output_dir,
-                    output_dir,
-                    model_scenario_number,
-                    return_objective_function,
-                    pybasin_params.calibration_target,
-                    record_data,
-                    pybasin_params.param_bounds_min,
-                    pybasin_params.param_bounds_max,
-                    T_data_df, vr_data_df,
-                    aft_samples, aft_ages,
-                    ahe_samples, ahe_data,
-                    salinity_data)
-
-                # model_scenario_params, params_to_change,
-
-                # calculate mean goodness of fit of temperature, vitrinite
-                # and aft age data
-                # TODO: add salinity data...
-
-                # save model run data to .pck file
-                #model_run_data = [
-                #    time_array_bp,
-                #    surface_temp_array, basal_hf_array,
-                #    z_nodes, active_nodes, T_nodes,
-                #    node_strat, node_age]
-
-                model_run_data_fig = list(model_run_data)
-
-                model_run_data_fig.append(T_model_data)
-                model_run_data_fig.append(C_data)
-                model_run_data_fig.append(VR_model_data)
-                model_run_data_fig.append(AFT_data)
-                model_run_data_fig.append(AHe_model_data)
-
-                today = datetime.datetime.now()
-                today_str = '%i-%i-%i' % (today.day, today.month, today.year)
-
-                # save salinity and T data
-                (time_array_bp,
-                 surface_temp_array, basal_hf_array,
-                 z_nodes, active_nodes, T_nodes,
-                 node_strat, node_age) = model_run_data
-
-                #l = len(z_nodes[-1, active_nodes[-1]]) - 1
-                #dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
-                #    z_nodes[-1, active_nodes[-1]]
-                #dfc['depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
-
-                #dfc.loc[:l, 'T_s%i' % model_scenario_number] = \
-                #    T_nodes[-1, active_nodes[-1]]
-
-                if pybasin_params.simulate_salinity is True:
-                    (C_nodes, surface_salinity_array, salinity_lwr_bnd,
-                     salinity_well_depth,
-                     salinity_well,
-                     salinity_well_sigma,
-                     salinity_rmse,
-                     q_solute_bottom, q_solute_top) = C_data
-                    dfc.loc[:l, 'salinity_s%i' % model_scenario_number] = \
-                        C_nodes[-1, active_nodes[-1]]
-
-                    # save solute flux data
-                    columns= ['solute_flux_top_kg_m-2_s-1',
-                              'solute_flux_bottom_kg_m-2_s-1']
-
-                    lqs = len(time_array_bp) - 1
-
-                    dfqs.loc[:lqs, 'solute_flux_top_kg_m-2_s-1_s%i'
-                             % model_scenario_number] = q_solute_top
-                    dfqs.loc[:lqs, 'solute_flux_bottom_kg_m-2_s-1_s%i'
-                             % model_scenario_number] = q_solute_bottom
-                    dfqs.loc[:lqs, 'time_yr_s%i' % model_scenario_number] = \
-                        time_array_bp
-                    fn = os.path.join(fig_output_dir,
-                                      'solute_flux_data_%s_%s_ms%i.csv'
-                                      % (well, today_str, n_scenarios))
-                    print('saving solute flux data to %s' % fn)
-                    dfqs.to_csv(fn, index=False)
-
-                if pybasin_params.simulate_VR is True and pybasin_params.save_model_run_data is True:
-                    [vr_nodes,
-                     vr_depth,
-                     vr_obs,
-                     vr_min,
-                     vr_max,
-                     vr_obs_sigma,
-                     vr_GOF] = VR_model_data
-
-                    nn = len(z_nodes[-1, active_nodes[-1]])
-                    ind_nn = dfc.index[:nn]
-
-                    dfc.loc[ind_nn, 'depth_s%i' % model_scenario_number] = z_nodes[-1, active_nodes[-1]]
-                    dfc.loc[ind_nn, 'T_s%i' % model_scenario_number] = T_nodes[-1, active_nodes[-1]]
-                    dfc.loc[ind_nn, 'VR_s%i' % model_scenario_number] = vr_nodes[-1, active_nodes[-1]]
-
-                    #if pybasin_params.simulate_AFT is True:
-                    #    simulated_AFT_data = AFT_data[0]
-                    #    (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-                    #     aft_ln_mean_nodes, aft_ln_std_nodes,
-                    #     aft_node_times_burial, aft_node_zs) = simulated_AFT_data
-
-                        #aft_z_present = np.array([a[-1][0][-1] for a in aft_node_zs])
-                    #    l = len(z_nodes[-1, active_nodes[-1]]) - 1
-                    #dfc.loc[:l, 'AFT_depth_s%i' % model_scenario_number] = \
-                    #    z_nodes[-1, active_nodes[-1]]
-                    #dfc.loc[:l, 'AFT_age_min_s%i' % model_scenario_number] = \
-                    #    aft_age_nodes_min
-                    #dfc.loc[:l, 'AFT_age_max_s%i' % model_scenario_number] = \
-                    #    aft_age_nodes_max
-
-                    # save depth vs T and salinity data
-                    fn = os.path.join(fig_output_dir,
-                                      'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
-                                      % (well, today_str, n_scenarios))
-                    print('saving depth, temperature and VR data to %s' % fn)
-                    dfc.to_csv(fn, index=False)
-
-
-                #############################
-                # make a model vs data figure
-                #############################
-                if pybasin_params.save_model_run_data is True:
-
-                    fn = os.path.join(output_dir,
-                                  'model_data_%s_%s_ms%i.pck'
+                # save AFT time-temperature paths
+                fn = os.path.join(output_dir,
+                                  'aft_sample_time_temp_%s_%s_ms%i.csv'
                                   % (well, today_str,
                                      model_scenario_number))
-                    print('saving figure data for model run as %s' % fn)
-                    fout = open(fn, 'wb')
-                    pickle.dump(model_run_data_fig, fout)
-                    fout.close()
+                print('saving time-temperature paths AFT samples to %s' \
+                      % fn)
+                df_tt.to_csv(fn, index=False)
 
-                if pybasin_params.make_model_data_fig is True:
-                    fig = pybasin_figures.model_vs_data_figure(
-                        model_run_data_fig,
-                        contour_variable=pybasin_params.contour_variable,
-                        show_strat_column=pybasin_params.show_strat_column,
-                        show_thermochron_data=
-                        pybasin_params.show_thermochron_data)
-                #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
+                # save modeled T-t paths, all nodes
+                _, n_nodes = T_nodes.shape
 
-                    #fn = os.path.join(fig_output_dir,
-                    #                  'model_data_fig_%s_%s_ms%i.%s'
-                    #                  % (well, today_str,
-                    #                     model_scenario_number,
-                    #                     pybasin_params.fig_adj))
-                    #print 'saving model-data comparison figure %s' % fn
-                    #fig.savefig(fn, dpi=200)
-                    #pl.clf()
+                cols = ['time_bp']
+                for i in range(n_nodes):
+                    cols += ['z_node_%i' % i,
+                             'T_node_%i' % i]
 
-                    if type(pybasin_params.fig_adj) is list:
-                        for fa in pybasin_params.fig_adj:
-                            fn = os.path.join(fig_output_dir,
-                                          'model_data_fig_%s_%s_ms%i.%s'
-                                          % (well, today_str,
-                                             model_scenario_number,
-                                             fa))
-                            print('saving model-data comparison figure %s' % fn)
-                            fig.savefig(fn, dpi=200)
+                df_tt2 = pd.DataFrame(columns=cols,
+                                      index=np.arange(max_steps))
 
-                        pl.clf()
-                    else:
-                        fn = os.path.join(fig_output_dir,
-                                          'model_data_fig_%s_%s_ms%i.%s'
-                                          % (well, today_str,
-                                             model_scenario_number,
-                                             pybasin_params.fig_adj))
-                        print('saving model-data comparison figure %s' % fn)
-                        fig.savefig(fn, dpi=200)
-                        pl.clf()
+                rs = Parameters.resample_AFT_timesteps
 
-                # save model results .csv file
-                if save_counter == 0 or save_counter >= save_counter_interval:
+                df_tt2['time_bp'] = time_array_bp[::rs]
 
-                    if wells[0] == wells[-1]:
-                        well_txt = wells[0]
-                    else:
-                        well_txt = '%s-%s' % (wells[0], wells[-1])
-                    fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
-                                      % (today_str, well_txt,
-                                         n_scenarios))
-                    print('saving model results .csv file %s' % fn)
-                    model_results_df.to_csv(fn, index_label='model_scenario_number')
+                for i in range(n_nodes):
 
-                save_counter += 1
-
-                if save_counter >= save_counter_interval:
-                    save_counter = 0
-
-                if pybasin_params.save_model_run_data is True:
-                    # TODO save T-t paths if no aft is modeled....
-                    pass
+                    # add depth
+                    col_name = 'z_node_%i' % i
+                    z_col = z_nodes[::rs, i]
+                    z_col[active_nodes[::rs, i] == False] = np.nan
+                    df_tt2[col_name] = z_col
 
 
-                if (pybasin_params.save_model_run_data is True
-                        and pybasin_params.simulate_AFT is True):
+                    # add temperature
+                    col_name = 'T_node_%i' % i
+                    T_col = T_nodes[::rs, i]
+                    T_col[active_nodes[::rs, i] == False] = np.nan
+                    df_tt2[col_name] = T_col
 
-                    [simulated_AFT_data,
-                     aft_sample,
-                     aft_age_depth,
-                     aft_age,
-                     aft_age_stderr_min,
-                     aft_age_stderr_plus,
-                     aft_length_mean,
-                     aft_length_std,
-                     aft_data_type,
-                     aft_age_samples,
-                     single_grain_aft_ages,
-                     single_grain_aft_ages_se_min,
-                     single_grain_aft_ages_se_plus,
-                     aft_age_bins,
-                     aft_age_pdfs,
-                     aft_age_GOF,
-                     aft_age_error,
-                     aft_sample_times,
-                     aft_sample_temps,
-                     time_array_bp,
-                     z_aft_samples, T_samples] = AFT_data
+                fn = os.path.join(output_dir,
+                                  'time_depth_temp_%s_%s_ms%i.csv'
+                                  % (well, today_str,
+                                     model_scenario_number))
 
-                    # find max number of timesteps for AFT history
+                print('saving time-temperature paths AFT samples to %s' \
+                      % fn)
+                df_tt2.to_csv(fn, index_label='timestep')
 
-                    time_resampled = \
-                        time_array_bp[::pybasin_params.resample_AFT_timesteps]
-                    z_resampled = \
-                        z_aft_samples[::pybasin_params.resample_AFT_timesteps]
-                    T_resampled = \
-                        T_samples[::pybasin_params.resample_AFT_timesteps]
-                    active_nodes_resampled = \
-                        active_nodes[::pybasin_params.resample_AFT_timesteps]
+            model_scenario_number += 1
+        print('done with all model scenarios')
 
-                    max_steps, n_samples = T_resampled.shape
-
-                    # todo: figure out some way to record which samples
-                    # are deposited at which time
-                    #z_resampled[active_nodes_resampled == False] = np.nan
-                    #T_resampled[active_nodes_resampled == False] = np.nan
-
-                    cols = ['time_bp']
-                    for sample_i in range(n_samples):
-                        cols = cols + ['name_sample_%i' % sample_i]
-                        cols = cols + ['depth_sample_%i' % sample_i]
-                        cols = cols + ['aft_age_sample_%i' % sample_i]
-                        cols = cols + ['temp_sample_%i' % sample_i]
-
-                    df_tt = pd.DataFrame(columns=cols,
-                                         index=np.arange(max_steps))
-
-                    df_tt['time_bp'] = time_resampled
-
-                    for sample_i in range(n_samples):
-                        df_tt.loc[0, 'name_sample_%i' % sample_i] = \
-                            aft_sample[sample_i]
-                        df_tt.loc[0, 'depth_sample_%i' % sample_i] = \
-                            aft_age_depth[sample_i]
-                        df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = \
-                            aft_age[sample_i]
-                        df_tt['temp_sample_%i' % sample_i] \
-                            = T_resampled[:, sample_i]
-
-                    # save AFT time-temperature paths
-                    fn = os.path.join(output_dir,
-                                      'aft_sample_time_temp_%s_%s_ms%i.csv'
-                                      % (well, today_str,
-                                         model_scenario_number))
-                    print('saving time-temperature paths AFT samples to %s' \
-                          % fn)
-                    df_tt.to_csv(fn, index=False)
-
-                    # save modeled T-t paths, all nodes
-                    _, n_nodes = T_nodes.shape
-
-                    cols = ['time_bp']
-                    for i in range(n_nodes):
-                        cols += ['z_node_%i' % i,
-                                 'T_node_%i' % i]
-
-                    df_tt2 = pd.DataFrame(columns=cols,
-                                          index=np.arange(max_steps))
-
-                    rs = pybasin_params.resample_AFT_timesteps
-
-                    df_tt2['time_bp'] = time_array_bp[::rs]
-
-                    for i in range(n_nodes):
-
-                        # add depth
-                        col_name = 'z_node_%i' % i
-                        z_col = z_nodes[::rs, i]
-                        z_col[active_nodes[::rs, i] == False] = np.nan
-                        df_tt2[col_name] = z_col
-
-
-                        # add temperature
-                        col_name = 'T_node_%i' % i
-                        T_col = T_nodes[::rs, i]
-                        T_col[active_nodes[::rs, i] == False] = np.nan
-                        df_tt2[col_name] = T_col
-
-                    fn = os.path.join(output_dir,
-                                      'time_depth_temp_%s_%s_ms%i.csv'
-                                      % (well, today_str,
-                                         model_scenario_number))
-
-                    print('saving time-temperature paths AFT samples to %s' \
-                          % fn)
-                    df_tt2.to_csv(fn, index_label='timestep')
-
-                model_scenario_number += 1
-            print('done with all model scenarios')
-
-            # saving model results to a .csv file
-            if wells[0] == wells[-1]:
-                well_txt = wells[0]
-            else:
-                well_txt = '%s-%s' % (wells[0], wells[-1])
-            fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i_final.csv'
-                              % (today_str, well_txt,
-                                 n_scenarios))
-            print('saving model results .csv file %s' % fn)
-            model_results_df.to_csv(fn, index_label='model_scenario_number')
+        # saving model results to a .csv file
+        if wells[0] == wells[-1]:
+            well_txt = wells[0]
+        else:
+            well_txt = '%s-%s' % (wells[0], wells[-1])
+        fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i_final.csv'
+                          % (today_str, well_txt,
+                             n_scenarios))
+        print('saving model results .csv file %s' % fn)
+        model_results_df.to_csv(fn, index_label='model_scenario_number')
 
     print('done')
 

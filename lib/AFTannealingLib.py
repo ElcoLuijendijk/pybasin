@@ -722,7 +722,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             rm = rmp
             rc = rcp
 
-            pdb.set_trace()
+            #pdb.set_trace()
 
     else:
         if verbose is True:

@@ -1,25 +1,27 @@
 """
+model parameters for the 1D burial & temperature history model
+
 edit this file to change the model parameters for PyBasin
 """
 
 import numpy as np
 
-#######################################################################
-#  model parameters for the 1D burial & temperature history model
-#######################################################################
+print(('-' * 10))
+print('Example PyBasin dataset from the Molasse Basin (von Hagke et al. 2012)')
+print(('-' * 10))
 
-print '-' * 10
-print 'Example PyBasin dataset from the Molasse Basin (von Hagke et al. 2012)'
-print '-' * 10
 
-class pybasin_params:
+class ModelParameters:
 
     # location of input data .csv files
     output_dir = 'model_output/example_dataset_2'
     datafile_output_dir = 'model_output/example_dataset_2'
 
+    # list of wells to include in model runs
+    wells = ['E40']
+
     # option to calculate apatite fission track data
-    simulate_AFT = True
+    simulate_AFT = False
     simulate_AHe = True
     simulate_VR = True
     simulate_salinity = False
@@ -33,7 +35,9 @@ class pybasin_params:
     # option to save model run data (approx 10-20 MB per model run)
     save_model_run_data = True
 
-    #
+    # use stratigraphy input data from stratigraphic maps instead of text files
+    # this is still an experimental feature, no guarantee that it actually works. Future updates will make this more
+    # user friendly and bug-free (hopefully)
     use_strat_map_input = False
 
     # save results to a .csv file for each x number of model runs
@@ -79,21 +83,20 @@ class pybasin_params:
     #############################
     # exhumation scenarios
     #############################
-    # name of exhumation phase
-    exhumation_phase_ids = ['late_cenozoic_exh']
-    exhumation_phase_ids = ['late_cenozoic_exh']
-    # start (Ma)
+    # start of exhumation (Ma)
     exhumation_period_starts = np.array([12.0])
     # end of exhumation phase (Ma)
     exhumation_period_ends = np.array([0.0])
-    # exhumed thickness
-    exhumed_thicknesses = np.array([2000.0])
+    # exhumed thickness (m)
+    exhumed_thicknesses = np.array([3000.0])
 
-    # determine last deposited unit before unconformity:
-    # this should be one list for each exhumation phase
+    # determine last deposited units before unconformity:
+    # this should be one list for each exhumation phase, with stratigraphic unit codes ordered from old to young
+    # the model will add units starting from the oldest to the youngest, untill the additional thickness needed for
+    # erosion is filled
     exhumed_strat_units = [['USM', 'OMM', 'OSM']]
 
-    # initial (pre-erosion) thicknesses:
+    # initial (pre-erosion) thicknesses of the exhumed units:
     original_thicknesses = [[1000.0, 1000, 1000]]
 
     # support for two-stage exhumation history, enables fast and slow exhumation segments
@@ -111,63 +114,13 @@ class pybasin_params:
     ######################
     # heat flow parameters
     ######################
-    # heatflow_periods: first 1,2,3 or more letters of stratigraphic period to
-    # set the basal heat flow for. use heatflow_periods = 'all' to set a default
-    # value for all strat. periods
+    # heatflow_history: heat flow in W/m^2, age in Ma
     heatflow_ages = np.array([0, 260.0, 305, 312])
     # heatflow_history: heat flow in W/m^2
     heatflow_history = np.array([65.0, 65.0, 130.0, 130.0]) * 1e-3
 
-    # optimize heat flow:
-    optimize_heatflow = False
-
     # max size of heatflow timestep (in yrs)
     max_hf_timestep = 10000.0
-
-    ###################
-    # model_calibration
-    ###################
-    # turn model calibration on or off:
-    calibrate_model_params = False
-
-    # calibration method, see scipy optimize documentation for list of available methods:
-    # http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.minimize.html
-    opt_method = 'Nelder-Mead'
-
-    # list the parameters that should be updated by either the automatic
-    # calibration function or the grid model space search
-    # chooose any combination of 'exhumation_magnitude', 'exhumation_start',
-    # 'exhumation_duration', 'basal_heat_flow',
-    # or fission track annealing params:
-    # 'AFT_C0', 'AFT_C1', 'AFT_C2', 'AFT_C3', 'AFT_alpha'
-    #params_to_change = ['exhumation_magnitude',
-    #                    'exhumation_start',
-    #                    'exhumation_duration',
-    #                    'basal_heat_flow']
-    params_to_change = ['AFT_C0', 'AFT_C1',
-                        'AFT_C2', 'AFT_C3',
-                        'AFT_alpha']
-
-    # initial values for model parameters
-    start_param_values = [0.39528, 0.01073, -65.12969, -7.91715, 0.04672]
-    #start_param_values = [2000.0, 10.0, 7.0]
-
-    # read initial params from file
-    load_initial_params = False
-    initial_params_file = 'initial_param_values.csv'
-
-    # min. and max bounds for parameters
-    # set to None for unconstrained calibration
-    #param_bounds_min = [0.0, 1.0, 0.5, 40e-3]
-    #param_bounds_max = [6000.0, 12.0, 11.0, 100e-3]
-    param_bounds_min = None
-    param_bounds_max = None
-
-    # list of variables to calibrate model to
-    # choose any combination of 'T', 'VR', 'AFT_age' or 'AHe'
-    # for temperature, vitrinite reflectance, apatite fission track age and
-    # apatite (U-Th)/He age, respectively
-    calibration_target = ['AFT_age']
 
     #################
     # goodness of fit
@@ -183,11 +136,7 @@ class pybasin_params:
     # Apatite fission track model params:
     ############################################
     # resample timesteps for AFT calculation
-    #
     resample_AFT_timesteps = 10
-
-    #
-    min_grain_no = 2
 
     # use C-axis correction for apatite fission track lengths
     use_caxis_correction = False
@@ -240,38 +189,29 @@ class pybasin_params:
     vr_unc_sigma = 0.05
 
 
-class model_scenarios:
+class ParameterRanges:
 
-    # list of wells to include in model runs
-    wells = ['E40']
+    """
+    parameter ranges for sensitivity or uncertainty analysis
 
-    # strat period for which to change the basal heat flow
-    # must match a period of heatflow_periods in the param file
-    basal_heat_flow_scenario_period = 'all'
+    PyBasin will look for any variable ending with _s below and then look for the
+    corresponding variable in the class pybasin_params above
 
-    # basal heat flow scenarios to try, heat flow in mW m^-2
-    # example, for testing basal heat flows of 50, 70 and 90 x 10^-3 W/m2:
-    basal_heat_flow_scenarios = [None]
+    each _s variable should be a list of values. PyBasin will replace the variable
+    in model_parameters.py with each item in the list consecutively
+    """
 
-    # strat period for which to change exhumation
-    # must exhumation_phase_id further down this file
-    exhumation_scenarios_period = 'late_cenozoic_exh'
+    year = 365.25 * 24 * 60 * 60.0
 
-    # exhumation (m) for each model scenario
-    # example for testing exhumation of 500, 1000 and 1500 m:
-    exhumation_magnitudes = [None]
+    # option whether to vary one model parameter at a time
+    # (ie for an one at a time sensitivity analysis)
+    # or to run all parameter combinations, using the parameter ranges specified below
+    parameter_combinations = False
 
-    # exhumation phase start (Ma) and duration (My)
-    exhumation_starts = [None]
-    exhumation_durations = [None]
+    # option to add a first base run with unchanged parameters to the list of model
+    # runs
+    initial_base_run = False
 
-    exhumation_segment_factors = [None]
-    exhumation_duration_factors = [None]
-
-    # AFT annealing eq. parameters, see Ketcham et al. (2007) Am. Min.
-    AFT_C0 = [None]
-    AFT_C1 = [None]
-    AFT_C2 = [None]
-    AFT_C3 = [None]
-    AFT_C4 = [None]
-    AFT_alpha = [None]
+    # the line below makes sure that pybasin will run twice, once with an exhumed thickness of 2000 m and once with
+    # an exhumed thickness of 3000 m
+    exhumed_thicknesses_s = [[2000.0], [3000.0]]
