@@ -1,12 +1,10 @@
-#PyBasin: basin evolution, heat flow and thermochronology
+# PyBasin: numerical model for basin evolution, heat flow and thermochronology
 
 
 ## Downloading PyBasin
 
 * click the download link on the right for a zip file of the source code
 * or clone the repository
-
-
 
 
 ## Installing & running PyBasin
@@ -69,7 +67,7 @@ and
 python pybasin.py example_dataset_2
 ````
 
-The model runs will atuomatically generate figures of the modeled burial and thermal history and vitrinite reflectance, apatite fission track and/or apatite (U-Th)/He data, which can be found in the directory ``model_output/example_dataset_x``.
+The model runs will automatically generate figures of the modelled burial and thermal history and vitrinite reflectance, apatite fission track and/or apatite (U-Th)/He data, which can be found in the directory ``model_output/example_dataset_x``.
 
 
 ### Model parameter file
@@ -97,7 +95,7 @@ The main model parameters are located in a file called ``pybasin_params.py``. Se
 
 Optionally you can start automated runs to test a range of parameter combinations. This is useful for automated sensitivity or uncertainty analysis. 
 
-THe model input file contains a class called ``ParameterRanges``. Any parameter value that is included in this class will be used as input for a single model run. All results will be stored and written to a comma separated (.csv) file names ``model_output/model_params_and_results_x_runs.csv``. 
+The model input file contains a class called ``ParameterRanges``. Any parameter value that is included in this class will be used as input for a single model run. All results will be stored and written to a comma separated (.csv) file names ``model_output/model_params_and_results_x_runs.csv``. 
 
 You can include any model parameter in the automated runs. Simply copy a parameter from the ``ModelParameters`` class into the ``ParameterRanges`` class, add _s to the parameter name and add square brackets around the parameter value. For instance to test multiple values of exhumed thickness, add `exhumed_thicknesses_s = [[500.0], [1000.0]]` to test the effect of exhuming 500 and 1000 m on VR, AFT or AHe thermochronometers. See the file ``pybasin_params.py`` in ``model_input/example_dataset_1`` for an example.
 
@@ -116,7 +114,7 @@ If ``make_model_data_fig = True`` in the file PyBasin_params.py, the model scrip
 
 ### Output data files:
 
-The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modeled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modeled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modeled temperatures over time. These files are stored in ``model_output/model_directory/burial_history_csv_files``.
+The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modelled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modelled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modelled temperatures over time. These files are stored in ``model_output/model_directory/burial_history_csv_files``.
 
 
 ### Binary data file
@@ -127,7 +125,7 @@ If ``save_model_run_data = True`` in the file PyBasin_params.py, the model scrip
 python make_figure output_directory_or_file
 ````
 
-Output files can be recognized by the file type .pck. If you specify a directory the script will list all .pck files in this directory and ask you which one to use for making a figure.
+Output files can be recognised by the file type .pck. If you specify a directory the script will list all .pck files in this directory and ask you which one to use for making a figure.
 
 
 
