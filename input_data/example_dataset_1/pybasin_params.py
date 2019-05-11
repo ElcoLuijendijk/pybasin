@@ -213,5 +213,11 @@ class ParameterRanges:
     # runs
     initial_base_run = False
 
+    # run model scenarios parallel
+    parallel_model_runs = True
+
+    # max number of simultaneous model runs:
+    max_number_of_processes = 3
+
     #
-    exhumed_thicknesses_s = [[500.0], [1000.0]]
+    exhumed_thicknesses_s = [[1000.0], [2000.0]]

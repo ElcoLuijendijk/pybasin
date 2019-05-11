@@ -25,6 +25,8 @@ except ImportError:
     import lib.helium_diffusion_models as he
     print('using helium diffusion modules from local lib folder')
 
+PY3 = sys.version_info.major == 3
+
 
 def integrate_porosity(n0, c, z1, z2):
     

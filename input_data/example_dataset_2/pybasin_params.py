@@ -212,6 +212,12 @@ class ParameterRanges:
     # runs
     initial_base_run = False
 
+    # run model scenarios parallel
+    parallel_model_runs = True
+
+    # max number of simultaneous model runs:
+    max_number_of_processes = 3
+
     # the line below makes sure that pybasin will run twice, once with an exhumed thickness of 2000 m and once with
     # an exhumed thickness of 3000 m
     exhumed_thicknesses_s = [[2000.0], [3000.0]]
