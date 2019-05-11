@@ -103,6 +103,11 @@ There are two options for running multiple model runs. The default is a sensitiv
 
 
 
+### Using multiple processors
+
+PyBasin includes an option to distribute model runs over multiple processors. To enable parallel processing, change parameter ``parallel_model_runs = False`` to ``parallel_model_runs = True`` in the ``ParameterRanges`` class in the ``pybasin_params.py`` file. You can specify how many processes you want to use simultaneously using the parameter ``max_number_of_processes``. PyBasin will generate one process for each individual model run. Using multiple processes can signficantly speed up multiple model runs. Note that by default if multiple processes is enabled the extensive screen output that is generated during model runs is redirected to a log file that is saved in a subdirectory of the model output directory. 
+
+
 ## Model output
 
 Each model run will generate a number of output files that are saved to the directory ``model_output/model_directory/``, where ``model_directory`` is a directory that can be specified in the ``pybasin_params.py`` file.
@@ -145,4 +150,4 @@ A bibtex file with the citation is included in the PyBasin directory
 * **Elco Luijendijk**, <elco.luijendijk-at-geo.uni-goettingen.de>
 
 ## License
-This project is licensed under the GNU general public license (GPL v3). See the [LICENSE.txt](LICENSE.txt) file for details.
+This project is licensed under the GNU lesser general public license (LGPL v3). See the [LICENSE.txt](LICENSE.txt) file for details.
