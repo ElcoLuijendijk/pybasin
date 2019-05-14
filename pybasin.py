@@ -76,7 +76,6 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
     print('Temperature data:')
     print(T_data_well)
 
-
     return T_gof, T_rmse
 
 
@@ -120,11 +119,8 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes,
     vr_data_well.loc[ind, 'VR_unc_1sigma'] = vr_unc_sigma
 
     # calculate normalized residual
-    vr_data_well['residual_norm'] = (vr_data_well['residual']
-                                     / vr_data_well['VR_unc_1sigma'])
-    vr_data_well['P_fit'] = \
-        (1.0
-         - scipy.stats.norm.cdf(np.abs(vr_data_well['residual_norm'])))*2
+    vr_data_well['residual_norm'] = (vr_data_well['residual'] / vr_data_well['VR_unc_1sigma'])
+    vr_data_well['P_fit'] = (1.0 - scipy.stats.norm.cdf(np.abs(vr_data_well['residual_norm'])))*2
 
     # calculate total rmse and goodness of fit statistic:
     vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
@@ -1830,7 +1826,8 @@ def main():
 
     if ParameterRanges.parallel_model_runs is True:
         pool = Pool(processes=ParameterRanges.max_number_of_processes)
-        print('initialized parallel model runs with max %i threads' % ParameterRanges.max_number_of_processes)
+        print('initialized parallel model runs with max %i simultaneous processes'
+              % ParameterRanges.max_number_of_processes)
 
         processes = []
         done_processing = []
@@ -2030,7 +2027,6 @@ def main():
                             model_results_df.loc[model_scenario_number_store] = model_results_series_updated
 
                             done_processing[ip] = True
-
 
                 if model_result_ready is False:
                     pass

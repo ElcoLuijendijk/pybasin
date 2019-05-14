@@ -1811,7 +1811,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                 aft_ln_std_nodes[nn, n_prov, n_kin] = l_mean_std
 
     if verbose is True:
-        print(';-)')
+        print(':-)')
 
     aft_age_nodes_min = np.min(aft_age_nodes, axis=(1, 2))
     aft_age_nodes_max = np.max(aft_age_nodes, axis=(1, 2))
@@ -1848,11 +1848,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     #radius = 60.0 * 1e-6
     #U238 = 8.98e-6
     #Th232 = 161.3e-6
-
     Kelvin = 273.15
 
     # combine burial and provenance history
-
     ahe_node_times, ahe_node_temps = generate_thermal_histories(
         resample_t, n_nodes,
         time_array_bp, T_nodes, active_nodes,
