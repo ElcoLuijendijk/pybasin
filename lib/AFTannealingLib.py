@@ -483,7 +483,6 @@ def resample_time_temp_input(timesteps, temperature, max_temp_change=3.5):
 
 
 def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
-                           verbose=False,
                            method='Ketcham2007',
                            apply_c_axis_correction=False,
                            kinetic_parameter='Clwt',
@@ -500,7 +499,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            C0=0.39528,
                            C1=0.01073,
                            C2=-65.12969,
-                           C3=-7.91715):
+                           C3=-7.91715,
+                           verbose=False):
     
     
     """
@@ -615,13 +615,14 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     ##########################################################
     # check if no >3.5 degrees temperature change per timestep
     ##########################################################
-    if verbose is True:
-        print('resampling time steps')
-
     if surpress_resampling is False:
+
+        if verbose is True:
+            print('resampling time steps')
+
         timesteps, temperature = resample_time_temp_input(timesteps,
                                                           temperature)
-    
+
     delta_T = temperature[1:] - temperature[:-1]
     if (abs(delta_T)).max() > 3.5 and surpress_resampling == False:
         max_loc = np.argmax(abs(delta_T))
@@ -646,7 +647,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         print('calculating reduced track lengths')
     
     # get duration of each timestep in seconds
-    dts = (timesteps[1:] - timesteps[:-1]) * 1.0e6 * 365 * 24 * 60 * 60
+    dts = (timesteps[1:] - timesteps[:-1]) * Myr
     nsteps = len(dts)
     
     # take midpoint values of temperature array:
@@ -691,7 +692,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             annealing_eq_f90 = 2
 
         try:
-
             rcf = calculate_reduced_AFT_lengths.reduced_ln(
                 dts, temperature,
                 rmr0, kappa,
@@ -722,8 +722,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             rm = rmp
             rc = rcp
 
-            #pdb.set_trace()
-
     else:
         if verbose is True:
             print('use python reduced track length function instead of fortran')
@@ -740,8 +738,6 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
     if verbose is True:
         print('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
-
-    #pdb.set_trace()
 
     ##########################################################
     # calculate weighting factor to correct for uranium decay 
@@ -859,10 +855,11 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     
     if verbose is True:
         print('dt mean, min, max %0.2e, %0.2e, %0.2e' \
-              % (dt.mean(), dt.min(), dt.max()))
+              % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
         print('rho_age mean, min, max %0.2e, %0.2e, %0.2e'\
               % (rho_age.mean(), rho_age.min(), rho_age.max()))
-    
+        print('dt sum = %0.2f' % (dt.sum() / Myr))
+
     aft_age_uncorrected = 0
     for i in range(nsteps):
         aft_age_uncorrected += dt[i] * rho_age[i]

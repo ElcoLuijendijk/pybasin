@@ -1513,7 +1513,6 @@ def generate_thermal_histories(resample_t, n_nodes,
 
     aft_node_times = []
     aft_node_temps = []
-    #resample_t = pybasin_params.resample_AFT_timesteps
 
     for nn in range(n_nodes):
 
@@ -1591,7 +1590,6 @@ def generate_burial_histories(resample_t,
 
     aft_node_times = []
     aft_node_zs = []
-    #resample_t = pybasin_params.resample_AFT_timesteps
 
     for nn in range(n_nodes):
 

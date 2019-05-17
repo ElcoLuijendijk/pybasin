@@ -228,7 +228,6 @@ def model_vs_data_figure(model_run_data,
          aft_age_stderr_plus,
          aft_length_mean,
          aft_length_std,
-         aft_data_type,
          aft_age_samples,
          single_grain_aft_ages,
          single_grain_aft_ages_se_min,
@@ -240,7 +239,8 @@ def model_vs_data_figure(model_run_data,
          aft_sample_times,
          aft_sample_temps,
          time_array_bp,
-         z_aft_samples, T_samples] = AFT_data
+         z_aft_samples, T_samples,
+         aft_data_samples] = AFT_data
 
     if AHe_data is not None:
         [ahe_sample_depths,
@@ -252,7 +252,8 @@ def model_vs_data_figure(model_run_data,
          modeled_ahe_age_samples_min,
          modeled_ahe_age_samples_max,
          ahe_age_gof, ahe_age_error,
-         simulated_AHe_data] = AHe_data
+         simulated_AHe_data,
+         ahe_data_samples] = AHe_data
 
     nt_total, n_nodes = T_nodes.shape
 

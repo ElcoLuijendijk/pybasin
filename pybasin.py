@@ -282,8 +282,8 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                   'missing age data?' % sample_ix)
 
     # calculate mean GOF from single grain GOFs for each sample
-    aft_age_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
-    aft_age_error = aft_data_well['age_error'].dropna().mean()
+    aft_age_mean_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
+    aft_age_mean_error = aft_data_well['age_error'].dropna().mean()
 
     if verbose is True:
 
@@ -292,10 +292,10 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                             'simulated_AFT_min', 'simulated_AFT_max',
                             'GOF_aft_ages', 'age_error']])
 
-    return (aft_age_gof, aft_age_error, single_grain_aft_ages, single_grain_aft_ages_se_min,
+    return (aft_age_mean_gof, aft_age_mean_error,
+            single_grain_aft_ages, single_grain_aft_ages_se_min,
             single_grain_aft_ages_se_plus,
-            age_bins,
-            age_pdfs)
+            age_bins, age_pdfs, aft_data_well)
 
 
 def model_data_comparison_AHe(ahe_samples_well, ahe_data,
@@ -471,7 +471,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
 
     """
 
-    # resample_t = pybasin_params.resample_AFT_timesteps
+    # resample_t = pybasin_params.resample_timesteps
     # nt_prov = pybasin_params.provenance_time_nt
     # pybasin_params.annealing_kinetics_values,
     # pybasin_params.annealing_kinetic_param,
@@ -1002,7 +1002,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          simulated_AFT_data,
          z_aft_samples,
          T_samples) = assemble_data_and_simulate_aft(
-            pybasin_params.resample_AFT_timesteps,
+            pybasin_params.resample_timesteps,
             pybasin_params.provenance_time_nt,
             n_nodes, time_array_bp,
             z_nodes, T_nodes, active_nodes,
@@ -1051,7 +1051,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     if pybasin_params.simulate_AHe is True:
 
-        resample_t = pybasin_params.resample_AFT_timesteps
+        resample_t = pybasin_params.resample_timesteps
         nt_prov = pybasin_params.provenance_time_nt
 
         # find if there is any aft data for this well:
@@ -1154,7 +1154,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
              single_grain_aft_ages,
              single_grain_aft_ages_se_min,
              single_grain_aft_ages_se_plus,
-             age_bins, age_pdfs) = \
+             age_bins, age_pdfs, aft_data_well) = \
                 model_data_comparison_AFT_age(aft_data_well, aft_ages,
                                               modeled_aft_age_samples_min,
                                               modeled_aft_age_samples_max)
@@ -1181,15 +1181,6 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           modeled_ahe_age_samples_min,
                                           modeled_ahe_age_samples_max)
 
-            today = datetime.datetime.now()
-            today_str = '%i-%i-%i' % (today.day, today.month, today.year)
-
-            fna = os.path.join(output_dir, 'ahe_samples_%s_%s_ms%i.csv'
-                              % (today_str, well,
-                                 model_scenario_number))
-            print('saving ahe sample data as %s' % fna)
-            ahe_samples_well.to_csv(fna)
-
     # calculate model error salinity data
     salinity_rmse = np.nan
     salinity_gof = np.nan
@@ -1214,7 +1205,6 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     aft_data_well['aft_age_stderr_plus'].values,
                     aft_data_well['length_mean'].values,
                     aft_data_well['length_std'].values,
-                    aft_data_well['data_type'].values,
                     modeled_aft_age_samples,
                     single_grain_aft_ages,
                     single_grain_aft_ages_se_min,
@@ -1226,7 +1216,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     aft_sample_times,
                     aft_sample_temps,
                     time_array_bp,
-                    z_aft_samples, T_samples]
+                    z_aft_samples, T_samples,
+                    aft_data_well]
 
     else:
         print('no AFT data found for this location')
@@ -1265,7 +1256,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                           modeled_ahe_age_samples_min,
                           modeled_ahe_age_samples_max,
                           ahe_age_gof, ahe_age_error,
-                          simulated_AHe_data]
+                          simulated_AHe_data,
+                          ahe_samples_well]
 
     else:
         AHe_model_data = None
@@ -1752,6 +1744,7 @@ def main():
     input_dir = model_input_subfolder
     output_dir = Parameters.output_dir
     datafile_output_dir = Parameters.datafile_output_dir
+    csv_output_dir = datafile_output_dir
 
     if os.path.exists(output_dir) is False:
         os.mkdir(output_dir)
@@ -1762,12 +1755,6 @@ def main():
         print('creating directory %s to store model result datafiles' \
             % datafile_output_dir)
         os.mkdir(datafile_output_dir)
-
-    csv_output_dir = os.path.join(output_dir, 'burial_history_csv_files')
-    if os.path.exists(csv_output_dir) is False:
-        print('creating directory %s to store burial history .csv datafiles' \
-            % csv_output_dir)
-        os.mkdir(csv_output_dir)
 
     fig_output_dir = output_dir
     if os.path.exists(fig_output_dir) is False:
@@ -2214,7 +2201,6 @@ def main():
                          aft_age_stderr_plus,
                          aft_length_mean,
                          aft_length_std,
-                         aft_data_type,
                          aft_age_samples,
                          single_grain_aft_ages,
                          single_grain_aft_ages_se_min,
@@ -2226,69 +2212,106 @@ def main():
                          aft_sample_times,
                          aft_sample_temps,
                          time_array_bp,
-                         z_aft_samples, T_samples] = AFT_data
+                         z_aft_samples, T_samples, aft_data_well] = AFT_data
 
                         # find max number of timesteps for AFT history
+                        max_steps = np.max([len(tii) for ti in aft_sample_times for tii in ti])
 
-                        time_resampled = \
-                            time_array_bp[::Parameters.resample_AFT_timesteps]
-                        z_resampled = \
-                            z_aft_samples[::Parameters.resample_AFT_timesteps]
-                        T_resampled = \
-                            T_samples[::Parameters.resample_AFT_timesteps]
-                        active_nodes_resampled = \
-                            active_nodes[::Parameters.resample_AFT_timesteps]
+                        n_models = len(aft_sample_times[0])
 
-                        max_steps, n_samples = T_resampled.shape
+                        n_samples = len(aft_sample_times)
 
-                        # todo: figure out some way to record which samples
-                        # are deposited at which time
-                        #z_resampled[active_nodes_resampled == False] = np.nan
-                        #T_resampled[active_nodes_resampled == False] = np.nan
-
-                        cols = ['time_bp']
+                        cols = []
                         for sample_i in range(n_samples):
-                            cols = cols + ['name_sample_%i' % sample_i]
-                            cols = cols + ['depth_sample_%i' % sample_i]
-                            cols = cols + ['aft_age_sample_%i' % sample_i]
-                            cols = cols + ['temp_sample_%i' % sample_i]
+                            for model_j in range(n_models):
+                                cols = cols + ['name_sample_%i_model_%i' % (sample_i, model_j)]
+                                cols = cols + ['depth_sample_%i_model_%i' % (sample_i, model_j)]
+                                cols = cols + ['aft_age_sample_%i_model_%i' % (sample_i, model_j)]
+                                cols = cols + ['time_sample_%i_model_%i' % (sample_i, model_j)]
+                                cols = cols + ['temp_sample_%i_model_%i' % (sample_i, model_j)]
 
-                        df_tt = pd.DataFrame(columns=cols,
-                                             index=np.arange(max_steps))
-
-                        df_tt['time_bp'] = time_resampled
+                        df_tt_aft = pd.DataFrame(columns=cols, index=np.arange(max_steps))
 
                         for sample_i in range(n_samples):
-                            df_tt.loc[0, 'name_sample_%i' % sample_i] = \
-                                aft_sample[sample_i]
-                            df_tt.loc[0, 'depth_sample_%i' % sample_i] = \
-                                aft_age_depth[sample_i]
-                            df_tt.loc[0, 'aft_age_sample_%i' % sample_i] = \
-                                aft_age[sample_i]
-                            df_tt['temp_sample_%i' % sample_i] \
-                                = T_resampled[:, sample_i]
+                            df_tt_aft.loc[0, 'name_sample_%i_model_%i' % (sample_i, model_j)] = aft_sample[sample_i]
+                            df_tt_aft.loc[0, 'depth_sample_%i_model_%i' % (sample_i, model_j)] = aft_age_depth[sample_i]
+                            df_tt_aft.loc[0, 'aft_age_sample_%i_model_%i' % (sample_i, model_j)] = aft_age[sample_i]
+
+                            for model_j in range(n_models):
+                                steps = len(aft_sample_times[sample_i][model_j])
+
+                                df_tt_aft.loc[:(steps-1), 'time_sample_%i_model_%i' % (sample_i, model_j)] = \
+                                    aft_sample_times[sample_i][model_j]
+                                df_tt_aft.loc[:(steps-1), 'temp_sample_%i_model_%i' % (sample_i, model_j)] = \
+                                    aft_sample_temps[sample_i][model_j]
 
                         # save AFT time-temperature paths
-                        fn = os.path.join(output_dir,
+                        fn = os.path.join(csv_output_dir,
                                           'aft_sample_time_temp_%s_%s_ms%i.csv'
                                           % (well_store, today_str,
                                              model_scenario_number_store))
-                        print('saving time-temperature paths AFT samples to %s' \
-                              % fn)
-                        df_tt.to_csv(fn, index=False)
+                        print('saving time-temperature paths AFT samples to %s' % fn)
+                        df_tt_aft.to_csv(fn, index=False)
+
+                        ###################################################
+                        # save csv file model-data comparison for AFT ages:
+                        ###################################################
+                        _, n_prov, n_kin = aft_age_samples.shape
+                        for sample_i in range(n_samples):
+                            for prov_model_i in range(n_prov):
+                                for kin_i in range(n_kin):
+                                    aft_data_well.loc[sample_i, 'modeled_age_prov_%i_kinetic_param_%i' % (prov_model_i, kin_i)] = \
+                                        aft_age_samples[sample_i, prov_model_i, kin_i]
+
+                        fn = os.path.join(csv_output_dir,
+                                          'aft_model_vs_data_%s_%s_ms%i.csv'
+                                          % (well_store, today_str,
+                                             model_scenario_number_store))
+                        #df_aft.to_csv(fn)
+                        aft_data_well.to_csv(fn)
+
+                    if (Parameters.save_model_run_data is True
+                            and Parameters.simulate_AHe is True):
+
+                        [ahe_sample_depths,
+                         ahe_ages_all_samples,
+                         ahe_ages_all_samples_SE,
+                         ahe_age_bin,
+                         ahe_age_pdfs,
+                         modeled_ahe_age_samples,
+                         modeled_ahe_age_samples_min,
+                         modeled_ahe_age_samples_max,
+                         ahe_age_gof, ahe_age_error,
+                         simulated_AHe_data,
+                         ahe_data_samples] = AHe_model_data
+
+                        #pdb.set_trace()
+
+                        n_samples_ahe = len(modeled_ahe_age_samples)
+
+                        for sample_i, age_mod_sample in enumerate(modeled_ahe_age_samples):
+                            for grain_i, age_mod_grains in enumerate(age_mod_sample):
+                                for prov_model_i, age_mod_prov in enumerate(age_mod_grains):
+                                    ahe_data_samples.loc[sample_i, 'modeled_ahe_age_grain_%i_prov_%i'
+                                                      % (grain_i, prov_model_i)] = age_mod_prov
+                            fn = os.path.join(csv_output_dir,
+                                              'ahe_model_vs_data_%s_%s_ms%i.csv'
+                                              % (well_store, today_str,
+                                                 model_scenario_number_store))
+                            ahe_data_samples.to_csv(fn)
+
+                    if Parameters.save_model_run_data is True:
 
                         # save modeled T-t paths, all nodes
                         _, n_nodes = T_nodes.shape
 
+                        rs = Parameters.resample_timesteps
+                        n_steps = len(time_array_bp[::rs])
+
                         cols = ['time_bp']
-                        for i in range(n_nodes):
-                            cols += ['z_node_%i' % i,
-                                     'T_node_%i' % i]
 
                         df_tt2 = pd.DataFrame(columns=cols,
-                                              index=np.arange(max_steps))
-
-                        rs = Parameters.resample_AFT_timesteps
+                                              index=np.arange(n_steps))
 
                         df_tt2['time_bp'] = time_array_bp[::rs]
 
@@ -2306,12 +2329,11 @@ def main():
                             T_col[active_nodes[::rs, i] == False] = np.nan
                             df_tt2[col_name] = T_col
 
-                        fn = os.path.join(output_dir,
-                                          'time_depth_temp_%s_%s_ms%i.csv'
+                        fn = os.path.join(csv_output_dir, 'time_depth_temp_%s_%s_ms%i.csv'
                                           % (well_store, today_str,
                                              model_scenario_number_store))
 
-                        print('saving time-temperature paths AFT samples to %s' % fn)
+                        print('saving time-temperature paths to %s' % fn)
                         df_tt2.to_csv(fn, index_label='timestep')
 
                 if ParameterRanges.parallel_model_runs is True:

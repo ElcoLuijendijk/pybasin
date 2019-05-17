@@ -304,7 +304,7 @@ The parameters can be several python data types:
 ## General parameters
 
 * ``output_dir`` = *string*. Directory to save the model results to.
-* ``datafile_output_dir``  = *string*. Directory to save the detailed model output datafiles to, ie a series of csv files that contain the burial and temperature history of each model node.
+* ``datafile_output_dir``  = *string*. Directory to save the detailed model output datafiles to, ie. a series of csv files that contain the burial and temperature history of each model node.
 * ``wells`` = *list of strings*. Names of wells or surface outcrops to include in a single set of model runs.
 * ``simulate_AFT`` = *boolean*. Option to model apatite fission track ages and length distributions.
 * ``simulate_AHe`` = *boolean*. Option to model apatite (U-Th)/He ages.
@@ -330,7 +330,6 @@ The parameters can be several python data types:
 * ``max_thickness`` = *float*. Maximum thickness of strat units (m). Units that exceed this thickness are subdivided into smaller units to keep the modeled temperatures accurate.
 * ``NcompactionIterations`` = *integer*. Number of iterations for the calculation of decompaction. In general around 5 iterations are sufficient to get an accurate value for decompacted thicknesses of stratigraphci units.
 * ``max_decompaction_error`` = *float*. Maximum error in meters for the iterative decompaction equation.
-* ``provenance_time_nt`` = *integer* Number of timesteps to use for the provenance thermal history.
 
 
 ## Exhumation parameters
@@ -357,6 +356,10 @@ The parameters can be several python data types:
 
 * ``gof_weights`` = *list or array of 4 numbers*. weights for calculating overall goodness of fit from the gof statistic for temperature, vitrinite reflectance, apatite fission track age and apatite (U-Th)/He data, respectively.
 
+## Thermochronology parameters
+* ``provenance_time_nt`` = *integer* Number of timesteps to use for the provenance thermal history.
+* ``resample_timesteps``= *integer*. Use less timesteps for calculating AFT, AHe ages or for saving temperature history to a .csv file. For instance using a value of 10 will only use one in 10 timesteps for calculating the AFT ages and length distributions. This speeds up the model significantly, but is of course less accurate.
+
 
 ## Vitrinite reflectance parameters
 
@@ -365,7 +368,6 @@ The parameters can be several python data types:
 
 ## Apatite fission track parameters
 
-* ``resample_AFT_timesteps``= *integer*. Use less timesteps for calculating AFT ages. For instance using a value of 10 will only use one in 10 timesteps for calculating the AFT ages and length distributions. This speeds up the model significantly, but is of course less accurate.
 * ``use_caxis_correction``= *boolean*. Use C-axis correction for apatite fission track lengths. This only affects the way lengths are shown in the figure and how the model fit is calculated for AFT lengths. AFT ages are calculated always calculated using modelled c-axis projected fission track lengths, following Ketcham (2005, 2007).
 * ``annealing_kinetic_param``= *string*. Parameter for annealing characteristics of apatite grains. Options for kinetic params: 'Clwt': Chloride wt fractions, 'Dpar': Dpar / etch pit size (um).
 * ``annealing_kinetics_values``= *list or numpy array with two values*, End member values for kinetic parameters. AFT ages and lengths are calculated for both of these end-member values. When measured AFT ages or lengths fall between these two end-member values the model error is zero.
@@ -425,6 +427,20 @@ The model results contains a number of columns with statistics on the fit of the
 * ``aft_age_surface_max``: Highest value for the modeled present-day AFT ages at the surface (Ma).
 * ``aft_age_bottom_min``: Lowest value for the modeled present-day AFT ages for the lowest unit in the model domain (Ma).
 * ``aft_age_bottom_max``: Highest value for the modeled present-day AFT ages for the lowest unit in the model domain (Ma).
+
+
+## Burial and thermal history files
+
+If you choose the option ``save_model_run_data = True`` in the parameter file then PyBasin will generate a series of csv output files at each model runs, which will be saved in a directory that you can specify using the parameter ``datafile_output_dir``. The files that are saved include:
+
+* ``geo_history_well_x_msy.csv``: A file containing one row for each timeslice and columns for age, an indicator for burial, exhumation or hiatus and lithology.
+* ``burial_history_well_x_msy.csv``: A file containing the depths of each stratigraphic unit for each modeled timeslice.
+* ``formation_thickness_history_well_x_msy``: Contains the decompacted formation thicknesses for each modeled timeslice.
+* ``time_depth_temp_well_x_msy.csv``: Contains the modeled depth and temperature over time for each node.
+* ``aft_model_vs_data_well_x_msy.csv``: Contains the modeled AFT ages for each sample, each provenance history scenario and each kinetic parameter value (Clwt%, Dpar or rmr0).
+* ``ahe_model_vs_data_well_x_msy.csv``: Contains the modeled AHe ages for each single grain and each provenance history scenario.
+
+The filenames include the well name (x) and the model scenario number (y).
 
 
 # References

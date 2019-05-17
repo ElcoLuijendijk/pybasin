@@ -119,7 +119,7 @@ If ``make_model_data_fig = True`` in the file PyBasin_params.py, the model scrip
 
 ### Output data files:
 
-The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modelled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modelled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modelled temperatures over time. These files are stored in ``model_output/model_directory/burial_history_csv_files``.
+The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modelled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modelled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modelled temperatures over time. These files are stored in ``model_output/model_directory/thermal_history_csv_files``.
 
 
 ### Binary data file

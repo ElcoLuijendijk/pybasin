@@ -38,7 +38,9 @@ if args.model_file_or_directory is not None:
 else:
     print 'enter a directory name:'
     model_dir = raw_input()
+    model_file = None
 
+if model_file is None:
     model_files = os.listdir(model_dir)
     model_files = [f for f in model_files if f[-4:] == '.pck']
 

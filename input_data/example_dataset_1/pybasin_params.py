@@ -7,16 +7,16 @@ edit this file to change the model parameters for PyBasin
 import numpy as np
 
 
-print(('-' * 10))
+print('-' * 10)
 print('Example PyBasin dataset from the Roer Valley Graben (Luijendijk et al. 2011)')
-print(('-' * 10))
+print('-' * 10)
 
 
 class ModelParameters:
 
     # location of input data .csv files
     output_dir = 'model_output/example_dataset_1'
-    datafile_output_dir = 'model_output/example_dataset_1'
+    datafile_output_dir = 'model_output/example_dataset_1/thermal_history_datafiles'
 
     # names of wells or surface outcrops to include in a single set of model runs:
     wells = ['BKZ-01']
@@ -24,7 +24,7 @@ class ModelParameters:
     # option to calculate apatite fission track data
     simulate_AFT = True
     simulate_AHe = False
-    simulate_VR = True
+    simulate_VR = False
     simulate_salinity = False
 
     # option to calculate AHe ages for all nodes rather than just the samples
@@ -130,14 +130,18 @@ class ModelParameters:
     # apatite (U-Th)/He data
     gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
 
+
+    #############################
+    # Thermochronology parameters
+    #############################
     provenance_time_nt = 100
+
+    # resample timesteps for AFT, AHe calculation and saving modeled temperature histories
+    resample_timesteps = 10
 
     ############################################
     # Apatite fission track model params:
     ############################################
-    # resample timesteps for AFT calculation
-    #
-    resample_AFT_timesteps = 10
 
     # use C-axis correction for apatite fission track lengths
     use_caxis_correction = False
@@ -214,7 +218,7 @@ class ParameterRanges:
     initial_base_run = False
 
     # run model scenarios parallel
-    parallel_model_runs = True
+    parallel_model_runs = False
 
     # max number of simultaneous model runs:
     max_number_of_processes = 3
