@@ -52,7 +52,7 @@ python pybasin.py input_data/example_dataset_2
 
 The model runs will automatically generate figures of the modelled burial and thermal history and vitrinite reflectance, apatite fission track and/or apatite (U-Th)/He data, which can be found in the directory ``model_output/example_dataset_x``. The model result figure for the first example dataset should look like the figure below:
 
-![](manual/fig/model_example_smaller.png)
+![](manual/fig/model_example_1_smaller.png)
 *Model result figure that is generated automatically if you run the first example dataset (input_data/example_dataset_1)*
 
 
