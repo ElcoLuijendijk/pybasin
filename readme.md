@@ -1,4 +1,4 @@
-# PyBasin: Numerical model of basin evolution, heat flow and thermochronology
+# PyBasin: Numerical model of basin history, heat flow and thermochronology
 
 PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modeled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which is useful for instance to explore the values of exhumation rate, timing or basal heat flow that match organic maturity or thermochronology data in a basin. 
 
@@ -50,8 +50,10 @@ and
 python pybasin.py input_data/example_dataset_2
 ````
 
-The model runs will automatically generate figures of the modelled burial and thermal history and vitrinite reflectance, apatite fission track and/or apatite (U-Th)/He data, which can be found in the directory ``model_output/example_dataset_x``.
+The model runs will automatically generate figures of the modelled burial and thermal history and vitrinite reflectance, apatite fission track and/or apatite (U-Th)/He data, which can be found in the directory ``model_output/example_dataset_x``. The model result figure for the first example dataset should look like the figure below:
 
+![](manual/fig/model_example_smaller.png)
+*Model result figure that is generated automatically if you run the first example dataset (input_data/example_dataset_1)*
 
 
 ## Manual

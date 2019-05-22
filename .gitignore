@@ -1,7 +1,7 @@
 *.pyc
 *.pyo
 *.*~
-model_output/
+#model_output/
 *test*
 *backup*
 initial*.csv
