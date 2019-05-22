@@ -1,8 +1,19 @@
 ---
 title: "PyBasin manual"
-author:
-- Elco Luijendijk
+author: [Elco Luijendijk]
+date: "22 May 2019"
+
 ---
+
+# Introduction
+
+PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modeled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which is useful for instance to explore the values of exhumation rate, timing or basal heat flow that match organic maturity or thermochronology data in a basin. 
+
+PyBasin was first written during my PhD research on the thermal history of the Roer Valley Graben to solve a key issue with interpreting low-temperature thermochronology in sedimentary basins, which is that themrochronometers often show inhereited signals from their sediment source areas. This makes modeling themrochronometers much more challenging, and most available themrla history models implicitely assume that your sample contains a homogenous population with a single thermal history and source area. PyBasin solves this by using end-member provenance hsitories and modeling a range of thermochronometer ages, which can then be compared with the distribution of ages in samples. You can find more background information and case studies of the models in a publication in JGR [@Luijendijk2011b], my PhD thesis [@Luijendijk2012] and an upcoming publication in Geoscientific Model Development.
+
+![Example model run showing burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.](fig/model_example_1_simple.png)
+**Figure 1** *Example model run showing provenance and basin burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.*
+
 
 
 # Getting started
@@ -113,27 +124,38 @@ Each model run will generate a number of output files that are saved to the dire
 
 ## Figures
 
-If ``make_model_data_fig = True`` in the file PyBasin_params.py, the model script will generate a single figure for each model run showing burial depth, temperature and modeled vitrinite reflectance, apatite fission track age and apatite (U-Th)/He data. 
+If ``make_model_data_fig = True`` in the file PyBasin_params.py, the model script will generate a single figure for each model run showing burial depth, temperature and modeled vitrinite reflectance, apatite fission track age and apatite (U-Th)/He data. Two example figures that show the model results for the two example datasets are shown below.
 
-
-## Output data files
-
-The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modelled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modelled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modelled temperatures over time. These files are stored in ``model_output/model_directory/burial_history_csv_files``.
-
-
-## Binary data file
-
-If ``save_model_run_data = True`` in the file PyBasin_params.py, the model script will store all model simulation data for each model run in a datafile that uses the python pickle module. This file can be read later using a additional python script (still in the works...). The location where these files should be saved is specified in the ``PyBasin_params.py`` in line 19: ``datafile_output_dir = '../../heavy_data/PyBasin_MB'``. You can also make a figure later of a model run by running the script ``make_figure.py``. You can either specify a directory that contains output datafiles or an output datafile directly using:
+You can also make a figure later of a model run by running the script ``make_figure.py``. You can either specify a directory that contains output datafiles or an output datafile directly using:
 
 ````sh
 python make_figure output_directory_or_file
 ````
 
-Output files can be recognised by the file type .pck. If you specify a directory the script will list all .pck files in this directory and ask you which one to use for making a figure.
+Binary datafiles can be recognised by the file type .pck. If you specify a directory the script will list all .pck files in this directory and ask you which one to use for making a figure.
 
 
+![](fig/model_example_1.png)
 
-# Reference
+**Figure 2.** *Model output figure for example dataset 1, which shows modeled burial and thermal history, vitrinite reflectance and apatite fission track ages for borehole Nederweert-1 from the Roer Valley Graben, southern Netherlands. The modeled thermal history shows rapid burial and heating around 300 Ma when this area was part of the northern foreland basin of the Variscan orogen, and Mesozoic rift stage and a reactivation of the rift basin during the Cenozoic. The burial and thermal history is shown in panel b, which is the result of the applied surface temperature (panel a) and basal heat flow (panel c). The modeled temperature data (panel d) are poorly constrained because the measured temperatures consists of uncorreccted bottom hole temperature data that only provide a lower bound for the true formation temperature. The modeled vitrinite reflectance (panel e) and apatite fission track ages (panel f) show a good fit to the measured values. However, the two top most apatite fission track samples around 2000 m depth show anomalously young ages and narrow age distributions that may signify additional heating by hydrothermal activity in the late Cretaceous or early Cenozoic [@Luijendijk2012].*  
+
+
+![](fig/model_example_2.png)
+
+**Figure 3.** *Model output figure for example dataset 2, which shows modeled burial and thermal history and apatite (U-Th)/He ages for a surface outcrop sample from the folded and thrusted part of the Molasse Basin [@VonHagke2012].*  
+
+
+## Output data files
+
+The results of each model run are stored in a file named ``model_results_date_well_name_ms0-x_final.csv``. The file contains a copy of all input parameters for each model run, along with model statistics on the goodness of fit (GOF) of the modelled and measured temperature, vitrinite reflectance, AFT or AHe data and values for the modelled temperatures. More detailed model output can be found in a series of .csv files that record the stratigraphy, burial depths, formation thicknesses and modelled temperatures over time. These files are stored in ``model_output/model_directory/burial_history_csv_files``. A detailled explanation of the output files can be found in the section [Explanation of output datafiles].
+
+
+## Binary data file
+
+If ``save_model_run_data = True`` in the parameter file (pybasin_params.py), the model script will store all model simulation data for each model run in a datafile that uses the python pickle module. The datafile is constructed using the Python pickle module and can be recognized by the extension .pck. This file can be read later using a additional python script (still in the works...) or can be used to make a figure of the model results. 
+
+
+# Publication
 
 Please cite the following paper if you publish work that uses PyBasin:
 
