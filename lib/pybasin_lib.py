@@ -310,8 +310,8 @@ def add_exhumation_phases(well_strat,
                 msg = 'error, cannot implement exhumation. most likely the youngest preserved stratigraphic unit is ' \
                       'not inlcuded in the exhumed_strat_units parameter in the pybasin_params.py file, ' \
                       'or otherwise there could be an overlap between the timing of exhumation and the ' \
-                      'depositional age, check parameters exhumation_period_starts and exhumation_period_end'
-                print(df_ex)
+                      'depositional age, check parameters exhumation_period_starts and exhumation_period_end.'
+                msg += 'preserved stratigraphic units:\n' + str(df_ex)
                 raise IndexError(msg)
 
             eroded_units = exhumed_strat_unit[exhumed_strat_unit.index(youngest_unit):]
@@ -1269,7 +1269,7 @@ def get_geo_history(well_strat, strat_info_mod,
             original_thicknesses,
             max_thickness,
             strat_info_mod,
-            two_stage_exh=True,
+            two_stage_exh=two_stage_exh,
             exhumation_segment_factor=exhumation_segment_factor,
             exhumation_duration_factor=exhumation_duration_factor)
 
@@ -2084,7 +2084,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     durations = -np.diff(ages)
 
     if np.min(durations) <= 0:
-        msg = 'error, negative duration for a geological time period, check input data'
+        msg = 'error, negative duration for a geological time period, check well stratigraphy or strat info data.\n'
+        msg += '\tage and duration of each timeslice (My):\n'
+        for a1, a2, di in zip(ages[:-1], ages[1:], durations):
+            if di < 0:
+                msg += '\tage of timeslice = %0.3f - %0.3f, duration = %0.3f\n' % (a1, a2, di)
         raise ValueError(msg)
 
     # populate arrays with thermal conductivity, heat capacity, heat production,
@@ -2158,7 +2162,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     ############################################################
     # set up arrays for forward model of heat flow and salinity
     ############################################################
-
     # calculate timesteps
     if (np.min(durations) * 1e6 / 2.0) < pybasin_params.max_hf_timestep:
         dt = np.min(durations) * 1e6 / 2.0
@@ -2257,7 +2260,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         timestep += nt_heatflow
 
-
     if pybasin_params.simulate_salinity is True:
         Q_solute = np.zeros_like(porosity_nodes)
         fixed_lower_salinity = pybasin_params.fixed_lower_bnd_salinity
@@ -2289,9 +2291,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     n_prov = int(len(prov_cols) / 2)
 
     if n_prov == 0:
-        msg = 'error, no provneance age info found in stratigraphy_info.csv file\n'
-        msg += 'add one or more columns with the header provenance_age_start_1,provenance_age_end_1 and provenance '
-        msg += 'ages in Ma'
+        msg = 'error, no provenance age info found in stratigraphy_info.csv file\n'
+        msg += 'add one or more columns with the header provenance_age_start_1,provenance_age_end_1'
         raise IOError(msg)
 
     prov_ages_start = []

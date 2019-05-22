@@ -44,20 +44,29 @@ if model_file is None:
     model_files = os.listdir(model_dir)
     model_files = [f for f in model_files if f[-4:] == '.pck']
 
-    for i, mf in enumerate(model_files):
-        print i, '\t', mf
+    model_files_path = [os.path.join(model_dir, mf) for mf in model_files]
 
-    print 'enter the number of the file/model run you want to make a figure of:'
+    model_files_path.sort(key=os.path.getmtime)
+    model_files_path = model_files_path[::-1]
+
+    print('Model data files, sorted from newest to oldest:\n')
+
+    for i, mf in enumerate(model_files_path):
+        print i, '\t', os.path.split(mf)[-1]
+
+    print('enter the number of the file/model run you want to make a figure of:')
 
     mfi = int(raw_input())
 
-    model_file = os.path.join(model_dir, model_files[mfi])
+    model_file = model_files_path[mfi]
 
+print('reading model datafile %s' % model_file)
 
 fin = open(model_file)
 model_run_data_fig = pickle.load(fin)
 fin.close()
 
+print('making a figure of the model results:')
 fig = pf.model_vs_data_figure(model_run_data_fig)
 
 fn_out = model_file[:-4] + '_figure.%s' % args.fig_type

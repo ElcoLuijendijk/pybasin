@@ -1,2 +1,2 @@
-well,sample,depth,n_grains,aft_age,aft_age_stderr_plus,aft_age_stderr_min,length_mean,length_std,data_type
-E40,E40,0,19,10.3,-1.91,1.91,,,central_age
+well,sample,depth,aft_age,aft_age_stderr_plus,aft_age_stderr_min,length_mean,length_std
+E40,E40,0,10.3,-1.91,1.91,,

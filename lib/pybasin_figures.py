@@ -203,6 +203,7 @@ def model_vs_data_figure(model_run_data,
         (T_depth,
          T_obs,
          T_obs_sigma,
+         T_data_type,
          T_gof, T_rmse) = T_data
 
     if C_data is not None:
@@ -217,7 +218,9 @@ def model_vs_data_figure(model_run_data,
          vr_min,
          vr_max,
          vr_obs_sigma,
-         vr_GOF] = VR_model_data
+         vr_GOF,
+         vr_rmse,
+         vr_data_well] = VR_model_data
 
     if AFT_data != None:
         [simulated_AFT_data,
@@ -273,6 +276,9 @@ def model_vs_data_figure(model_run_data,
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
 
+        prov_ages = [ahe_node_times_burial[0][0].max(),
+                     ahe_node_times_burial[0][-1].max()]
+
     PY3 = sys.version_info.major == 3
 
     if PY3:
@@ -312,7 +318,7 @@ def model_vs_data_figure(model_run_data,
     leg_data_ext = []
     leg_model_range = None
 
-    max_depth = z_nodes.max() * 1.1
+    max_depth = z_nodes[active_nodes].max() * 1.1
 
     # skip VR, AFT and AHe panels if no data
     #if VR_model_data is not None and len(vr_obs) == 0:
@@ -449,12 +455,12 @@ def model_vs_data_figure(model_run_data,
 
     ts = 1.0e5
 
-    if z_nodes.max() < 1000:
+    if max_depth < 1000:
         ys = 1.0
     else:
         ys = 10.0
 
-    yi = np.arange(z_nodes.min(), z_nodes.max() + ys, ys)
+    yi = np.arange(z_nodes[active_nodes].min(), max_depth + ys, ys)
 
     cnt_var_mask = cnt_var.copy()
     cnt_var_mask[active_nodes == False] = np.nan
@@ -477,7 +483,7 @@ def model_vs_data_figure(model_run_data,
     y = z_nodes[::time_int_grid].ravel()
     z = cnt_var_mask[::time_int_grid].ravel()
     act = active_nodes[::time_int_grid].ravel()
-    ind = act == True
+    ind_act = act == True
 
     print('gridding T or salinity data vs time')
     gridding_ok = True
@@ -495,24 +501,24 @@ def model_vs_data_figure(model_run_data,
 
     if gridding_ok is True:
         # find max depth at each timestep
-        max_depth_time = np.max(z_nodes, axis=1)
-        max_depth_time2 = np.interp(xi,
-                                    (time_array_bp/1.0e6)[::-1],
-                                    max_depth_time[::-1])
+        z_nodes_corr = z_nodes.copy()
+        z_nodes_corr[np.isnan(z_nodes_corr)] = -99999
+        max_depth_time = np.max(z_nodes_corr, axis=1)
+        max_depth_time2 = np.interp(xi, (time_array_bp/1.0e6)[::-1], max_depth_time[::-1])
 
         # filter interpolated values that are deeper than deepest fm.
         for nti in range(len(xi)):
             zi.mask[yi > max_depth_time2[nti], nti] = True
 
         #tc = axb.pcolormesh(xg, yg, zi2, cmap='jet')
-        c_int = np.arange(0.0, cnt_var.max()+cnt_step, cnt_step)
+        c_int = np.arange(0.0, cnt_var[active_nodes].max()+cnt_step, cnt_step)
         tc = axb.contourf(xi, yi, zi, c_int, cmap=cmap, zorder=1.0)
 
     else:
         plot_int = 1
-        tc = axb.scatter(x[ind][::plot_int],
-                         y[ind][::plot_int],
-                         c=z[ind][::plot_int],
+        tc = axb.scatter(x[ind_act][::plot_int],
+                         y[ind_act][::plot_int],
+                         c=z[ind_act][::plot_int],
                          edgecolor="black", lw=0.1,
                          s=10,
                          cmap=cmap)
@@ -533,6 +539,7 @@ def model_vs_data_figure(model_run_data,
         ind = np.where(strat_transition == True)[0]
         strat_transition[:] = False
         strat_transition[ind[::sint]] = True
+        strat_transition[ind[-1]] = True
 
     print('strat units shown in fig:')
     for i, s in enumerate(strat_transition):
@@ -608,7 +615,7 @@ def model_vs_data_figure(model_run_data,
         leg_items += [leg_strat_unit]
         leg_labels += ['stratigraphic unit']
 
-    if (AFT_data is not None or show_thermochron_data is False) \
+    if (AFT_data is not None or AHe_data is not None or show_thermochron_data is False) \
             and show_prov_ages_simple is True:
 
         print('showing errorbar for AFT start times:')
@@ -661,8 +668,13 @@ def model_vs_data_figure(model_run_data,
             ax_strat.text(0.03, z_pos, strat_name, fontsize=strat_fontsize)
 
     if T_data is not None and len(T_data) > 0:
-        leg_data = ax_temp.errorbar(T_obs, T_depth,
-                                    xerr=T_obs_sigma * 2, **erb_props)
+        ind = T_data_type == 'BHT'
+        nind = T_data_type != 'BHT'
+        if 'BHT' in T_data_type.values:
+            xerr = np.array([np.zeros_like(T_obs_sigma)[ind], T_obs_sigma[ind] * 2])
+            leg_data = ax_temp.errorbar(T_obs[ind], T_depth[ind], xerr=xerr, **erb_props)
+
+        leg_data = ax_temp.errorbar(T_obs[nind], T_depth[nind], xerr=T_obs_sigma[nind] * 2, **erb_props)
         data_label.append('temperature')
 
     # plot modeled salinity
@@ -738,11 +750,13 @@ def model_vs_data_figure(model_run_data,
                                         widths=violin_width,
                                         showextrema=False)
                     for pc in vp['bodies']:
-                        pc.set_edgecolor('darkblue')
+                        pc.set_edgecolor('black')
                         pc.set_facecolor('lightblue')
+                        pc.set_alpha(0.75)
+                        pc.set_linewidth(0.5)
 
             leg_violin = mpatches.Patch(facecolor='lightblue',
-                                        edgecolor='blue')
+                                        edgecolor='black', lw=0.5)
             leg_data_ext.append(leg_violin)
             data_ext_label.append('age distribution')
 
@@ -911,7 +925,7 @@ def model_vs_data_figure(model_run_data,
     #
     max_time = time_array_bp.max() / 1e6 * 1.1
 
-    if (AFT_data is not None or show_thermochron_data is False) \
+    if (AFT_data is not None or AHe_data is not None or show_thermochron_data is False) \
             and show_prov_ages_simple is True:
         max_time = np.array(prov_ages).max() * 1.1
 
@@ -922,13 +936,19 @@ def model_vs_data_figure(model_run_data,
                                 for ai in a])
         max_time = start_times.max() * 1.1
 
+    if (AHe_data is not None and simulated_AHe_data is not None and show_provenance_hist is True):
+        start_times = np.array([ai[0]
+                                for a in ahe_node_times_burial
+                                for ai in a])
+        max_time = start_times.max() * 1.1
+
     for ax in time_panels:
         ax.set_xlim(max_time, 0)
 
     for ax in depth_panels:
         ax.set_ylim(max_depth, -max_depth / 20.0)
 
-    max_T = T_nodes[-1].max()
+    max_T = T_nodes[-1][active_nodes[-1]].max()
 
     if T_data is not None:
         max_T = T_obs.max()
@@ -1010,13 +1030,13 @@ def model_vs_data_figure(model_run_data,
 
     if T_data is not None and np.isnan(T_gof) == False:
         ax_temp.text(0.5, 1.03,
-                     'GOF=%0.2f' % T_gof,
+                     'GOF=%0.2f\nRMSE=%0.1f' % (T_gof, T_rmse),
                      transform=ax_temp.transAxes,
                      **textprops)
 
     if VR_model_data is not None and np.isnan(vr_GOF) == False:
         ax_vr.text(0.5, 1.03,
-                   'GOF=%0.2f' % vr_GOF,
+                   'GOF=%0.2f\nRMSE=%0.2f' % (vr_GOF, vr_rmse),
                    transform=ax_vr.transAxes,
                    **textprops)
 
@@ -1089,7 +1109,7 @@ def model_vs_data_figure(model_run_data,
 
         fig.legend(leg_items, leg_labels,
                    loc='lower center', ncol=ncols_legend, fontsize=legend_fontsize,
-                   frameon=False, numpoints=1, handlelength=1)
+                   frameon=False, numpoints=1, handlelength=2)
 
     if add_panel_titles is True:
         if panel_title_numbers is True:
@@ -1103,9 +1123,9 @@ def model_vs_data_figure(model_run_data,
         panel_labels = ['%s%s' % (panel_title_prefix, p) for p in panel_labels_init]
 
         for panel, label in zip(all_panels, panel_labels):
-            panel.text(0.03, 1.00, label,
+            panel.text(0.03, 1.02, label,
                        horizontalalignment='left',
-                       verticalalignment='bottom',
+                       verticalalignment='top',
                        weight='extra bold',
                        transform=panel.transAxes,
                        fontsize=panel_label_fs)

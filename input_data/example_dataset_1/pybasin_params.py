@@ -19,12 +19,12 @@ class ModelParameters:
     datafile_output_dir = 'model_output/example_dataset_1/thermal_history_datafiles'
 
     # names of wells or surface outcrops to include in a single set of model runs:
-    wells = ['BKZ-01']
+    wells = ['NDW-01']
 
     # option to calculate apatite fission track data
     simulate_AFT = True
     simulate_AHe = False
-    simulate_VR = False
+    simulate_VR = True
     simulate_salinity = False
 
     # option to calculate AHe ages for all nodes rather than just the samples
@@ -85,20 +85,23 @@ class ModelParameters:
     # exhumation scenarios
     #############################
     # start of exhumation (Ma)
-    exhumation_period_starts = np.array([85.8])
+    exhumation_period_starts = np.array([295.0, 85.8])
     # end of exhumation phase (Ma)
-    exhumation_period_ends = np.array([71.0])
+    exhumation_period_ends = np.array([270.0, 71.0])
     # exhumed thickness (m)
-    exhumed_thicknesses = np.array([1000.0])
+    exhumed_thicknesses = np.array([2750.0, 750.0])
 
     # determine last deposited units before unconformity:
     # this should be one list for each exhumation phase, with stratigraphic unit codes ordered from old to young
     # the model will add units starting from the oldest to the youngest, untill the additional thickness needed for
     # erosion is filled
-    exhumed_strat_units = [['ATBR3', 'ATBRU', 'ATBRO', 'SLDNA']]
+    exhumed_strat_units = [['DCCU', 'DCDH', 'DCHS'],
+                           ['ATAL', 'ATPO', 'ATWD', 'ATBR', 'SLDNA']]
 
-    # initial (pre-erosion) thicknesses:
-    original_thicknesses = [[50, 50, 50, 1500.0]]
+    # maximum initial (pre-erosion) thicknesses:
+    # make sure the last unit is thick enough so that all values of exhumation that you want to test can be accomodated
+    original_thicknesses = [[2000.0, 1000.0, 1000.0],
+                            [500, 100, 500, 500.0, 3000.0]]
 
     # support for two-stage exhumation history, enables fast and slow exhumation segments
     # switch for two-stage exhumation
@@ -117,7 +120,7 @@ class ModelParameters:
     ######################
     # heatflow_history: heat flow in W/m^2, age in Ma
     heatflow_ages = np.array([0, 260.0, 305, 312])
-    heatflow_history = np.array([68.0, 68.0, 130.0, 130.0]) * 1e-3
+    heatflow_history = np.array([65.0, 65.0, 100.0, 100.0]) * 1e-3
 
     # max size of heatflow timestep (in yrs)
     max_hf_timestep = 10000.0
@@ -129,7 +132,6 @@ class ModelParameters:
     # temperature, vitrinite reflectance, apatite fission track age and
     # apatite (U-Th)/He data
     gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
-
 
     #############################
     # Thermochronology parameters
@@ -221,7 +223,9 @@ class ParameterRanges:
     parallel_model_runs = False
 
     # max number of simultaneous model runs:
-    max_number_of_processes = 3
+    max_number_of_processes = 20
 
-    #
-    exhumed_thicknesses_s = [[1000.0], [2000.0]]
+    # example for running multiple models
+    #exhumed_thicknesses_s = [[1000.0, 750.0], [1500.0, 750.0], [2000.0, 750.0], [2500.0, 750.0],
+    #                         [3000.0, 750.0], [3500.0, 750.0], [4000.0, 750.0], [4500.0, 750.0],
+    #                         [5000.0, 750.0]]
