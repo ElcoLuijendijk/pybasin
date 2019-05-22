@@ -1,6 +1,6 @@
 # PyBasin: Numerical model of basin evolution, heat flow and thermochronology
 
-PyBasin is an open-source model that simulates sediment burial and exhumation and thermal history. The modeled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which is useful to explore for instac what values of exhumation rates, timing or basal heat flow match organic maturity or thermochronology data. 
+PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modeled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which is useful for instance to explore the values of exhumation rate, timing or basal heat flow that match organic maturity or thermochronology data in a basin. 
 
 ![Example model run showing burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.](manual/fig/model_example_1_simple_smaller.png)
 *Example model run showing provenance and basin burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.*
@@ -8,10 +8,9 @@ PyBasin is an open-source model that simulates sediment burial and exhumation an
 
 ## Getting started
 
-* click the download link on the right for a zip file of the source code
-* or clone the repository
+* Click the download link on the right for a zip file of the source code or clone the repository
 * Make sure you have installed the necessary python modules (see list below). The easiest is to use a python distribution that already includes all the necessary modules, like [Anaconda](https://www.continuum.io/downloads), [pythonxy](https://code.google.com/p/pythonxy/) or [canopy](https://www.enthought.com/products/canopy/).
-* Navigate to the PyBasin directory and execute PyBasin by executing the following command from the command line:
+* Navigate to the directory where you have saved the code and execute PyBasin by executing the following command from the command line:
 
 ````sh
 python pybasin.py
