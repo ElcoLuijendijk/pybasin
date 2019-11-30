@@ -15,7 +15,8 @@ import sys
 import pdb
 import itertools
 import numpy as np
-from pylab import normpdf
+#from pylab import normpdf
+import scipy.stats
 
 # import fortran module 
 try:
@@ -796,8 +797,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     track_ln_prob = np.zeros((nsteps, int(20 / binsize)))
     bins_ = np.arange(0, 20, binsize)
     for i in range(nsteps):
-        track_ln_prob[i, :] = normpdf(bins_, l[i], l_std[i])
-    
+        #track_ln_prob[i, :] = normpdf(bins_, l[i], l_std[i])
+        track_ln_prob[i, :] = scipy.stats.norm.pdf(bins_, l[i], l_std[i])
+
     #####################################################
     # correct for uranium decay and observation frequency
     #####################################################

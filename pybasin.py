@@ -214,7 +214,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                     aft_data_well.loc[sample_ix, 'simulated_AFT_min']
                     >= age_bin)[0][-1]
 
-            # if aft_data_well.ix[sample_ix, 'simulated_AFT_max'] == 0.0:
+            # if aft_data_well.loc[sample_ix, 'simulated_AFT_max'] == 0.0:
             #    end_ind = 0
             # else:
             #    np.where(0.0 >= age_bins)[0]
@@ -275,10 +275,10 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             age_error = age_error_min + age_error_max
 
-            aft_data_well.ix[sample_ix, 'age_error'] = age_error
+            aft_data_well.loc[sample_ix, 'age_error'] = age_error
 
         else:
-            aft_data_well.ix[sample_ix, 'age_error'] = np.nan
+            aft_data_well.loc[sample_ix, 'age_error'] = np.nan
             print('no model-data comparison for sample %s, ' \
                   'missing age data?' % sample_ix)
 
@@ -396,15 +396,15 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
                     age_error_max = age_max - ahe_age_sim_max
 
                 age_error += age_error_min + age_error_max
-                #aft_data_well.ix[sample_ix, 'age_error'] = age_error
+                #aft_data_well.loc[sample_ix, 'age_error'] = age_error
 
-            ahe_samples_well.ix[ahe_sample_ix, 'mean_GOF_all_grains'] = \
+            ahe_samples_well.loc[ahe_sample_ix, 'mean_GOF_all_grains'] = \
                 np.mean(np.array(grain_pdfs))
-            ahe_samples_well.ix[ahe_sample_ix, 'min_GOF_all_grains'] = \
+            ahe_samples_well.loc[ahe_sample_ix, 'min_GOF_all_grains'] = \
                 np.min(np.array(grain_pdfs))
-            ahe_samples_well.ix[ahe_sample_ix, 'max_GOF_all_grains'] = \
+            ahe_samples_well.loc[ahe_sample_ix, 'max_GOF_all_grains'] = \
                 np.max(np.array(grain_pdfs))
-            ahe_samples_well.ix[ahe_sample_ix, 'mean_ahe_error'] = age_error / len(grain_pdfs)
+            ahe_samples_well.loc[ahe_sample_ix, 'mean_ahe_error'] = age_error / len(grain_pdfs)
 
         ahe_age_pdfs_all_samples.append(ahe_age_pdfs)
 
@@ -414,7 +414,7 @@ def model_data_comparison_AHe(ahe_samples_well, ahe_data,
         ahe_age_gof = np.nan
 
     if 'mean_ahe_error' in ahe_samples_well.columns:
-        ahe_age_error = ahe_samples_well.ix[ahe_sample_ix, 'mean_ahe_error'].mean()
+        ahe_age_error = ahe_samples_well.loc[ahe_sample_ix, 'mean_ahe_error'].mean()
     else:
         ahe_age_error = 99999.9
 
@@ -608,7 +608,7 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
     if calculate_thermochron_for_all_nodes is True:
 
         print('-' * 10)
-        print('calculating AHe for all nodes')
+        print('calculating AHe ages for all nodes')
 
         ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
         U_nodes = np.zeros((n_nodes, 2))
@@ -831,8 +831,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     # calculate cooling during exhumation
     for i, exhumed_unit_block in enumerate(exhumed_unit_blocks):
-        start = geohist_df.ix[exhumed_unit_block[-1], 'age_bottom']
-        end = geohist_df.ix[exhumed_unit_block[0], 'age_top']
+        start = geohist_df.loc[exhumed_unit_block[-1], 'age_bottom']
+        end = geohist_df.loc[exhumed_unit_block[0], 'age_top']
 
         if end < 0:
             end = 0

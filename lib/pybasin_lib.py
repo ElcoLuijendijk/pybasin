@@ -166,17 +166,17 @@ def subdivide_strat_units(input_df, max_thickness):
 
         for ind_th in input_df.index[ind_ths]:
 
-            n_subdiv = int(np.ceil(input_df.ix[ind_th, 'present-day_thickness'] / max_thickness))
-            new_th = input_df.ix[ind_th, 'present-day_thickness'] / n_subdiv
-            new_duration = (input_df.ix[ind_th, 'age_top'] - input_df.ix[ind_th, 'age_bottom']) / n_subdiv
+            n_subdiv = int(np.ceil(input_df.loc[ind_th, 'present-day_thickness'] / max_thickness))
+            new_th = input_df.loc[ind_th, 'present-day_thickness'] / n_subdiv
+            new_duration = (input_df.loc[ind_th, 'age_top'] - input_df.loc[ind_th, 'age_bottom']) / n_subdiv
 
-            age_top = input_df.ix[ind_th, 'age_bottom'] + new_duration
-            depth_bottom = input_df.ix[ind_th, 'depth_bottom'] - new_th
+            age_top = input_df.loc[ind_th, 'age_bottom'] + new_duration
+            depth_bottom = input_df.loc[ind_th, 'depth_bottom'] - new_th
 
             # adjust existing unit
-            input_df.ix[ind_th, 'present-day_thickness'] = new_th
-            input_df.ix[ind_th, 'age_top'] = input_df.ix[ind_th, 'age_bottom'] + new_duration
-            input_df.ix[ind_th, 'depth_top'] = input_df.ix[ind_th, 'depth_bottom'] - new_th
+            input_df.loc[ind_th, 'present-day_thickness'] = new_th
+            input_df.loc[ind_th, 'age_top'] = input_df.loc[ind_th, 'age_bottom'] + new_duration
+            input_df.loc[ind_th, 'depth_top'] = input_df.loc[ind_th, 'depth_bottom'] - new_th
 
             # add new subdivided units
             for i in range(n_subdiv-1):
@@ -199,17 +199,17 @@ def subdivide_strat_units(input_df, max_thickness):
         for i, unit in enumerate(subdiv_units):
             orig_unit = unit.split('_s_')[0]
             try:
-                subdiv_df.ix[unit, input_df.columns] = input_df.ix[orig_unit, input_df.columns]
+                subdiv_df.loc[unit, input_df.columns] = input_df.loc[orig_unit, input_df.columns]
             except KeyError as msg:
                 msg += ', error in processing subidivision of strat units'
                 raise KeyError(msg)
 
         for i, unit in enumerate(subdiv_units):
-            subdiv_df.ix[unit, 'present-day_thickness'] = subdiv_th[i]
-            subdiv_df.ix[unit, 'age_bottom'] = subdiv_age_start[i]
-            subdiv_df.ix[unit, 'age_top'] = subdiv_age_end[i]
-            subdiv_df.ix[unit, 'depth_bottom'] = subdiv_bottom[i]
-            subdiv_df.ix[unit, 'depth_top'] = subdiv_top[i]
+            subdiv_df.loc[unit, 'present-day_thickness'] = subdiv_th[i]
+            subdiv_df.loc[unit, 'age_bottom'] = subdiv_age_start[i]
+            subdiv_df.loc[unit, 'age_top'] = subdiv_age_end[i]
+            subdiv_df.loc[unit, 'depth_bottom'] = subdiv_bottom[i]
+            subdiv_df.loc[unit, 'depth_top'] = subdiv_top[i]
 
         # merge original and subdivided dataframes
         output_df = pd.concat((input_df, subdiv_df))
@@ -221,7 +221,8 @@ def subdivide_strat_units(input_df, max_thickness):
     # sort geohistory to time
     output_df = output_df.sort_values(['age_bottom'])
 
-    output_df = output_df.convert_objects(convert_numeric=True)
+    #output_df = output_df.convert_objects(convert_numeric=True)
+    output_df = output_df.apply(pd.to_numeric, errors="ignore")
 
     return output_df
 
@@ -299,8 +300,8 @@ def add_exhumation_phases(well_strat,
             for unit in df_ex.index:
 
                 unit_preserved1 = [unit in w_unit for w_unit in wsl]
-                df_ex.ix[unit, 'preserved'] = np.any(unit_preserved1)
-                df_ex.ix[unit, 'preserved_thickness'] = \
+                df_ex.loc[unit, 'preserved'] = np.any(unit_preserved1)
+                df_ex.loc[unit, 'preserved_thickness'] = \
                     well_strat['present-day_thickness'][unit_preserved1].sum()
 
             # list (partly) eroded units
@@ -317,9 +318,9 @@ def add_exhumation_phases(well_strat,
             eroded_units = exhumed_strat_unit[exhumed_strat_unit.index(youngest_unit):]
 
             # calculate eroded thicknesses
-            df_ex.ix[eroded_units, 'eroded_thickness'] = \
-                df_ex.ix[eroded_units, 'normal_thickness'] - \
-                df_ex.ix[eroded_units, 'preserved_thickness']
+            df_ex.loc[eroded_units, 'eroded_thickness'] = \
+                df_ex.loc[eroded_units, 'normal_thickness'] - \
+                df_ex.loc[eroded_units, 'preserved_thickness']
 
             # correct < 0 eroded thicknesses
             df_ex.loc[df_ex['eroded_thickness'] < 0, 'eroded_thickness'] = 0.0
@@ -333,12 +334,12 @@ def add_exhumation_phases(well_strat,
                 ex_diff = df_ex['eroded_thickness'].sum() - exhumed_thickness
                 for eroded_unit in eroded_units[::-1]:
                     if ex_diff > 0:
-                        if df_ex.ix[eroded_unit, 'eroded_thickness'] > ex_diff:
-                            df_ex.ix[eroded_unit, 'eroded_thickness'] -= ex_diff
+                        if df_ex.loc[eroded_unit, 'eroded_thickness'] > ex_diff:
+                            df_ex.loc[eroded_unit, 'eroded_thickness'] -= ex_diff
                             ex_diff = 0
                         else:
-                            ex_diff -= df_ex.ix[eroded_unit, 'eroded_thickness']
-                            df_ex.ix[eroded_unit, 'eroded_thickness'] = 0.0
+                            ex_diff -= df_ex.loc[eroded_unit, 'eroded_thickness']
+                            df_ex.loc[eroded_unit, 'eroded_thickness'] = 0.0
 
             # recalculate eroded units:
             eroded_units = df_ex.index[df_ex['eroded_thickness']>0].tolist()
@@ -352,25 +353,25 @@ def add_exhumation_phases(well_strat,
                 (df_ex['eroded_thickness'] / df_ex['n_additional_units'])
 
             # find depositional ages of units
-            df_ex.ix[eroded_units, 'age_bottom'] = \
-                strat_info_mod.ix[eroded_units, 'age_bottom']
-            df_ex.ix[eroded_units, 'age_top'] = \
-                strat_info_mod.ix[eroded_units, 'age_top']
+            df_ex.loc[eroded_units, 'age_bottom'] = \
+                strat_info_mod.loc[eroded_units, 'age_bottom']
+            df_ex.loc[eroded_units, 'age_top'] = \
+                strat_info_mod.loc[eroded_units, 'age_top']
 
             df_ex['duration'] = df_ex['age_bottom'] - df_ex['age_top']
 
-            df_ex.ix[eroded_units, 'duration_preserved_unit'] = \
-                ((df_ex.ix[eroded_units, 'preserved_thickness'] /
-                  (df_ex.ix[eroded_units, 'preserved_thickness'] +
-                   df_ex.ix[eroded_units, 'eroded_thickness']))
-                 * df_ex.ix[eroded_units, 'duration'])
+            df_ex.loc[eroded_units, 'duration_preserved_unit'] = \
+                ((df_ex.loc[eroded_units, 'preserved_thickness'] /
+                  (df_ex.loc[eroded_units, 'preserved_thickness'] +
+                   df_ex.loc[eroded_units, 'eroded_thickness']))
+                 * df_ex.loc[eroded_units, 'duration'])
 
             df_ex['duration_non_preserved_units'] = \
                 (df_ex['duration'] - df_ex['duration_preserved_unit'])
 
-            df_ex.ix[eroded_units, 'duration_additional_units'] = \
-                (df_ex.ix[eroded_units, 'duration_non_preserved_units']
-                 / df_ex.ix[eroded_units, 'n_additional_units'])
+            df_ex.loc[eroded_units, 'duration_additional_units'] = \
+                (df_ex.loc[eroded_units, 'duration_non_preserved_units']
+                 / df_ex.loc[eroded_units, 'n_additional_units'])
 
             # check if end of exhumation not younger than overlying unit
             youngest_unit_index = [i for i, wsli in enumerate(wsl)
@@ -382,12 +383,12 @@ def add_exhumation_phases(well_strat,
 
             if (overlying_unit is not None
                 and exhumation_period_end
-                    < well_strat.ix[overlying_unit, 'age_bottom']):
+                    < well_strat.loc[overlying_unit, 'age_bottom']):
                 print('correcting exhumation end from %0.2f Ma ' \
                       'to age of overlying unit, %0.2f Ma' \
                       % (exhumation_period_end,
-                         well_strat.ix[overlying_unit, 'age_bottom']))
-                exhumation_period_end = well_strat.ix[overlying_unit,
+                         well_strat.loc[overlying_unit, 'age_bottom']))
+                exhumation_period_end = well_strat.loc[overlying_unit,
                                                       'age_bottom']
 
             if exhumation_period_end < 0:
@@ -399,27 +400,27 @@ def add_exhumation_phases(well_strat,
             # calculate duration of exhumation for each unit
             exhumation_duration_total = (exhumation_period_start
                                          - exhumation_period_end)
-            df_ex.ix[eroded_units, 'exhumation_duration_fraction'] = \
-                df_ex.ix[eroded_units, 'eroded_thickness'] / exhumed_thickness
-            df_ex.ix[eroded_units, 'exhumation_duration'] = \
-                (df_ex.ix[eroded_units, 'exhumation_duration_fraction']
+            df_ex.loc[eroded_units, 'exhumation_duration_fraction'] = \
+                df_ex.loc[eroded_units, 'eroded_thickness'] / exhumed_thickness
+            df_ex.loc[eroded_units, 'exhumation_duration'] = \
+                (df_ex.loc[eroded_units, 'exhumation_duration_fraction']
                  * exhumation_duration_total)
 
-            df_ex.ix[eroded_units, 'exhumation_units_duration'] = \
-                (df_ex.ix[eroded_units, 'exhumation_duration']
-                 / df_ex.ix[eroded_units, 'n_additional_units'])
+            df_ex.loc[eroded_units, 'exhumation_units_duration'] = \
+                (df_ex.loc[eroded_units, 'exhumation_duration']
+                 / df_ex.loc[eroded_units, 'n_additional_units'])
 
             # distribute exhumation time over all units
             exhumation_start_unit = exhumation_period_start
             for eroded_unit in eroded_units[::-1]:
-                df_ex.ix[eroded_unit, 'exhumation_start'] = \
+                df_ex.loc[eroded_unit, 'exhumation_start'] = \
                     exhumation_start_unit
-                df_ex.ix[eroded_unit, 'exhumation_end'] = \
+                df_ex.loc[eroded_unit, 'exhumation_end'] = \
                     exhumation_start_unit - \
-                    df_ex.ix[eroded_unit, 'exhumation_duration']
+                    df_ex.loc[eroded_unit, 'exhumation_duration']
                 exhumation_start_unit = \
                     exhumation_start_unit - \
-                    df_ex.ix[eroded_unit, 'exhumation_duration']
+                    df_ex.loc[eroded_unit, 'exhumation_duration']
 
             # adjust deposition time youngest preserved unit
             # find location of youngest preserved unit and subdivisions
@@ -428,48 +429,48 @@ def add_exhumation_phases(well_strat,
 
             # update ages youngest preserved units if partly preserved and
             # partly eroded:
-            if df_ex.ix[youngest_unit, 'duration_non_preserved_units'] > 0:
-                start_y = well_strat.ix[youngest_units, 'age_bottom'].max()
-                #end_y = well_strat.ix[youngest_units, 'age_top'].min()
+            if df_ex.loc[youngest_unit, 'duration_non_preserved_units'] > 0:
+                start_y = well_strat.loc[youngest_units, 'age_bottom'].max()
+                #end_y = well_strat.loc[youngest_units, 'age_top'].min()
                 durations_fr = -np.arange(n_youngest_units + 1).astype(float) / n_youngest_units
                 starts_y = durations_fr[:-1] \
-                           * df_ex.ix[youngest_unit, 'duration_preserved_unit'] \
+                           * df_ex.loc[youngest_unit, 'duration_preserved_unit'] \
                            + start_y
                 ends_y = durations_fr[1:] \
-                         * df_ex.ix[youngest_unit, 'duration_preserved_unit'] \
+                         * df_ex.loc[youngest_unit, 'duration_preserved_unit'] \
                          + start_y
 
-                well_strat.ix[youngest_units, 'age_bottom'] = starts_y[::-1]
-                well_strat.ix[youngest_units, 'age_top'] = ends_y[::-1]
+                well_strat.loc[youngest_units, 'age_bottom'] = starts_y[::-1]
+                well_strat.loc[youngest_units, 'age_top'] = ends_y[::-1]
 
             # create a new dataframe with exhumed units
             for eroded_unit in eroded_units:
 
-                if df_ex.ix[eroded_unit, 'n_additional_units'] > 0:
+                if df_ex.loc[eroded_unit, 'n_additional_units'] > 0:
                     # create lists with timing of deposition new units
-                    start = (df_ex.ix[eroded_unit, 'age_bottom'] -
-                             df_ex.ix[eroded_unit, 'duration_preserved_unit'])
+                    start = (df_ex.loc[eroded_unit, 'age_bottom'] -
+                             df_ex.loc[eroded_unit, 'duration_preserved_unit'])
                     new_units_start = \
                         (-np.arange(
-                            df_ex.ix[eroded_unit, 'n_additional_units'])
-                         / df_ex.ix[eroded_unit, 'n_additional_units']
-                         * df_ex.ix[eroded_unit, 'duration_non_preserved_units']
+                            df_ex.loc[eroded_unit, 'n_additional_units'])
+                         / df_ex.loc[eroded_unit, 'n_additional_units']
+                         * df_ex.loc[eroded_unit, 'duration_non_preserved_units']
                          + start)
                     new_units_end = \
                         (new_units_start
-                         - df_ex.ix[eroded_unit, 'duration_non_preserved_units']
-                         / df_ex.ix[eroded_unit, 'n_additional_units'])
+                         - df_ex.loc[eroded_unit, 'duration_non_preserved_units']
+                         / df_ex.loc[eroded_unit, 'n_additional_units'])
 
                     # and create list with timing of exhumation of units
                     ex_units_fract = -np.arange(
-                            df_ex.ix[eroded_unit, 'n_additional_units'])
+                            df_ex.loc[eroded_unit, 'n_additional_units'])
                     ex_units_start = \
                         (ex_units_fract
-                         * df_ex.ix[eroded_unit, 'exhumation_units_duration']
-                         + df_ex.ix[eroded_unit, 'exhumation_start'])[::-1]
+                         * df_ex.loc[eroded_unit, 'exhumation_units_duration']
+                         + df_ex.loc[eroded_unit, 'exhumation_start'])[::-1]
                     ex_units_end = \
                         (ex_units_start
-                         - df_ex.ix[eroded_unit, 'exhumation_units_duration'])
+                         - df_ex.loc[eroded_unit, 'exhumation_units_duration'])
 
                     #
                     ind = ex_units_end < 0
@@ -498,7 +499,7 @@ def add_exhumation_phases(well_strat,
                         new_units_start_list.append(unit_start)
                         new_units_end_list.append(unit_end)
                         new_units_thickness_list.append(
-                            df_ex.ix[eroded_unit, 'thickness_additional_units'])
+                            df_ex.loc[eroded_unit, 'thickness_additional_units'])
                         deposition_codes.append(1)
 
                         # add exhumation phases
@@ -506,7 +507,7 @@ def add_exhumation_phases(well_strat,
                         new_units_start_list.append(ex_start)
                         new_units_end_list.append(ex_end)
                         new_units_thickness_list.append(
-                            df_ex.ix[eroded_unit, 'thickness_additional_units'])
+                            df_ex.loc[eroded_unit, 'thickness_additional_units'])
                         deposition_codes.append(-1)
 
     if two_stage_exh is True:
@@ -719,7 +720,7 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
             row_name = None
 
         if row_name is not None:
-            output_df.ix[row, cols] = data_df.ix[row_name, cols]
+            output_df.loc[row, cols] = data_df.loc[row_name, cols]
 
     return output_df
 
@@ -779,36 +780,36 @@ def find_maximum_depth(input_df, exhumation_phases,
                 z_top = 0
             else:
                 overlying_unit = pre_exhumation_strat[i-1]
-                z_top = float(input_df.ix[overlying_unit,
+                z_top = float(input_df.loc[overlying_unit,
                                           'maximum_depth_bottom_temp'])
 
-            input_df.ix[strat_unit, 'maximum_depth_top_temp'] = z_top
+            input_df.loc[strat_unit, 'maximum_depth_top_temp'] = z_top
 
             # add eroded thickness
             if strat_unit[0] == '+':
-                input_df.ix[strat_unit, 'maximum_burial_thickness_temp'] = \
-                    input_df.ix[strat_unit, 'eroded_thickness']
+                input_df.loc[strat_unit, 'maximum_burial_thickness_temp'] = \
+                    input_df.loc[strat_unit, 'eroded_thickness']
 
             # if top is deeper than present-day depth:
             # use present day thickness
-            elif input_df.ix[strat_unit, 'maximum_depth_top_temp'] >= \
-                    input_df.ix[strat_unit, 'depth_top']:
-                input_df.ix[strat_unit, 'maximum_burial_thickness_temp'] = \
-                    input_df.ix[strat_unit, 'present-day_thickness']
+            elif input_df.loc[strat_unit, 'maximum_depth_top_temp'] >= \
+                    input_df.loc[strat_unit, 'depth_top']:
+                input_df.loc[strat_unit, 'maximum_burial_thickness_temp'] = \
+                    input_df.loc[strat_unit, 'present-day_thickness']
 
             # otherwise: calculate compacted thickness:
             else:
                 # error in present-day thickness input for SLDNA...
-                input_df.ix[strat_unit, 'maximum_burial_thickness_temp'] = \
-                    compact(input_df.ix[strat_unit, 'matrix_thickness'],
-                            input_df.ix[strat_unit, 'surface_porosity'],
-                            input_df.ix[strat_unit, 'compressibility'],
+                input_df.loc[strat_unit, 'maximum_burial_thickness_temp'] = \
+                    compact(input_df.loc[strat_unit, 'matrix_thickness'],
+                            input_df.loc[strat_unit, 'surface_porosity'],
+                            input_df.loc[strat_unit, 'compressibility'],
                             z_top,
-                            input_df.ix[strat_unit, 'present-day_thickness'],
+                            input_df.loc[strat_unit, 'present-day_thickness'],
                             max_decompaction_error)
 
-            input_df.ix[strat_unit, 'maximum_depth_bottom_temp'] = \
-                z_top + input_df.ix[strat_unit,
+            input_df.loc[strat_unit, 'maximum_depth_bottom_temp'] = \
+                z_top + input_df.loc[strat_unit,
                                     'maximum_burial_thickness_temp']
 
         # compare to previous estimate of max depth and copy if units more
@@ -1285,18 +1286,18 @@ def get_geo_history(well_strat, strat_info_mod,
     # set present-day thickness of fully eroded units to 0
     for strat in geohist_df.index:
         if strat[0] == '+':
-            geohist_df.ix[strat, 'present-day_thickness'] = 0
-            geohist_df.ix[strat, 'initial_thickness'] = 0
+            geohist_df.loc[strat, 'present-day_thickness'] = 0
+            geohist_df.loc[strat, 'initial_thickness'] = 0
 
     # calculate matrix thickness of fully eroded units
     for strat in geohist_df.index:
         if strat[0] == '+':
-            geohist_df.ix[strat, 'matrix_thickness'] =\
+            geohist_df.loc[strat, 'matrix_thickness'] =\
                 calculate_matrix_thickness(
-                    geohist_df.ix[strat, 'surface_porosity'],
-                    geohist_df.ix[strat, 'compressibility'],
+                    geohist_df.loc[strat, 'surface_porosity'],
+                    geohist_df.loc[strat, 'compressibility'],
                     0,
-                    geohist_df.ix[strat, 'eroded_thickness'])
+                    geohist_df.loc[strat, 'eroded_thickness'])
 
     # find exhumation phases
     exhumation_phases = list(geohist_df.index[geohist_df['deposition_code'] == -1])
@@ -1338,8 +1339,8 @@ def get_geo_history(well_strat, strat_info_mod,
     # set present-day thickness of hiatusses to 0
     for strat in geohist_df.index:
         if strat[0] == '~':
-            geohist_df.ix[strat, 'present-day_thickness'] = 0
-            geohist_df.ix[strat, 'matrix_thickness'] = 0
+            geohist_df.loc[strat, 'present-day_thickness'] = 0
+            geohist_df.loc[strat, 'matrix_thickness'] = 0
 
     #print geohist_df[['age_bottom', 'age_top']]
 
@@ -1375,15 +1376,15 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
 
     for timestep in geohist_df.index[::-1]:
 
-        if geohist_df.ix[timestep, 'deposition_code'] == 1:
+        if geohist_df.loc[timestep, 'deposition_code'] == 1:
 
             # add new strat unit on top
             strat_column.insert(0, timestep)
 
             # construct lists with compaction params
-            n0s = [geohist_df.ix[s, 'surface_porosity'] for s in strat_column]
-            betas = [geohist_df.ix[s, 'compressibility'] for s in strat_column]
-            bms = [geohist_df.ix[s, 'matrix_thickness'] for s in strat_column]
+            n0s = [geohist_df.loc[s, 'surface_porosity'] for s in strat_column]
+            betas = [geohist_df.loc[s, 'compressibility'] for s in strat_column]
+            bms = [geohist_df.loc[s, 'matrix_thickness'] for s in strat_column]
 
             # calculate new compacted thicknesses
             thicknesses = np.zeros((len(strat_column)))
@@ -1398,7 +1399,7 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
                         thicknesses[i+1] = th_old
 
         # remove top unit
-        elif geohist_df.ix[timestep, 'deposition_code'] == -1:
+        elif geohist_df.loc[timestep, 'deposition_code'] == -1:
             thicknesses = thickness_list[-1][1:]
             strat_column = strat_column_list[-1][1:]
 
@@ -1411,7 +1412,7 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
                                                strat_column_list, thickness_list):
 
         for s, th in zip(strat_column, thicknesses):
-            strat_thickness_df.ix[s, str(time)] = th
+            strat_thickness_df.loc[s, str(time)] = th
 
     # check if modeled and calculated present-day thickness match
     geohist_df['present-day_thickness_simulated'] = np.nan
@@ -1422,10 +1423,10 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
         print('\nstrat_unit, thickness, thickness simulated')
 
         for s, th in zip(strat_column, thicknesses):
-            geohist_df.ix[s, 'present-day_thickness_simulated'] = \
-                strat_thickness_df.ix[s, lastcol]
-            print(s, geohist_df.ix[s, 'present-day_thickness'], \
-                geohist_df.ix[s, 'present-day_thickness_simulated'])
+            geohist_df.loc[s, 'present-day_thickness_simulated'] = \
+                strat_thickness_df.loc[s, lastcol]
+            print(s, geohist_df.loc[s, 'present-day_thickness'], \
+                geohist_df.loc[s, 'present-day_thickness_simulated'])
 
     # fill nan values in thickness df with zeros
     strat_thickness_df = strat_thickness_df.fillna(0.0)
@@ -1868,6 +1869,10 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     ahe_age_nodes_min_all = []
     ahe_age_nodes_max_all = []
 
+    print('all samples/nodes:')
+    print('.' * n_nodes)
+    print('progress:')
+
     for nn in range(n_nodes):
 
         sys.stdout.write('.')
@@ -2048,7 +2053,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # calculate burial depths from thickness dataframe
     burial_df = strat_thickness_df.copy()
     for ind in burial_df.index:
-        burial_df.ix[ind] = strat_thickness_df.ix[:ind].sum()
+        burial_df.loc[ind] = strat_thickness_df.loc[:ind].sum()
 
     if save_csv_files is True:
         burial_df.to_csv(os.path.join(output_dir,
@@ -2100,12 +2105,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                         'surface_porosity'])
 
     for ix in hf_param_df.index:
-        hf_param_df.ix[ix, 'K'] = geohist_df.ix[ix, 'thermal_conductivity']
-        hf_param_df.ix[ix, 'c'] = geohist_df.ix[ix, 'heat_capacity']
-        hf_param_df.ix[ix, 'HP'] = geohist_df.ix[ix, 'heat_production']
-        hf_param_df.ix[ix, 'rho_matrix'] = 2650.0
-        hf_param_df.ix[ix, 'matrix_thickness'] = geohist_df.ix[ix, 'matrix_thickness']
-        hf_param_df.ix[ix, 'surface_porosity'] = geohist_df.ix[ix, 'surface_porosity']
+        hf_param_df.loc[ix, 'K'] = geohist_df.loc[ix, 'thermal_conductivity']
+        hf_param_df.loc[ix, 'c'] = geohist_df.loc[ix, 'heat_capacity']
+        hf_param_df.loc[ix, 'HP'] = geohist_df.loc[ix, 'heat_production']
+        hf_param_df.loc[ix, 'rho_matrix'] = 2650.0
+        hf_param_df.loc[ix, 'matrix_thickness'] = geohist_df.loc[ix, 'matrix_thickness']
+        hf_param_df.loc[ix, 'surface_porosity'] = geohist_df.loc[ix, 'surface_porosity']
 
     # calculate evolution of porosity
     porosity_df = pd.DataFrame(index=burial_df.index,
@@ -2121,9 +2126,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     # calculate porosity at each timestep
     for ix in porosity_df.index:
-        porosity_df.ix[ix] = (1.0
-                              - hf_param_df.ix[ix, 'matrix_thickness']
-                              / strat_thickness_df.ix[ix])
+        porosity_df.loc[ix] = (1.0
+                              - hf_param_df.loc[ix, 'matrix_thickness']
+                              / strat_thickness_df.loc[ix])
 
     # change inf and -inf to nan values
     porosity_df[porosity_df == -np.inf] = np.nan
@@ -2133,9 +2138,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # surface porosity
     for col in porosity_df.columns:
         for row in porosity_df.index:
-            if (active_fm.ix[row, col] == True
-                    and np.isnan(porosity_df.ix[row, col])):
-                porosity_df.ix[row, col] = hf_param_df.ix[row,
+            if (active_fm.loc[row, col] == True
+                    and np.isnan(porosity_df.loc[row, col])):
+                porosity_df.loc[row, col] = hf_param_df.loc[row,
                                                           'surface_porosity']
     porosity_last = porosity_df[porosity_df.columns[-1]].dropna().values
     print('final calculated porosity, mean=%0.2f, range=%0.2f-%0.2f' \
@@ -2145,15 +2150,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # heat production
     # at each geological timestep
     for ix in c_df.index:
-        k_df.ix[ix] = (hf_param_df.ix[ix, 'K'] ** (1.0 - porosity_df.ix[ix]) *
-                       litho_props.ix['water', 'thermal_conductivity'] ** porosity_df.ix[ix])
-        c_df.ix[ix] = (hf_param_df.ix[ix, 'c'] * (1.0 - porosity_df.ix[ix]) +
-                       litho_props.ix['water', 'heat_capacity'] * porosity_df.ix[ix])
-        rho_df.ix[ix] = (hf_param_df.ix[ix, 'rho_matrix'] *
-                         (1.0 - porosity_df.ix[ix]) +
-                         porosity_df.ix[ix] *
-                         litho_props.ix['water', 'density'])
-        hp_df.ix[ix] = hf_param_df.ix[ix, 'HP'] * (1.0 - porosity_df.ix[ix])
+        k_df.loc[ix] = (hf_param_df.loc[ix, 'K'] ** (1.0 - porosity_df.loc[ix]) *
+                       litho_props.loc['water', 'thermal_conductivity'] ** porosity_df.loc[ix])
+        c_df.loc[ix] = (hf_param_df.loc[ix, 'c'] * (1.0 - porosity_df.loc[ix]) +
+                       litho_props.loc['water', 'heat_capacity'] * porosity_df.loc[ix])
+        rho_df.loc[ix] = (hf_param_df.loc[ix, 'rho_matrix'] *
+                         (1.0 - porosity_df.loc[ix]) +
+                         porosity_df.loc[ix] *
+                         litho_props.loc['water', 'density'])
+        hp_df.loc[ix] = hf_param_df.loc[ix, 'HP'] * (1.0 - porosity_df.loc[ix])
 
     k_last = k_df[k_df.columns[-1]].dropna().values
     print('final thermal conductivity, mean=%0.2f, range=%0.2f-%0.2f' \
@@ -2635,12 +2640,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         #timestep in xrange(nt_total
         if timestep in cumulative_steps or timestep == nt_total - 1:
 
-            print('step %i, %0.2f Ma, max z = %0.1f, min, max T = %0.1f - %0.1f, nodes=%i' \
-                  % (timestep, time_array_bp[timestep] / 1e6,
+            print('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' \
+                  % (timestep,
+                     len(z_nodes[timestep, active_nodes_i]),
+                     time_array_bp[timestep] / 1e6,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
-                     T_nodes[timestep, active_nodes_i].max(),
-                     len(z_nodes[timestep, active_nodes_i]) ))
+                     T_nodes[timestep, active_nodes_i].max()
+                      )
+                  )
             if pybasin_params.simulate_salinity is True:
                 print('min, max C = %0.4f - %0.4f' \
                       % (C_nodes[timestep, active_nodes_i].min(),
