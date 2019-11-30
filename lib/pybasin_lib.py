@@ -2642,8 +2642,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
             print('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' \
                   % (timestep,
-                     len(z_nodes[timestep, active_nodes_i]),
                      time_array_bp[timestep] / 1e6,
+                     len(z_nodes[timestep, active_nodes_i]),
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
                      T_nodes[timestep, active_nodes_i].max()
