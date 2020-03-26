@@ -13,9 +13,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as pl
 import matplotlib.gridspec as gridspec
-import matplotlib.mlab
+#import matplotlib.mlab
 import matplotlib.patches as mpatches
 from matplotlib import ticker
+import matplotlib
+
 
 #import useful_functions
 
@@ -670,6 +672,10 @@ def model_vs_data_figure(model_run_data,
     if T_data is not None and len(T_data) > 0:
         ind = T_data_type == 'BHT'
         nind = T_data_type != 'BHT'
+
+        ind = ind.values
+        nind = nind.values
+
         if 'BHT' in T_data_type.values:
             xerr = np.array([np.zeros_like(T_obs_sigma)[ind], T_obs_sigma[ind] * 2])
             leg_data = ax_temp.errorbar(T_obs[ind], T_depth[ind], xerr=xerr, **erb_props)

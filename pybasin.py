@@ -1316,21 +1316,33 @@ def update_model_params_and_run_model_new(model_scenario_number,
     # check exhumation timing:
     n_exh_phases = len(pybasin_params.exhumation_period_starts)
 
-    for exhumation_phase_id in range(n_exh_phases):
-        exhumation_duration_temp = pybasin_params.exhumation_period_starts[exhumation_phase_id] - \
-                                   pybasin_params.exhumation_period_ends[exhumation_phase_id]
+    # set up array for end of exhumation, if not specified directly
+    if hasattr(pybasin_params, "exhumation_durations"):
+        print('using exhumation duration and using this to calculate end of exhumation phase')
+        pybasin_params.exhumation_period_ends = pybasin_params.exhumation_period_starts - pybasin_params.exhumation_durations
+        print('calculated end of exhumation period: ', pybasin_params.exhumation_period_ends)
+
+    ind_nok = pybasin_params.exhumation_period_ends < 0.0
+    pybasin_params.exhumation_period_ends[ind_nok] = 0.0
+
+    # calculate end of exhumation
+    #for exhumation_phase_id in range(n_exh_phases):
+        #exhumation_duration_temp = pybasin_params.exhumation_period_starts[exhumation_phase_id] - \
+        #                           pybasin_params.exhumation_period_ends[exhumation_phase_id]
+
+        #exhumation_duration_temp = pybasin_params.exhumation_durations[exhumation_phase_id]
 
         # check if exhumation duration exceeds starting age of exhumation
-        if (exhumation_duration_temp >= (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-                                         - pybasin_params.max_hf_timestep) / 1e6):
-            exhumation_duration_temp = (pybasin_params.exhumation_period_starts[exhumation_phase_id]
-                                        - (pybasin_params.max_hf_timestep * 3) / 1e6)
+        # if (exhumation_duration_temp >= (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+        #                                  - pybasin_params.max_hf_timestep) / 1e6):
+        #     exhumation_duration_temp = (pybasin_params.exhumation_period_starts[exhumation_phase_id]
+        #                                 - (pybasin_params.max_hf_timestep * 3) / 1e6)
 
-        pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
-            (pybasin_params.exhumation_period_starts[exhumation_phase_id] - exhumation_duration_temp)
+        # pybasin_params.exhumation_period_ends[exhumation_phase_id] = \
+        #     (pybasin_params.exhumation_period_starts[exhumation_phase_id] - exhumation_duration_temp)
 
-        print('adjusted duration of exhumation = %0.2f My' \
-              % exhumation_duration_temp)
+        # print('adjusted duration of exhumation = %0.2f My' \
+        #       % exhumation_duration_temp)
 
     # get values of all input parameters in pybasin_params class
     attributes = inspect.getmembers(
@@ -2179,7 +2191,7 @@ def main():
                             vr_data_well.to_csv(fn, index=False)
 
                         ## AFT data:
-                        if Parameters.simulate_AFT is True:
+                        if Parameters.simulate_AFT is True and AFT_data is not None:
 
                             [simulated_AFT_data,
                              aft_sample,
@@ -2265,7 +2277,7 @@ def main():
                             aft_data_well.to_csv(fn)
 
                         ## AHe data
-                        if Parameters.simulate_AHe is True:
+                        if Parameters.simulate_AHe is True and AHe_model_data is not None:
 
                             [ahe_sample_depths,
                              ahe_ages_all_samples,

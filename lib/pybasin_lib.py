@@ -1544,7 +1544,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                 provenance_times = [p1, p2, burial_time[0]]
 
             # subdivide provenance history into finer timesteps
-            prov_time_fine = [np.linspace(a, b, (nt_prov) / (len(provenance_times) - 1) + 1)[:-1]
+            prov_time_fine = [np.linspace(a, b, int((nt_prov) / (len(provenance_times) - 1)) + 1)[:-1]
                               for a, b
                               in zip(provenance_times[:-1],
                                      provenance_times[1:])]
@@ -1621,8 +1621,8 @@ def generate_burial_histories(resample_t,
                 provenance_times = [p1, p2, burial_time[0]]
 
             # subdivide provenance history into finer timesteps
-            prov_time_fine = [np.linspace(a, b, (nt_prov) /
-                                          (len(provenance_times) - 1) + 1)[:-1]
+            prov_time_fine = [np.linspace(a, b, int((nt_prov) /
+                                          (len(provenance_times) - 1)) + 1)[:-1]
                               for a, b
                               in zip(provenance_times[:-1],
                                      provenance_times[1:])]

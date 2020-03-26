@@ -1,1 +1,1 @@
-pandoc PyBasin_manual.md -o PyBasin_manual.pdf -V geometry:margin=0.5in
+pandoc PyBasin_manual.md -o PyBasin_manual.pdf -V geometry:margin=0.5in --include-in-header latex_style_file.tex -V linkcolor:blue --toc --filter pandoc-citeproc --bibliography=references.bib  --csl=apa.csl

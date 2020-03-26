@@ -9,7 +9,7 @@ date: "22 May 2019"
 
 PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modeled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which is useful for instance to explore the values of exhumation rate, timing or basal heat flow that match organic maturity or thermochronology data in a basin. 
 
-PyBasin was first written during my PhD research on the thermal history of the Roer Valley Graben to solve a key issue with interpreting low-temperature thermochronology in sedimentary basins, which is that themrochronometers often show inhereited signals from their sediment source areas. This makes modeling themrochronometers much more challenging, and most available themrla history models implicitely assume that your sample contains a homogenous population with a single thermal history and source area. PyBasin solves this by using end-member provenance hsitories and modeling a range of thermochronometer ages, which can then be compared with the distribution of ages in samples. You can find more background information and case studies of the models in a publication in JGR [@Luijendijk2011b], my PhD thesis [@Luijendijk2012] and an upcoming publication in Geoscientific Model Development.
+PyBasin was first written during my PhD research on the thermal history of the Roer Valley Graben to solve a key issue with interpreting low-temperature thermochronology in sedimentary basins, which is that themrochronometers often show a mix of inherited signals from their sediment source areas and the thermal history of the basin. This makes modeling thermochronometers in basins much more challenging. Most available themral history models implicitely assume that your sample contains a homogenous population with a single thermal history and source area. PyBasin solves this by using end-member provenance histories and modeling a range of thermochronometer ages, which can then be compared with the distribution of ages in samples. You can find more background information and case studies of the models in a publication in JGR [@Luijendijk2011b], my PhD thesis [@Luijendijk2012] and an upcoming publication in Geoscientific Model Development.
 
 ![Example model run showing burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.](fig/model_example_1_simple.png)
 **Figure 1** *Example model run showing provenance and basin burial and temperature history (left-hand panel) and modeled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.*
@@ -358,6 +358,7 @@ The parameters can be several python data types:
 
 * ``exhumation_period_starts`` = *list or array of numbers. one number per exhumation phase*. Start of each exhumation phase  (Ma).
 * ``exhumation_period_ends`` = *list or array of numbers. one number per exhumation phase*.. End of each exhumation phase (Ma).
+* ``exhumation_durations`` = *list or array of numbers. one number per exhumation phase*.. Duration of each exhumation phase (Ma). This is an optional parameter. If you include this pybasin will calculate the value for ``exhumation_period_ends`` using ``exhumation_period_starts`` and the duration and override the value that you specified for `exhumation_period_ends``.
 * ``exhumed_thicknesses`` = *list or array of numbers. one number per exhumation phase*. Exhumed thickness (m), add one value for each exhumation phase.
 * ``exhumed_strat_units`` = *nested list, with one list with straitgraphic units per exhumation phase*. Names of the strtigraphic units that were deposited before each exhumation phase. Determine last deposited units before unconformity. this should be one list for each exhumation phase, with stratigraphic unit codes ordered from old to young. The model will add units starting from the oldest to the youngest, untill the additional thickness needed for erosion is filled.
 * ``original_thicknesses`` = *nested list, with one list with numbers per exhumation phase*. Initial (pre-erosion) thicknesses of the stratigraphic units listed in ``exhumed_strat_units``.
@@ -463,6 +464,30 @@ If you choose the option ``save_model_run_data = True`` in the parameter file th
 * ``ahe_model_vs_data_well_x_msy.csv``: Contains the modeled AHe ages for each single grain and each provenance history scenario.
 
 The filenames include the well name (x) and the model scenario number (y).
+
+
+# What if the model does not work?
+
+## Finding the error
+The most common source of errors are the errors in the stratigraphy input files or errors in the exhumation parameters in the main input file (pybasin_params.py). The recommended steps to find errors are:
+
+* First inspect the input files for some of the errors that are listed below. Make sure to also inspect these files with a text editor, Excel and Open Office have the nasty habit of messing up .csv files occasionally. 
+* Turn on the option ``save_model_run_data = True`` in the input file and rerun the model. Pybasin will save a series of .csv files for all the processing steps. These are somewhere in the output folder. There should be files for each step from transforming the stratigraphic column into a timeline, adding hiatuses, adding exhumation, etc… Inspect these files to see if the burial history that pybasin creates looks ok or not. Note that of course if the error occurs before these files are saved there may not be any output yet to look at.
+* If that does not work then simplify your model untill the error dissapears. Reduce the exhumation phases to one, make exhumation 0. Turn off the thermochronometers and vitrinite reflectance, etc.. 
+
+
+## Common errors
+Below I list a few of the most common errors, in random order:
+
+* Make sure the .csv files use a comma as a delimiter and not ;
+* Make sure all the column names are exactly the same as in the example datasets
+* The top and bottom of each stratigraphic unit should be given in meters below the surface, and not elevation. The top of the uppermost unit should be at 0 m.
+* Avoid duplicate stratigraphic units in the ``stratigraphy_info.csv`` file
+* A common error is that stratigraphic units named in the ``well_stratigraphy.csv`` file are not defined in the ``stratigraphy_info.csv`` file. Check the spelling, capitals, spaces after unit names, etc..
+* Similarly, make sure the well name(s) in the ``pybasin_params.py`` file matches the well names in ``well_stratigraphy.csv`` file
+* Another error stems from overlaps in the stratigraphic ages of the units defined in the ``stratigraphy_info.csv`` file. Make sure that units that are found in one well do not overlap in ages. Note you can correct this, which would affect all wells. But you can also redefine a new stragiraphic unit to fix this for a particular well or set of wells.
+* Make sure that any exhumation phase that you define in ``pybasin_params.py`` does not overlap in age with any stratigraphic unit that is in the well that you are trying to simulate. Although pybasin has an automated check to avoid age overlaps, this for the time being still does not work 100%.
+
 
 
 # References
