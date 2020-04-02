@@ -386,6 +386,7 @@ The parameters can be several python data types:
 
 ## Vitrinite reflectance parameters
 
+* ``vr_method`` = *string*. Vitrinite reflectance algorithm to use. Choose eitther "easyRo" or "basinRo" for the easyRo model (Burnham & Sweeney 1989, GCA) or basinRo models (Nielsen et al. 2017, Basin Res.)
 * ``vr_unc_sigma`` = *float*. Default 1 sigma of uncertainty range for VR data, if not specified in input file (Ro).
 
 

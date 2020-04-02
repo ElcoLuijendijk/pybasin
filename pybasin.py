@@ -781,6 +781,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   T_data, vr_data_df,
                                   aft_samples, aft_ages,
                                   ahe_samples, ahe_data, salinity_data,
+                                  vr_method='easyRo',
                                   save_csv_files=True):
     """
     run basin & thermal history model and compare modeled  and observed temperature, salinity,
@@ -905,7 +906,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             vr_nodes = pybasin_lib.calculate_vr(T_nodes,
                                                 active_nodes,
                                                 time_array,
-                                                n_nodes)
+                                                n_nodes, vr_method=vr_method)
 
             # store surface and bottom VR value
             model_results_series['vr_surface'] = vr_nodes[-1, active_nodes[-1]][0]
@@ -1344,6 +1345,10 @@ def update_model_params_and_run_model_new(model_scenario_number,
         # print('adjusted duration of exhumation = %0.2f My' \
         #       % exhumation_duration_temp)
 
+    # check if vr method is specified in the parameter file
+    if hasattr(pybasin_params, 'vr_method') is False:
+        pybasin_params.vr_method = 'easyRo'
+
     # get values of all input parameters in pybasin_params class
     attributes = inspect.getmembers(
         pybasin_params, lambda attribute: not (inspect.isroutine(attribute)))
@@ -1385,6 +1390,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                       aft_samples, aft_ages,
                                       ahe_samples, ahe_data,
                                       salinity_data,
+                                      vr_method=pybasin_params.vr_method,
                                       save_csv_files=save_burial_csv_files)
 
     if record_data is True:

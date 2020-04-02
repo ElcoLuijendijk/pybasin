@@ -1712,7 +1712,7 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     return aft_age_bins, age_pdf_final
 
 
-def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, verbose=True):
+def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo', verbose=True):
 
     vr_nodes = np.zeros(T_nodes.shape)
     for nn in range(n_nodes):
@@ -1723,7 +1723,7 @@ def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, verbose=True):
 
         vr_nodes[active_nodes[:, nn], nn] = \
             easyRo.easyRo(time_array[active_nodes[:, nn]] / 1e6,
-                          T_nodes[active_nodes[:, nn], nn])
+                          T_nodes[active_nodes[:, nn], nn], vr_method=vr_method)
 
     if verbose is True:
         print(':-)')
