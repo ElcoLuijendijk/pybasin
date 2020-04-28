@@ -1457,6 +1457,40 @@ def update_model_params_and_run_model_new(model_scenario_number,
             model_results_series)
 
 
+def check_input_data_files(input_dir, pybasin_params):
+
+    """
+    check if all necessary input files are available
+
+    """
+
+    print('checking for input files in %s' % input_dir)
+
+    fns = ['stratigraphy_info.csv', 'well_stratigraphy.csv', 'surface_temperature.csv',
+           'lithology_properties.csv', 'temperature_data.csv']
+
+    if pybasin_params.simulate_salinity is True:
+        fns += ['surface_salinity.csv', 'salinity_data.csv']
+
+    if pybasin_params.simulate_VR is True:
+        fns.append('vitrinite_reflectance.csv')
+
+    if pybasin_params.simulate_AHe is True:
+        fns += ['ahe_samples.csv', 'ahe_data.csv']
+
+    if pybasin_params.simulate_AFT is True:
+        fns += ['aft_samples.csv', 'aft_data.csv']
+
+    for fn in fns:
+        if os.path.exists(os.path.join(input_dir, fn)) is False:
+            msg = 'error, could not find input file %s in input directory %s' % (fn, input_dir)
+            raise IndexError(msg)
+
+    print('found all necessary input files in %s' % input_dir)
+
+    return
+
+
 def read_model_input_data(input_dir, pybasin_params):
 
     """
@@ -1567,6 +1601,13 @@ def read_model_input_data(input_dir, pybasin_params):
               'lithology_properties file')
         print(msg)
         raise AssertionError(msg)
+
+    # check if no provenance columns left empty
+    for p in prov_cols:
+        if np.all(strat_info[p].isnull()):
+            msg ='error in parsing stratigraphy_info.csv file, ' \
+                 'one or more provenance age columns are empty'
+            raise ValueError(msg)
 
     # create new copy of dataframe to store results
     strat_info_mod = strat_info.copy()
@@ -1772,6 +1813,8 @@ def main():
 
     today = datetime.datetime.now()
     today_str = '%i-%i-%i' % (today.day, today.month, today.year)
+
+    check_input_data_files(input_dir, Parameters)
 
     (well_strats, strat_info_mod, salinity_bnd_df,
      T_data_df, vr_data_df,

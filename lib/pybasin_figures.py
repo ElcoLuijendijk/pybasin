@@ -19,8 +19,6 @@ from matplotlib import ticker
 import matplotlib
 
 
-#import useful_functions
-
 def setup_figure(width=125.0, height='g', fontsize='x-small',
                  landscape=False, fontsize_legend=0, units='mm'):
 
@@ -1135,7 +1133,5 @@ def model_vs_data_figure(model_run_data,
                        weight='extra bold',
                        transform=panel.transAxes,
                        fontsize=panel_label_fs)
-
-    #gs.tight_layout(fig)
 
     return fig

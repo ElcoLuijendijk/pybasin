@@ -16,7 +16,12 @@ parser.add_argument('-f', '--figure_type', dest='fig_type', default='png',
 
 parser.print_help()
 
-print '\n'
+print('\n')
+
+if sys.version_info[0] == 2:
+    input_func = raw_input
+else:
+    input_func = input
 
 args = parser.parse_args()
 
@@ -36,8 +41,8 @@ if args.model_file_or_directory is not None:
         model_dir = model_file_or_directory
 
 else:
-    print 'enter a directory name:'
-    model_dir = raw_input()
+    print('enter a directory name:')
+    model_dir = input_func()
     model_file = None
 
 if model_file is None:
@@ -52,29 +57,35 @@ if model_file is None:
     print('Model data files, sorted from newest to oldest:\n')
 
     for i, mf in enumerate(model_files_path):
-        print i, '\t', os.path.split(mf)[-1]
+        print(i, '\t', os.path.split(mf)[-1])
 
     print('enter the number of the file/model run you want to make a figure of:')
 
-    mfi = int(raw_input())
+    mfi = int(input_func())
 
     model_file = model_files_path[mfi]
 
 print('reading model datafile %s' % model_file)
 
-fin = open(model_file)
+fin = open(model_file, 'rb')
 model_run_data_fig = pickle.load(fin)
 fin.close()
 
+print('include provenance history in figure? (y/n)')
+if 'y' in input_func():
+    show_provenance_hist = True
+else:
+    show_provenance_hist = False
+
 print('making a figure of the model results:')
-fig = pf.model_vs_data_figure(model_run_data_fig)
+fig = pf.model_vs_data_figure(model_run_data_fig, show_provenance_hist=show_provenance_hist)
 
 fn_out = model_file[:-4] + '_figure.%s' % args.fig_type
 
-print 'saving figure as %s' % fn_out
+print('saving figure as %s' % fn_out)
 fig.savefig(fn_out, dpi=300)
 
-print 'done'
+print('done')
 
 
 
