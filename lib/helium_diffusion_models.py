@@ -10,12 +10,14 @@ from . import AFTannealingLib as AFT
 try:
     from . import calculate_reduced_AFT_lengths
 except ImportError:
-    print('failed to import fortran annealing module')
+    print('-' * 30)
+    print('warning: failed to import fortran annealing module')
     print('use slower python implementation of AFT annealing module instead')
     print('compile the fortran module by running the following command ' \
           'in the source directory of this module:')
-    print('f2py -c calculate_reduced_AFT_lengths.f ' \
+    print('f2py -c calculate_reduced_AFT_lengths.f90 ' \
           '-m calculate_reduced_AFT_lengths')
+    print('-' * 30)
 
 
 def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,

@@ -1098,7 +1098,8 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
         print('solution is correct = ', check)
 
     if check is False:
-        msg = 'error, solution is ', check
+        msg = 'error, the heat flow solver failed. The solution is %s' % str(check)
+        msg += '\nthis is usally an issue with stratigraphy unit thickness or timing'
         raise ValueError(msg)
 
     return T_new, A

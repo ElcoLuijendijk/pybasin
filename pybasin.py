@@ -1609,6 +1609,15 @@ def read_model_input_data(input_dir, pybasin_params):
                  'one or more provenance age columns are empty'
             raise ValueError(msg)
 
+    # check well stratigraphy file
+    if well_strats['depth_top'].min() < 0 or well_strats['depth_bottom'].min() < 0:
+
+        msg = 'error, found a negative value for depth in the depth_top or ' \
+              'depth_bottom columns in the well stratigraphy file. Please make sure all values for ' \
+              'depth are zero or positive'
+
+        raise ValueError(msg)
+
     # create new copy of dataframe to store results
     strat_info_mod = strat_info.copy()
 
