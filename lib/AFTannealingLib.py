@@ -21,13 +21,21 @@ import scipy.stats
 # import fortran module 
 try:
     import calculate_reduced_AFT_lengths
-except ImportError:
-    print('failed to import fortran annealing module')
-    print('use slower python implementation of AFT annealing module instead')
-    print('compile the fortran module by running the following command ' \
-          'in the source directory of this module:')
-    print('f2py -c calculate_reduced_AFT_lengths.f90 ' \
-          '-m calculate_reduced_AFT_lengths')
+    print('import fortran annealing module ok')
+except:
+    try:
+        import lib.calculate_reduced_AFT_lengths as calculate_reduced_AFT_lengths
+        print('import fortran annealing module ok')
+    except ImportError as e:
+        print('-' * 20)
+        print(e)
+        print('failed to import fortran annealing module')
+        print('use slower python implementation of AFT annealing module instead')
+        print('compile the fortran module by running the following command ' \
+              'in the source directory of this module:')
+        print('f2py -c calculate_reduced_AFT_lengths.f90 ' \
+              '-m calculate_reduced_AFT_lengths')
+        print('-' * 20)
 
 
 def Cl_wt_fraction_to_APFU(Cl_wtfract):
