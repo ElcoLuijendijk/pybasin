@@ -1009,15 +1009,44 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             model_results_series['aft_age_bottom_min'] = aft_age_nodes[active_nodes[-1]][-1].min()
             model_results_series['aft_age_bottom_max'] = aft_age_nodes[ active_nodes[-1]][-1].max()
 
-            if aft_age_nodes_min.min() < 0.5:
-                ind_min = aft_age_nodes_min < 1.0
-                model_results_series['z_aft_reset_min'] = z_nodes[-1][ind_min][0]
-                model_results_series['T_aft_reset_min'] = T_nodes[-1][ind_min][0]
+            calculate_resetting_depth = True
+            nodata_val = -99999.9
 
-            if aft_age_nodes_max.min() < 0.5:
-                ind_max = aft_age_nodes_max < 1.0
-                model_results_series['z_aft_reset_max'] = z_nodes[-1][ind_max][0]
-                model_results_series['T_aft_reset_max'] = T_nodes[-1][ind_max][0]
+            # age cutoff for sample/node to be considered fully reset
+            # todo: add this as a parameter to pybasin_params.py
+            full_resetting_age = 0.5
+
+            if aft_age_nodes_min.min() < full_resetting_age:
+                ind_min = aft_age_nodes_min < full_resetting_age
+                model_results_series['full_resetting_depth_aft_model_min'] = z_nodes[-1][ind_min][0]
+                model_results_series['full_resetting_depth_aft_model_min'] = T_nodes[-1][ind_min][0]
+            else:
+                model_results_series['full_resetting_depth_aft_model_min'] = nodata_val
+                model_results_series['full_resetting_depth_aft_model_min'] = nodata_val
+
+            if aft_age_nodes_max.min() < full_resetting_age:
+                ind_max = aft_age_nodes_max < full_resetting_age
+                model_results_series['full_resetting_depth_aft_model_max'] = z_nodes[-1][ind_max][0]
+                model_results_series['full_resetting_T_aft_model_min'] = T_nodes[-1][ind_max][0]
+            else:
+                model_results_series['full_resetting_depth_aft_model_max'] = nodata_val
+                model_results_series['full_resetting_T_aft_model_min'] = nodata_val
+
+            if calculate_resetting_depth is True and pybasin_params.calculate_thermochron_for_all_nodes is True:
+
+                # modeled resetting depth
+                ind_reset_min = aft_age_nodes_min <= node_age
+                ind_reset_max = aft_age_nodes_max <= node_age
+                if True in ind_reset_min:
+                    model_results_series['partial_resetting_depth_aft_model_min'] = \
+                        z_nodes[-1][ind_reset_min].min()
+                else:
+                    model_results_series['partial_resetting_depth_aft_model_min'] = nodata_val
+                if True in ind_reset_max:
+                    model_results_series['partial_resetting_depth_aft_model_max'] = \
+                        z_nodes[-1][ind_reset_max].min()
+                else:
+                    model_results_series['partial_resetting_depth_aft_model_max'] = nodata_val
 
     #################################
     # simulate apatite (U-Th)/He ages
@@ -1071,6 +1100,60 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C3=pybasin_params.C3,
             alpha=pybasin_params.alpha,
             ahe_method=pybasin_params.ahe_method)
+
+        # store surface and bottom VR value
+        if simulated_AHe_data is not None:
+
+            (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
+             ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+
+            ahe_age_nodes_array = np.array(ahe_age_nodes)
+            ahe_age_nodes_min_array = np.min(np.array(ahe_age_nodes_min), axis=1)
+            ahe_age_nodes_max_array = np.min(np.array(ahe_age_nodes_min), axis=1)
+
+            model_results_series['ahe_age_surface_min'] = ahe_age_nodes_array[active_nodes[-1]][0].min()
+            model_results_series['ahe_age_surface_max'] = ahe_age_nodes_array[active_nodes[-1]][0].max()
+            model_results_series['ahe_age_bottom_min'] = ahe_age_nodes_array[active_nodes[-1]][-1].min()
+            model_results_series['ahe_age_bottom_max'] = ahe_age_nodes_array[active_nodes[-1]][-1].max()
+
+            calculate_resetting_depth = True
+            nodata_val = -99999.9
+
+            # age cutoff for sample/node to be considered fully reset
+            # todo: add this as a parameter to pybasin_params.py
+            full_resetting_age = 0.5
+
+            if ahe_age_nodes_min_array.min() < full_resetting_age:
+                ind_min = ahe_age_nodes_min_array < full_resetting_age
+                model_results_series['full_resetting_depth_ahe_model_min'] = z_nodes[-1][ind_min][0]
+                model_results_series['full_resetting_T_ahe_model_min'] = T_nodes[-1][ind_min][0]
+            else:
+                model_results_series['full_resetting_depth_ahe_model_min'] = nodata_val
+                model_results_series['full_resetting_T_ahe_model_min'] = nodata_val
+
+            if ahe_age_nodes_max_array.min() < full_resetting_age:
+                ind_max = ahe_age_nodes_max_array < full_resetting_age
+                model_results_series['full_resetting_depth_ahe_model_max'] = z_nodes[-1][ind_max][0]
+                model_results_series['full_resetting_T_ahe_model_max'] = T_nodes[-1][ind_max][0]
+            else:
+                model_results_series['full_resetting_depth_ahe_model_max'] = nodata_val
+                model_results_series['full_resetting_T_ahe_model_max'] = nodata_val
+
+            if calculate_resetting_depth is True and pybasin_params.calculate_thermochron_for_all_nodes is True:
+
+                # modeled resetting depth
+                ind_reset_min = ahe_age_nodes_min_array <= node_age
+                ind_reset_max = ahe_age_nodes_max_array <= node_age
+                if True in ind_reset_min:
+                    model_results_series['partial_resetting_depth_ahe_model_min'] = \
+                        z_nodes[-1][ind_reset_min].min()
+                else:
+                    model_results_series['partial_resetting_depth_ahe_model_min'] = nodata_val
+                if True in ind_reset_max:
+                    model_results_series['partial_resetting_depth_ahe_model_max'] = \
+                        z_nodes[-1][ind_reset_max].min()
+                else:
+                    model_results_series['partial_resetting_depth_ahe_model_max'] = nodata_val
 
     ##################################
     # calculate model goodness of fit:
@@ -1308,6 +1391,16 @@ def update_model_params_and_run_model_new(model_scenario_number,
             # find model parameter name to adjust
             model_param_name = scenario_param_name[:-2]
 
+            if hasattr(pybasin_params, model_param_name) is False:
+                msg = 'error, the parameter %s is not in the ModelParameters class in the pybasin_params.py file' \
+                      % model_param_name
+                msg += ', even though it should be updated for model sensitivity or parameter exploration '
+                msg += 'according to the ParameterRanges class. Please check if the spelling of the parameter'
+
+                print(msg)
+
+                raise IndexError(msg)
+
             print('updating parameter %s from %s to %s'
                   % (model_param_name, str(getattr(pybasin_params, model_param_name)), str(scenario_parameter)))
 
@@ -1316,10 +1409,13 @@ def update_model_params_and_run_model_new(model_scenario_number,
 
     # check exhumation timing:
     n_exh_phases = len(pybasin_params.exhumation_period_starts)
+    pybasin_params.exhumation_period_starts = np.array(pybasin_params.exhumation_period_starts)
+    pybasin_params.exhumation_period_ends = np.array(pybasin_params.exhumation_period_ends)
 
     # set up array for end of exhumation, if not specified directly
     if hasattr(pybasin_params, "exhumation_durations"):
         print('using exhumation duration and using this to calculate end of exhumation phase')
+        pybasin_params.exhuamtion_durations = np.array(pybasin_params.exhumation_durations)
         pybasin_params.exhumation_period_ends = pybasin_params.exhumation_period_starts - pybasin_params.exhumation_durations
         print('calculated end of exhumation period: ', pybasin_params.exhumation_period_ends)
 
@@ -2228,25 +2324,27 @@ def main():
                              vr_rmse,
                              vr_data_well] = VR_model_data
 
-                            nn = len(z_nodes[-1, active_nodes[-1]])
-                            ind_nn = dfc.index[:nn]
+                            if vr_nodes is not None:
 
-                            dfc.loc[ind_nn, 'depth_s%i' % model_scenario_number_store] = \
-                                z_nodes[-1, active_nodes[-1]]
-                            dfc.loc[ind_nn, 'T_s%i' % model_scenario_number_store] = T_nodes[-1, active_nodes[-1]]
-                            dfc.loc[ind_nn, 'VR_s%i' % model_scenario_number_store] = vr_nodes[-1, active_nodes[-1]]
+                                nn = len(z_nodes[-1, active_nodes[-1]])
+                                ind_nn = dfc.index[:nn]
 
-                            # save depth vs T and VR data
-                            fn = os.path.join(csv_output_dir, 'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
-                                              % (well_store, today_str, model_scenario_number_store))
-                            print('saving depth, temperature and VR data to %s' % fn)
-                            dfc.to_csv(fn, index=False)
+                                dfc.loc[ind_nn, 'depth_s%i' % model_scenario_number_store] = \
+                                    z_nodes[-1, active_nodes[-1]]
+                                dfc.loc[ind_nn, 'T_s%i' % model_scenario_number_store] = T_nodes[-1, active_nodes[-1]]
+                                dfc.loc[ind_nn, 'VR_s%i' % model_scenario_number_store] = vr_nodes[-1, active_nodes[-1]]
 
-                            # save depth vs T and VR data
-                            fn = os.path.join(csv_output_dir, 'model_data_comparison_VR_%s_%s_ms%i.csv'
-                                              % (well_store, today_str, model_scenario_number_store))
-                            print('saving depth, temperature and VR data to %s' % fn)
-                            vr_data_well.to_csv(fn, index=False)
+                                # save depth vs T and VR data
+                                fn = os.path.join(csv_output_dir, 'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
+                                                  % (well_store, today_str, model_scenario_number_store))
+                                print('saving depth, temperature and VR data to %s' % fn)
+                                dfc.to_csv(fn, index=False)
+
+                                # save depth vs T and VR data
+                                fn = os.path.join(csv_output_dir, 'model_data_comparison_VR_%s_%s_ms%i.csv'
+                                                  % (well_store, today_str, model_scenario_number_store))
+                                print('saving depth, temperature and VR data to %s' % fn)
+                                vr_data_well.to_csv(fn, index=False)
 
                         ## AFT data:
                         if Parameters.simulate_AFT is True and AFT_data is not None:

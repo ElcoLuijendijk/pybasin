@@ -2022,6 +2022,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     """
     year = 365.25 * 24.0 * 60 * 60.
 
+    # make sure exhumed thicknesses param is an array
+    pybasin_params.exhumed_thicknesses = np.array(pybasin_params.exhumed_thicknesses)
+    #pybasin_params.pybasin_params.original_thicknesses = np.array(pybasin_params.original_thicknesses)
+
     geohist_df = get_geo_history(
         well_strat, strat_info_mod,
         pybasin_params.max_decompaction_error,
