@@ -1,5 +1,7 @@
 # PyBasin: Numerical model of basin history, heat flow and thermochronology
 
+[![DOI](https://zenodo.org/badge/185432723.svg)](https://zenodo.org/badge/latestdoi/185432723)
+
 PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modelled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which allows running large sets of models to explore parameter space and to quantify the values of exhumation rate, timing or basal heat flow that match the data. 
 
 ![Example model run showing burial and temperature history (left-hand panel) and modelled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.](manual/fig/model_example_1_simple_smaller.png)
@@ -71,6 +73,10 @@ The paper is available for free and can be found [here](https://agupubs.onlineli
 
 A [bibtex file](references/10.1029%2F2010JB008071.bib) with the citation is included with the source code. 
 
+The source code of PyBasin has also been published at Zenodo:
+[![DOI](https://zenodo.org/badge/185432723.svg)](https://zenodo.org/badge/latestdoi/185432723)
+
+[https://doi.org/10.5281/zenodo.4263427](https://doi.org/10.5281/zenodo.4263427)
 
 
 ## Authors
