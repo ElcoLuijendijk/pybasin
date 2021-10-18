@@ -2,7 +2,7 @@
 
 """
 
-import pdb
+# import pdb
 import os
 import sys
 import itertools
@@ -23,13 +23,13 @@ try:
     import lib.helium_diffusion_models as he
 except ImportError:
     import lib.helium_diffusion_models as he
+
     print('using helium diffusion modules from local lib folder')
 
 PY3 = sys.version_info.major == 3
 
 
 def integrate_porosity(n0, c, z1, z2):
-    
     """
     
     Parameters
@@ -48,16 +48,15 @@ def integrate_porosity(n0, c, z1, z2):
     n_int : float
         integrated porosity over depth interval
     """
-    
+
     b_w = n0 / c * (np.exp(-c * z1) - np.exp(-c * z2))
-    
+
     n_int = b_w / (z2 - z1)
 
     return n_int
-    
+
 
 def calculate_matrix_thickness(n0, c, z1, z2):
-    
     """
     Parameters
     ----------
@@ -75,24 +74,23 @@ def calculate_matrix_thickness(n0, c, z1, z2):
     b_m : float
         thickness of rock matrix (ie. with pore space removed)
     """
-    
+
     # calculate thickness of pore space bw
     b_w = (z2 - z1) * integrate_porosity(n0, c, z1, z2)
-    
+
     # subtract from total thickness
     b_m = (z2 - z1) - b_w
 
     return b_m
-    
+
 
 def decompact(bm, n0, c, b0_guess):
-    
     """
     
     Parameters
     ----------
     
-    b_m : float
+    bm : float
         thickness of rock matrix (ie. with pore space removed)
     n0 : float
         porosity at the surface
@@ -107,15 +105,14 @@ def decompact(bm, n0, c, b0_guess):
         new iterative value of decomapcted thickness
     
     """
-    
+
     b0 = bm + (n0 / c) * (1.0 - np.exp(-c * b0_guess))
-    
+
     return b0
 
 
 def compact(bm, n0, c, z_top, b_guess, max_decompaction_error,
             verbose=False):
-
     """
     """
 
@@ -139,14 +136,12 @@ def compact(bm, n0, c, z_top, b_guess, max_decompaction_error,
         n_decompaction_iterations += 1
 
         if verbose is True:
-            print('max change in calculating compacted thickness = %0.2f' \
-                % thickness_diff_max)
+            print('max change in calculating compacted thickness = %0.2f' % thickness_diff_max)
 
     return bi
 
 
 def subdivide_strat_units(input_df, max_thickness):
-
     """
     subdivide strat units:
 
@@ -179,8 +174,8 @@ def subdivide_strat_units(input_df, max_thickness):
             input_df.loc[ind_th, 'depth_top'] = input_df.loc[ind_th, 'depth_bottom'] - new_th
 
             # add new subdivided units
-            for i in range(n_subdiv-1):
-                subdiv_units.append('%s_s_%i' % (ind_th, i+1))
+            for i in range(n_subdiv - 1):
+                subdiv_units.append('%s_s_%i' % (ind_th, i + 1))
                 subdiv_th.append(new_th)
                 subdiv_age_start.append(age_top)
                 subdiv_age_end.append(age_top + new_duration)
@@ -221,7 +216,6 @@ def subdivide_strat_units(input_df, max_thickness):
     # sort geohistory to time
     output_df = output_df.sort_values(['age_bottom'])
 
-    #output_df = output_df.convert_objects(convert_numeric=True)
     output_df = output_df.apply(pd.to_numeric, errors="ignore")
 
     return output_df
@@ -239,15 +233,13 @@ def add_exhumation_phases(well_strat,
                           exhumation_segment_factor=0.5,
                           exhumation_duration_factor=0.5,
                           min_exh_duration=0.1):
-    
     """
     add exhumation phases to well stratigraphy dataframe
     
     """
-    
+
     well_strat['eroded_thickness'] = 0.0
-    #well_strat['later_exhumed_thickness'] = 0.0
-    
+
     new_units_strat_list = []
     new_units_start_list = []
     new_units_end_list = []
@@ -263,7 +255,7 @@ def add_exhumation_phases(well_strat,
             exhumation_active = True
 
     if exhumation_active is False:
-        print('no exhumation phase found that is younger than oldest strat. ' \
+        print('no exhumation phase found that is younger than oldest strat. '
               'unit for this well')
         return well_strat
 
@@ -289,7 +281,7 @@ def add_exhumation_phases(well_strat,
             try:
                 df_ex['normal_thickness'] = original_thickness
             except ValueError as msg:
-                print('error, original thicknesses list is longer or ' \
+                print('error, original thicknesses list is longer or '
                       'shorter than list of strat units in param file')
                 print('check param file')
                 raise ValueError(msg)
@@ -298,7 +290,6 @@ def add_exhumation_phases(well_strat,
 
             # find preserved units and thicknesses
             for unit in df_ex.index:
-
                 unit_preserved1 = [unit in w_unit for w_unit in wsl]
                 df_ex.loc[unit, 'preserved'] = np.any(unit_preserved1)
                 df_ex.loc[unit, 'preserved_thickness'] = \
@@ -342,7 +333,7 @@ def add_exhumation_phases(well_strat,
                             df_ex.loc[eroded_unit, 'eroded_thickness'] = 0.0
 
             # recalculate eroded units:
-            eroded_units = df_ex.index[df_ex['eroded_thickness']>0].tolist()
+            eroded_units = df_ex.index[df_ex['eroded_thickness'] > 0].tolist()
 
             # calculate how many units need to be added:
             df_ex['n_additional_units'] = \
@@ -382,19 +373,18 @@ def add_exhumation_phases(well_strat,
                 overlying_unit = None
 
             if (overlying_unit is not None
-                and exhumation_period_end
+                    and exhumation_period_end
                     < well_strat.loc[overlying_unit, 'age_bottom']):
-                print('correcting exhumation end from %0.2f Ma ' \
-                      'to age of overlying unit, %0.2f Ma' \
+                print('correcting exhumation end from %0.2f Ma '
+                      'to age of overlying unit, %0.2f Ma'
                       % (exhumation_period_end,
                          well_strat.loc[overlying_unit, 'age_bottom']))
                 exhumation_period_end = well_strat.loc[overlying_unit,
-                                                      'age_bottom']
+                                                       'age_bottom']
 
             if exhumation_period_end < 0:
-                print('correcting exhumation end from %0.2f Ma ' \
-                      'to 0 Ma' \
-                      % exhumation_period_end)
+                print('correcting exhumation end from %0.2f Ma '
+                      'to 0 Ma' % exhumation_period_end)
                 exhumation_period_end = 0
 
             # calculate duration of exhumation for each unit
@@ -431,14 +421,12 @@ def add_exhumation_phases(well_strat,
             # partly eroded:
             if df_ex.loc[youngest_unit, 'duration_non_preserved_units'] > 0:
                 start_y = well_strat.loc[youngest_units, 'age_bottom'].max()
-                #end_y = well_strat.loc[youngest_units, 'age_top'].min()
+                # end_y = well_strat.loc[youngest_units, 'age_top'].min()
                 durations_fr = -np.arange(n_youngest_units + 1).astype(float) / n_youngest_units
                 starts_y = durations_fr[:-1] \
-                           * df_ex.loc[youngest_unit, 'duration_preserved_unit'] \
-                           + start_y
+                           * df_ex.loc[youngest_unit, 'duration_preserved_unit'] + start_y
                 ends_y = durations_fr[1:] \
-                         * df_ex.loc[youngest_unit, 'duration_preserved_unit'] \
-                         + start_y
+                         * df_ex.loc[youngest_unit, 'duration_preserved_unit'] + start_y
 
                 well_strat.loc[youngest_units, 'age_bottom'] = starts_y[::-1]
                 well_strat.loc[youngest_units, 'age_top'] = ends_y[::-1]
@@ -463,7 +451,7 @@ def add_exhumation_phases(well_strat,
 
                     # and create list with timing of exhumation of units
                     ex_units_fract = -np.arange(
-                            df_ex.loc[eroded_unit, 'n_additional_units'])
+                        df_ex.loc[eroded_unit, 'n_additional_units'])
                     ex_units_start = \
                         (ex_units_fract
                          * df_ex.loc[eroded_unit, 'exhumation_units_duration']
@@ -475,15 +463,15 @@ def add_exhumation_phases(well_strat,
                     #
                     ind = ex_units_end < 0
                     if True in ind:
-                        print('warning, negative value in exhumation timing', \
-                            ex_units_end[ind])
+                        print('warning, negative value in exhumation timing',
+                              ex_units_end[ind])
                         print('setting to zero')
                         ex_units_end[ind] = 0.0
 
                     ind = ex_units_start < ex_units_end
                     if True in ind:
-                        print('warning, negative duration of exhumation timestep', \
-                            ex_units_start[ind], ex_units_end[ind])
+                        print('warning, negative duration of exhumation timestep',
+                              ex_units_start[ind], ex_units_end[ind])
                         print('setting duration to %0.2e' % min_exh_duration)
                         ex_units_end[ind] = ex_units_start[ind] - min_exh_duration
 
@@ -493,7 +481,6 @@ def add_exhumation_phases(well_strat,
                             new_units_end,
                             ex_units_start,
                             ex_units_end):
-
                         # add new units
                         new_units_strat_list.append('+%s_a_%i' % (eroded_unit, n_unit))
                         new_units_start_list.append(unit_start)
@@ -531,10 +518,10 @@ def add_exhumation_phases(well_strat,
         duration_exh_new[:end_exhumation_segment1] *= exhumation_duration_factor / a
 
         # change number and time of exhumation 2nd segment
-        ne_left = len(duration_exh_new[end_exhumation_segment1:])
+        # ne_left = len(duration_exh_new[end_exhumation_segment1:])
         time_left = duration_exh_total - np.sum(duration_exh_new[:end_exhumation_segment1])
         time_taken = duration_exh_new[end_exhumation_segment1:].sum()
-        #time_change = duration_exh_total - np.sum(duration_exh_new)
+        # time_change = duration_exh_total - np.sum(duration_exh_new)
 
         # adjust duration exhumation 2nd segment
         duration_exh_new[end_exhumation_segment1:] *= time_left / time_taken
@@ -547,9 +534,9 @@ def add_exhumation_phases(well_strat,
         # recalculate start and end of exhumation phases
         new_units_start_mod2 = new_units_start_mod.copy()
         new_units_end_mod2 = new_units_end_mod.copy()
-        for i in range(1, len(new_units_start_mod)+1):
+        for i in range(1, len(new_units_start_mod) + 1):
             if i > 1:
-                new_units_start_mod2[-i] = new_units_end_mod2[-(i-1)]
+                new_units_start_mod2[-i] = new_units_end_mod2[-(i - 1)]
             new_units_end_mod2[-i] = new_units_start_mod2[-i] - duration_exh_new[-i]
 
         print('old exhumation starts and ends')
@@ -596,11 +583,10 @@ def add_exhumation_phases(well_strat,
 
 
 def find_hiatus(strat_units, age_start, age_end):
-
     """
     """
 
-    #well_strat_exhumation = pd.DataFrame()
+    # well_strat_exhumation = pd.DataFrame()
     hiatus_list = []
     hiatus_start_list = []
     hiatus_end_list = []
@@ -610,8 +596,8 @@ def find_hiatus(strat_units, age_start, age_end):
                 age_end[:-1], age_start[1:]):
 
         if age_end_bottom > age_start_top + 1e-4:
-            print('found hiatus between units %s (-%0.2f) ' \
-                  'and %s (%0.2f-)' \
+            print('found hiatus between units %s (-%0.2f) '
+                  'and %s (%0.2f-)'
                   % (strat_unit_bottom,
                      age_end_bottom,
                      strat_unit_top,
@@ -622,7 +608,7 @@ def find_hiatus(strat_units, age_start, age_end):
             hiatus_end_list.append(age_start_top)
 
         else:
-            #print 'no hiatus between units %s (-%0.2f) ' \
+            # print 'no hiatus between units %s (-%0.2f) ' \
             #      'and %s (%0.2f-)' \
             #      % (strat_unit_bottom,
             #         age_end_bottom,
@@ -632,13 +618,13 @@ def find_hiatus(strat_units, age_start, age_end):
 
     # if last unit deposited before present: add hiatus
     if age_end[-1] > 1e-5:
-            hiatus_list.append('~%s-present' % strat_units[-1])
-            hiatus_start_list.append(age_end[-1])
-            hiatus_end_list.append(0.0)
+        hiatus_list.append('~%s-present' % strat_units[-1])
+        hiatus_start_list.append(age_end[-1])
+        hiatus_end_list.append(0.0)
 
-            print('added hiatus following deposition ' \
-                  'of youngest unit %s (%0.2f-) ' \
-                  % (strat_units[-1], age_end[-1]))
+        print('added hiatus following deposition '
+              'of youngest unit %s (%0.2f-) '
+              % (strat_units[-1], age_end[-1]))
 
     return hiatus_list, hiatus_start_list, hiatus_end_list
 
@@ -646,7 +632,6 @@ def find_hiatus(strat_units, age_start, age_end):
 def calculate_initial_thickness(max_decompaction_error,
                                 surface_porosity, compressibility,
                                 depth_top, depth_bottom):
-
     """
 
     """
@@ -668,7 +653,7 @@ def calculate_initial_thickness(max_decompaction_error,
         initial_thickness_diff_max = \
             np.max(np.abs(initial_thickness_new - initial_thickness))
         initial_thickness = initial_thickness_new
-        print('max change in thickness over 1 decompaction iteration %0.2f' \
+        print('max change in thickness over 1 decompaction iteration %0.2f'
               % initial_thickness_diff_max)
         n_decompaction_iterations += 1
 
@@ -676,7 +661,6 @@ def calculate_initial_thickness(max_decompaction_error,
 
 
 def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
-
     """
 
 
@@ -717,7 +701,7 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
                   'match the names in the stratigraphy data file' % row
 
             raise KeyError(msg)
-            row_name = None
+            # row_name = None
 
         if row_name is not None:
             output_df.loc[row, cols] = data_df.loc[row_name, cols]
@@ -727,7 +711,6 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
 
 def find_maximum_depth(input_df, exhumation_phases,
                        max_decompaction_error):
-
     """
     find maximum depth of units by reconstructing burial depth before
     exhumation phases and comparing to present-day depth
@@ -772,16 +755,16 @@ def find_maximum_depth(input_df, exhumation_phases,
         # find pre-exhumation_strat
         pre_exhumation_start = \
             np.where(input_df.index == exhumation_phase)[0][0]
-        pre_exhumation_strat = input_df.index[pre_exhumation_start+1:]
+        pre_exhumation_strat = input_df.index[pre_exhumation_start + 1:]
 
         for i, strat_unit in enumerate(pre_exhumation_strat):
 
             if strat_unit == pre_exhumation_strat[0]:
                 z_top = 0
             else:
-                overlying_unit = pre_exhumation_strat[i-1]
+                overlying_unit = pre_exhumation_strat[i - 1]
                 z_top = float(input_df.loc[overlying_unit,
-                                          'maximum_depth_bottom_temp'])
+                                           'maximum_depth_bottom_temp'])
 
             input_df.loc[strat_unit, 'maximum_depth_top_temp'] = z_top
 
@@ -810,13 +793,13 @@ def find_maximum_depth(input_df, exhumation_phases,
 
             input_df.loc[strat_unit, 'maximum_depth_bottom_temp'] = \
                 z_top + input_df.loc[strat_unit,
-                                    'maximum_burial_thickness_temp']
+                                     'maximum_burial_thickness_temp']
 
         # compare to previous estimate of max depth and copy if units more
         # deeply buried
         ind = (input_df['maximum_depth_top'] <
                input_df['maximum_depth_top_temp']) | \
-            input_df['maximum_depth_top'].isnull()
+              input_df['maximum_depth_top'].isnull()
         input_df.loc[ind, 'maximum_depth_top'] = \
             input_df.loc[ind, 'maximum_depth_top_temp']
         input_df.loc[ind, 'maximum_depth_bottom'] = \
@@ -828,7 +811,6 @@ def find_maximum_depth(input_df, exhumation_phases,
 def construct_heat_flow_matrix(T, dz, dt, K, rho, c,
                                fixed_upper_temperature,
                                fixed_lower_temperature):
-
     """
     set up matrix for finite difference eqs.
 
@@ -840,13 +822,13 @@ def construct_heat_flow_matrix(T, dz, dt, K, rho, c,
     A = np.diagflat(np.ones(nz))
 
     # create the matrix coefficient
-    s = K * dt / (rho * c * dz**2)
+    s = K * dt / (rho * c * dz ** 2)
 
     # fill matrix
-    for i in range(1, nz-1):
+    for i in range(1, nz - 1):
         A[i, i] = 1 + 2 * s
-        A[i, i-1] = -s
-        A[i, i+1] = -s
+        A[i, i - 1] = -s
+        A[i, i + 1] = -s
 
     # upper bnd
     if fixed_upper_temperature is not None:
@@ -860,7 +842,7 @@ def construct_heat_flow_matrix(T, dz, dt, K, rho, c,
         A[-1, -1] = 1
         A[-1, -2] = 0
     else:
-        #lower bnd
+        # lower bnd
         A[-1, -1] = 1 + s
         A[-1, -2] = -s
 
@@ -871,7 +853,6 @@ def construct_heat_flow_matrix_variable_z(
         T, z, dt, K, rho, c,
         fixed_upper_temperature,
         fixed_lower_temperature):
-
     """
     set up matrix for finite difference eqs.
 
@@ -897,10 +878,10 @@ def construct_heat_flow_matrix_variable_z(
     v = dt / (rho * c)
 
     # fill matrix
-    for i in range(1, nz-1):
+    for i in range(1, nz - 1):
         A[i, i] = 1 + s[i] * t[i] * v[i] + s[i] * u[i] * v[i]
-        A[i, i-1] = -s[i] * u[i] * v[i]
-        A[i, i+1] = -s[i] * t[i] * v[i]
+        A[i, i - 1] = -s[i] * u[i] * v[i]
+        A[i, i + 1] = -s[i] * t[i] * v[i]
 
     # upper bnd
     if fixed_upper_temperature is not None:
@@ -914,7 +895,7 @@ def construct_heat_flow_matrix_variable_z(
         A[-1, -1] = 1
         A[-1, -2] = 0
     else:
-        #lower bnd
+        # lower bnd
         A[-1, -1] = 1 + s[-1] * u[-1] * v[-1]
         A[-1, -2] = -s[-1] * u[-1] * v[-1]
 
@@ -926,7 +907,6 @@ def create_heat_flow_vector(nz, T, Q, dt, rho, c, dz,
                             lower_bnd_flux,
                             fixed_upper_temperature,
                             fixed_lower_temperature):
-
     """
     create vector for right hand side implicit FD equation
     """
@@ -943,7 +923,7 @@ def create_heat_flow_vector(nz, T, Q, dt, rho, c, dz,
     if fixed_upper_temperature is not None:
         b[0] = fixed_upper_temperature
     elif upper_bnd_flux is not None:
-        #b[0] = T[0] + (Q + upper_bnd_flux / dz) * dt / (rho * c)
+        # b[0] = T[0] + (Q + upper_bnd_flux / dz) * dt / (rho * c)
         print('warning upper bnd flux not implemented yet')
         exit()
 
@@ -963,7 +943,6 @@ def create_heat_flow_vector_variable_z(
         lower_bnd_flux,
         fixed_upper_temperature,
         fixed_lower_temperature):
-
     """
     create vector for right hand side implicit FD equation
     """
@@ -996,7 +975,6 @@ def solve_1D_heat_flow_simple(T, dz, dt, K, rho, c, Q,
                               fixed_lower_temperature,
                               A=None,
                               verbose=False):
-    
     """
     solve simple 1D heat flow equation, with constant K, rho, c and dx
     
@@ -1028,7 +1006,7 @@ def solve_1D_heat_flow_simple(T, dz, dt, K, rho, c, Q,
     # scipy.sparse.linalg.cg.html
     # and use sparse matrices to conserve memory
     # (not really necessary in 1D case)
-    
+
     # check that solution is correct:
     check = np.allclose(np.dot(A, T_new), b)
 
@@ -1048,7 +1026,6 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
                        fixed_lower_temperature,
                        A=None,
                        verbose=False):
-
     """
     solve simple 1D heat flow equation, with variable K, rho, c and dx
 
@@ -1112,7 +1089,6 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
                        fixed_lower_salinity,
                        A=None,
                        verbose=False):
-
     """
     solve simple 1D heat flow equation, with variable K, rho, c and dx
 
@@ -1124,7 +1100,6 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
     Q = np.zeros_like(phi)
 
     if A is None:
-
         A = construct_heat_flow_matrix_variable_z(
             C, z, dt, Ks, phi, c,
             fixed_upper_salinity,
@@ -1184,7 +1159,6 @@ def get_geo_history(well_strat, strat_info_mod,
                     exhumation_segment_factor=0.5,
                     exhumation_duration_factor=0.5,
                     min_exh_thickness=5.0):
-
     """
     set up a geohistory dataframe from an input file containing well stratigraphy
     and a file containing compaction parameters of strat units
@@ -1195,7 +1169,7 @@ def get_geo_history(well_strat, strat_info_mod,
 
     # check for exhumation thickness, if less than 1 grid cell set to 0
     if np.min(exhumed_thicknesses) < min_exh_thickness:
-        print('warning, exhumed thicknesses of one or more phases does not ' \
+        print('warning, exhumed thicknesses of one or more phases does not '
               'exceed %0.2e m' % min_exh_thickness)
         print('exhumed thicknesses: ', exhumed_thicknesses)
         ind = exhumed_thicknesses < min_exh_thickness
@@ -1252,7 +1226,7 @@ def get_geo_history(well_strat, strat_info_mod,
 
     # calculate decompacted initial thickness
     print('decompacting')
-    well_strat['initial_thickness'] =\
+    well_strat['initial_thickness'] = \
         calculate_initial_thickness(
             max_decompaction_error,
             well_strat['surface_porosity'],
@@ -1293,7 +1267,7 @@ def get_geo_history(well_strat, strat_info_mod,
     # calculate matrix thickness of fully eroded units
     for strat in geohist_df.index:
         if strat[0] == '+':
-            geohist_df.loc[strat, 'matrix_thickness'] =\
+            geohist_df.loc[strat, 'matrix_thickness'] = \
                 calculate_matrix_thickness(
                     geohist_df.loc[strat, 'surface_porosity'],
                     geohist_df.loc[strat, 'compressibility'],
@@ -1343,13 +1317,12 @@ def get_geo_history(well_strat, strat_info_mod,
             geohist_df.loc[strat, 'present-day_thickness'] = 0
             geohist_df.loc[strat, 'matrix_thickness'] = 0
 
-    #print geohist_df[['age_bottom', 'age_top']]
+    # print geohist_df[['age_bottom', 'age_top']]
 
     return geohist_df
 
 
 def reconstruct_strat_thickness(geohist_df, verbose=False):
-
     """
     create dataframe with thicknesses strat units over time
 
@@ -1364,7 +1337,7 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
     ind = [(s[0] != '~') & (s[0] != '-') for s in geohist_df.index]
     strat_units = geohist_df.index[ind]
 
-    #strat_thickness_df = pd.DataFrame(index=strat_units,
+    # strat_thickness_df = pd.DataFrame(index=strat_units,
     #                                  columns=geohist_df.age_top.astype(str)[::-1])
 
     strat_thickness_df = pd.DataFrame(index=strat_units,
@@ -1391,13 +1364,13 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
             thicknesses = np.zeros((len(strat_column)))
             for i, n0, beta, bm in zip(itertools.count(), n0s, betas, bms):
                 thicknesses[i] = compact(bm, n0, beta,
-                                                    thicknesses[:i].sum(), bm, 0.001)
+                                         thicknesses[:i].sum(), bm, 0.001)
 
             if timestep is not geohist_df.index[-1]:
                 # check if thickness higher than pre-compacted thickness
                 for i, th_old, th_new in zip(itertools.count(), thickness_list[-1], thicknesses[1:]):
                     if th_old < th_new:
-                        thicknesses[i+1] = th_old
+                        thicknesses[i + 1] = th_old
 
         # remove top unit
         elif geohist_df.loc[timestep, 'deposition_code'] == -1:
@@ -1426,8 +1399,8 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
         for s, th in zip(strat_column, thicknesses):
             geohist_df.loc[s, 'present-day_thickness_simulated'] = \
                 strat_thickness_df.loc[s, lastcol]
-            print(s, geohist_df.loc[s, 'present-day_thickness'], \
-                geohist_df.loc[s, 'present-day_thickness_simulated'])
+            print(s, geohist_df.loc[s, 'present-day_thickness'],
+                  geohist_df.loc[s, 'present-day_thickness_simulated'])
 
     # fill nan values in thickness df with zeros
     strat_thickness_df = strat_thickness_df.fillna(0.0)
@@ -1436,7 +1409,6 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
 
 
 def interpolate_param(param_start, param_end, nt_heatflow, fill_empty_value=True):
-
     """
 
     :param param_start:
@@ -1446,18 +1418,18 @@ def interpolate_param(param_start, param_end, nt_heatflow, fill_empty_value=True
     :return:
     """
 
-    int_array = np.resize(np.linspace(0, 1, nt_heatflow +1)[1:],
+    int_array = np.resize(np.linspace(0, 1, nt_heatflow + 1)[1:],
                           [len(param_start), nt_heatflow]).T
 
     if fill_empty_value is True:
         a = np.isnan(param_start) == True
         b = np.isnan(param_end) == False
-        ind = np.where(a*b == True)[0]
+        ind = np.where(a * b == True)[0]
         param_start[ind] = param_end[ind]
 
         a = np.isnan(param_start) == False
         b = np.isnan(param_end) == True
-        ind = np.where(a*b == True)[0]
+        ind = np.where(a * b == True)[0]
         param_end[ind] = param_start[ind]
 
     param_start_array = np.resize(param_start, [nt_heatflow, len(param_start)])
@@ -1476,7 +1448,6 @@ def interpolate_node_variables(formation_param_start, formation_param_end,
 
     :param formation_param_start:
     :param formation_param_end:
-    :param active_fm_i:
     :param n_timesteps:
     :return:
     """
@@ -1512,7 +1483,6 @@ def generate_thermal_histories(resample_t, n_nodes,
                                prov_ages_start_array,
                                prov_ages_end_array,
                                nt_prov, Ts):
-
     aft_node_times = []
     aft_node_temps = []
 
@@ -1532,7 +1502,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                           prov_ages_end_n):
 
             if p1 <= burial_time[0]:
-                print('warning, start deposition in basin earlier than ' \
+                print('warning, start deposition in basin earlier than '
                       'start provenance history')
                 print('using a hard coded prov history of 120 C to surface')
                 print('from 2 my before deposition to deposition age')
@@ -1545,7 +1515,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                 provenance_times = [p1, p2, burial_time[0]]
 
             # subdivide provenance history into finer timesteps
-            prov_time_fine = [np.linspace(a, b, int((nt_prov) / (len(provenance_times) - 1)) + 1)[:-1]
+            prov_time_fine = [np.linspace(a, b, int(nt_prov / (len(provenance_times) - 1)) + 1)[:-1]
                               for a, b
                               in zip(provenance_times[:-1],
                                      provenance_times[1:])]
@@ -1589,7 +1559,6 @@ def generate_burial_histories(resample_t,
                               z_nodes, active_nodes,
                               prov_ages_start_array, prov_ages_end_array,
                               nt_prov):
-
     aft_node_times = []
     aft_node_zs = []
 
@@ -1609,7 +1578,7 @@ def generate_burial_histories(resample_t,
                           prov_ages_end_n):
 
             if p1 <= burial_time[0]:
-                print('warning, start deposition in basin earlier than ' \
+                print('warning, start deposition in basin earlier than '
                       'start provenance history')
                 print('using a hard coded prov history of 120 C to surface')
                 print('from 2 my before deposition to deposition age')
@@ -1622,8 +1591,8 @@ def generate_burial_histories(resample_t,
                 provenance_times = [p1, p2, burial_time[0]]
 
             # subdivide provenance history into finer timesteps
-            prov_time_fine = [np.linspace(a, b, int((nt_prov) /
-                                          (len(provenance_times) - 1)) + 1)[:-1]
+            prov_time_fine = [np.linspace(a, b, int(nt_prov /
+                                                    (len(provenance_times) - 1)) + 1)[:-1]
                               for a, b
                               in zip(provenance_times[:-1],
                                      provenance_times[1:])]
@@ -1693,14 +1662,14 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     zero_index = np.where(aft_ages == 0)[0]
     gamma[zero_index] = 1e-10
 
-    gamma_std = (gamma_max - gamma)/2.0
+    gamma_std = (gamma_max - gamma) / 2.0
     gamma_pdf = np.zeros((len(aft_ages), len(bins)))
 
     for i in range(len(aft_ages)):
         gamma_pdf[i] = scipy.stats.norm.pdf(bins, gamma[i], gamma_std[i])
 
         # normalize pdf to a value of 1:
-        gamma_pdf[i] = gamma_pdf[i]/(gamma_pdf[i].sum())
+        gamma_pdf[i] = gamma_pdf[i] / (gamma_pdf[i].sum())
 
     aft_age_bins = AFTlib.calculate_AFT_age_from_gamma(bins)
 
@@ -1714,7 +1683,6 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
 
 
 def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo', verbose=True):
-
     vr_nodes = np.zeros(T_nodes.shape)
     for nn in range(n_nodes):
 
@@ -1739,7 +1707,6 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  C0=0.39528, C1=0.01073,
                  C2=-65.12969, C3=-7.91715,
                  alpha=0.04672, annealing_eq='FC', verbose=True):
-
     """
     simulate fission track ages using calculated burial thermal history
     and provenance thermal history scenarios
@@ -1772,12 +1739,12 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
         prov_ages_start, prov_ages_end,
         nt_prov)
 
-    #figb = pl.figure()
-    #ax = figb.add_subplot(1, 1, 1)
-    #for x, y in zip(aft_node_times_burial, aft_node_zs):
+    # figb = pl.figure()
+    # ax = figb.add_subplot(1, 1, 1)
+    # for x, y in zip(aft_node_times_burial, aft_node_zs):
     #    for xi, yi in zip(x, y):
     #        ax.plot(xi, yi)
-    #figb.savefig('burial_prov_test.png', dpi=300)
+    # figb.savefig('burial_prov_test.png', dpi=300)
 
     # calculate FT ages for all formations
     n_prov_scenarios = prov_ages_start.shape[1]
@@ -1796,7 +1763,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
 
         for n_prov in range(n_prov_scenarios):
             for n_kin in range(n_kinetic_scenarios):
-                trackLengthPDF, AFTage, l_mean, l_mean_std, rm, rc, rho_age, dt =\
+                trackLengthPDF, AFTage, l_mean, l_mean_std, rm, rc, rho_age, dt = \
                     AFTannealingLib.simulate_AFT_annealing(
                         aft_node_times[nn][n_prov],
                         aft_node_temps[nn][n_prov],
@@ -1826,7 +1793,6 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                  prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th,
                  ahe_method='RDAAM',
                  alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715):
-
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
 
@@ -1839,15 +1805,13 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     :param active_nodes:
     :param prov_ages_start:
     :param prov_ages_end:
-    :param annealing_kinetics_values:
-    :param annealing_kinetic_param:
     :param Ts:
     :return:
     """
 
-    #radius = 60.0 * 1e-6
-    #U238 = 8.98e-6
-    #Th232 = 161.3e-6
+    # radius = 60.0 * 1e-6
+    # U238 = 8.98e-6
+    # Th232 = 161.3e-6
     Kelvin = 273.15
 
     # combine burial and provenance history
@@ -1886,7 +1850,6 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         for ng in range(n_grains):
 
             for n_prov in range(n_prov_scenarios):
-
                 Myr = 1e6 * 365.25 * 24 * 60 * 60
                 t = ahe_node_times[nn][n_prov] * Myr
                 T = ahe_node_temps[nn][n_prov] + Kelvin
@@ -1901,8 +1864,8 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                 # store AHe age in Myr bp
                 ahe_age_nodes[ng, n_prov] = he_age_i[-1] / Myr
 
-                #ahe_ln_mean_nodes[nn, n_prov] = l_mean
-                #ahe_ln_std_nodes[nn, n_prov] = l_mean_std
+                # ahe_ln_mean_nodes[nn, n_prov] = l_mean
+                # ahe_ln_std_nodes[nn, n_prov] = l_mean_std
 
         # take min and max age for the difference prov scenarios
         ahe_age_nodes_min = np.min(ahe_age_nodes, axis=1)
@@ -1932,7 +1895,6 @@ def calculate_viscosity_np(C, T):
 
 
 def equations_of_state_batzle1992(P, T, C):
-
     """
     Calculate density using equation of state provided by
     Batzle and Wang (1992) Geophysics 57 (11): 1396-1408, eq. 27a and 27b
@@ -1956,9 +1918,9 @@ def equations_of_state_batzle1992(P, T, C):
     # convert pressure to MPa
     P *= 1.0e-6
 
-    rho_w = 1 + 1e-6 * (-80*T - 3.3 * T**2 + 0.00175 * T**3 + 489 * P
-                        - 2 * T * P + 0.016 * T**2 * P - 1.3e-5 * T**3 * P
-                        - 0.333 * P**2 - 0.002 * T * P**2)
+    rho_w = 1 + 1e-6 * (-80 * T - 3.3 * T ** 2 + 0.00175 * T ** 3 + 489 * P
+                        - 2 * T * P + 0.016 * T ** 2 * P - 1.3e-5 * T ** 3 * P
+                        - 0.333 * P ** 2 - 0.002 * T * P ** 2)
 
     rho_b = rho_w + C * (0.668 + 0.44 * C + 1e-6 * (300 * P - 2400 * P * C
                                                     + T * (80 + 3 * T
@@ -1974,11 +1936,8 @@ def equations_of_state_batzle1992(P, T, C):
 def calculate_diffusion_coeff(T_degC, C):
     """
      taken from paper written by (Simpson and Carr, 1958)
-    :param T_cal:Temperature in degree
-    :param D_ref :diffusion coefficient in m^2/s at 25 degrees celsius
-    :param viscosity_ref: viscosity of water at 25 degrees celsius in cP
-    :param T_ref:temperature of reference in kelvin
-    :param viscosity_cal:calculated viscosity in cp using Batzle_wang
+    :param T_degC: Temperature in degree
+    :param C: Concentration
     :return:D_cal:calculated diffusion coefficient in the new temperature
     """
 
@@ -2024,7 +1983,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     # make sure exhumed thicknesses param is an array
     pybasin_params.exhumed_thicknesses = np.array(pybasin_params.exhumed_thicknesses)
-    #pybasin_params.pybasin_params.original_thicknesses = np.array(pybasin_params.original_thicknesses)
+    # pybasin_params.pybasin_params.original_thicknesses = np.array(pybasin_params.original_thicknesses)
 
     geohist_df = get_geo_history(
         well_strat, strat_info_mod,
@@ -2073,8 +2032,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     for start_age, end_age in zip(strat_thickness_df.columns[:-1],
                                   strat_thickness_df.columns[1:]):
-        inactive_bool = np.logical_and(strat_thickness_df[start_age]==0,
-                                       strat_thickness_df[end_age]==0)
+        inactive_bool = np.logical_and(strat_thickness_df[start_age] == 0,
+                                       strat_thickness_df[end_age] == 0)
         active_bool = inactive_bool.values == False
 
         try:
@@ -2132,8 +2091,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # calculate porosity at each timestep
     for ix in porosity_df.index:
         porosity_df.loc[ix] = (1.0
-                              - hf_param_df.loc[ix, 'matrix_thickness']
-                              / strat_thickness_df.loc[ix])
+                               - hf_param_df.loc[ix, 'matrix_thickness']
+                               / strat_thickness_df.loc[ix])
 
     # change inf and -inf to nan values
     porosity_df[porosity_df == -np.inf] = np.nan
@@ -2146,9 +2105,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             if (active_fm.loc[row, col] == True
                     and np.isnan(porosity_df.loc[row, col])):
                 porosity_df.loc[row, col] = hf_param_df.loc[row,
-                                                          'surface_porosity']
+                                                            'surface_porosity']
     porosity_last = porosity_df[porosity_df.columns[-1]].dropna().values
-    print('final calculated porosity, mean=%0.2f, range=%0.2f-%0.2f' \
+    print('final calculated porosity, mean=%0.2f, range=%0.2f-%0.2f'
           % (porosity_last.mean(), porosity_last.min(), porosity_last.max()))
 
     # calculate bulk thermal conductivity, heat capacity, density and
@@ -2156,17 +2115,17 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     # at each geological timestep
     for ix in c_df.index:
         k_df.loc[ix] = (hf_param_df.loc[ix, 'K'] ** (1.0 - porosity_df.loc[ix]) *
-                       litho_props.loc['water', 'thermal_conductivity'] ** porosity_df.loc[ix])
+                        litho_props.loc['water', 'thermal_conductivity'] ** porosity_df.loc[ix])
         c_df.loc[ix] = (hf_param_df.loc[ix, 'c'] * (1.0 - porosity_df.loc[ix]) +
-                       litho_props.loc['water', 'heat_capacity'] * porosity_df.loc[ix])
+                        litho_props.loc['water', 'heat_capacity'] * porosity_df.loc[ix])
         rho_df.loc[ix] = (hf_param_df.loc[ix, 'rho_matrix'] *
-                         (1.0 - porosity_df.loc[ix]) +
-                         porosity_df.loc[ix] *
-                         litho_props.loc['water', 'density'])
+                          (1.0 - porosity_df.loc[ix]) +
+                          porosity_df.loc[ix] *
+                          litho_props.loc['water', 'density'])
         hp_df.loc[ix] = hf_param_df.loc[ix, 'HP'] * (1.0 - porosity_df.loc[ix])
 
     k_last = k_df[k_df.columns[-1]].dropna().values
-    print('final thermal conductivity, mean=%0.2f, range=%0.2f-%0.2f' \
+    print('final thermal conductivity, mean=%0.2f, range=%0.2f-%0.2f'
           % (k_last.mean(), k_last.min(), k_last.max()))
 
     ############################################################
@@ -2187,7 +2146,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     if np.min(nt_heatflows) <= 0:
         msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
-            % (np.argmin(nt_heatflows), len(nt_heatflows))
+              % (np.argmin(nt_heatflows), len(nt_heatflows))
         print('error')
         print('durations: ', durations)
         print('n heatflow steps: ', nt_heatflows)
@@ -2225,7 +2184,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     timestep = 0
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
-
         active_fm_i = active_fm[start_age].values
 
         active_cells[timestep:(timestep + nt_heatflow), :-1:2] = \
@@ -2240,7 +2198,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         # add surface node
         i = np.where(active_fm_i == True)[0][0]
-        active_nodes[timestep:(timestep + nt_heatflow), i*2] = True
+        active_nodes[timestep:(timestep + nt_heatflow), i * 2] = True
 
         timestep += nt_heatflow
 
@@ -2248,7 +2206,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     timestep = 0
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
-
 
         try:
             zs_bottom = interpolate_param(burial_df[start_age].values,
@@ -2260,7 +2217,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
         zs_surface = np.zeros((nt_heatflow, 1))
         zs_top = np.hstack((zs_surface, zs_bottom[:, :-1]))
-        #zs_all = np.hstack((zs_surface, zs_bottom))
+        # zs_all = np.hstack((zs_surface, zs_bottom))
 
         zs_mid = (zs_bottom + zs_top) / 2.0
 
@@ -2328,7 +2285,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     prov_start_nodes[1::2] = prov_ages_start_array[active_prov]
     prov_start_nodes[2::2] = prov_ages_start_array[active_prov]
     prov_start_nodes[0] = prov_start_nodes[1]
-    
+
     prov_end_nodes[1::2] = prov_ages_end_array[active_prov]
     prov_end_nodes[2::2] = prov_ages_end_array[active_prov]
     prov_end_nodes[0] = prov_end_nodes[1]
@@ -2338,7 +2295,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     timestep = 0
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
-
         ks = interpolate_param(k_df[start_age].values.astype(float),
                                k_df[end_age].values.astype(float),
                                nt_heatflow)
@@ -2349,13 +2305,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         timestep += nt_heatflow
 
     # populate thermal parameter arrays:
-    print('setting grid node thermal params (rho, c, HP, phi), ' \
+    print('setting grid node thermal params (rho, c, HP, phi), '
           '%i timesteps' % np.sum(nt_heatflows))
     timestep = 0
 
     for start_age, end_age, nt_heatflow in \
             zip(start_ages, end_ages, nt_heatflows):
-
         end_step = (timestep + nt_heatflow)
 
         active_fm_i = active_fm[start_age].values
@@ -2393,7 +2348,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     # calculate tortuosity, required for salt diffusion coefficient
     if pybasin_params.simulate_salinity is True:
-        tortuosity_nodes = porosity_nodes**pybasin_params.tortuosity_factor
+        tortuosity_nodes = porosity_nodes ** pybasin_params.tortuosity_factor
         tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
     # check to remove 0 depth nodes after erosion phases
@@ -2417,7 +2372,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     timestep = 0
     time_all = 0
     for dt_hf, nt_heatflow in zip(dt_hfs, nt_heatflows):
-
         time_array[timestep:(timestep + nt_heatflow)] = \
             np.arange(nt_heatflow) * dt_hf + time_all
         time_all += nt_heatflow * dt_hf
@@ -2471,11 +2425,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             elif marine_stage is False or marine_stage == 0.0:
                 salinity_stage = pybasin_params.salinity_freshwater
             else:
-                #hiatus or unconformity
+                # hiatus or unconformity
                 if stage[0] == '~':
                     # hiatus, use salinity of previous step
                     if i_stage > 0:
-                        salinity_stage = surface_salinity_array[timestep-1]
+                        salinity_stage = surface_salinity_array[timestep - 1]
                     else:
                         salinity_stage = pybasin_params.salinity_seawater
                 elif stage[0] == '-':
@@ -2484,7 +2438,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 else:
                     # undetermined
                     if i_stage > 0:
-                        salinity_stage = surface_salinity_array[timestep-1]
+                        salinity_stage = surface_salinity_array[timestep - 1]
                     else:
                         salinity_stage = pybasin_params.salinity_seawater
 
@@ -2507,7 +2461,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     elif 'marine' in surface_salinity_well.loc[i, 'surface_salinity']:
                         target_salinity = pybasin_params.salinity_seawater
                     elif 'Brackish' in surface_salinity_well.loc[i, 'surface_salinity'] or \
-                                    'brackish' in surface_salinity_well.loc[i, 'surface_salinity']:
+                            'brackish' in surface_salinity_well.loc[i, 'surface_salinity']:
                         target_salinity = (pybasin_params.salinity_seawater
                                            + pybasin_params.salinity_seawater) / 2.0
                     else:
@@ -2515,15 +2469,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                         msg += str(surface_salinity_well.loc[i, 'surface_salinity'])
                         raise ValueError(msg)
 
-                    print('updating surface salinity bnd, ' \
-                          '%0.2f Ma - %0.2f Ma to %0.5f kg/kg' \
+                    print('updating surface salinity bnd, '
+                          '%0.2f Ma - %0.2f Ma to %0.5f kg/kg'
                           % (surface_salinity_well.loc[i, 'age_start'],
                              surface_salinity_well.loc[i, 'age_end'],
                              target_salinity))
                     surface_salinity_array[ind_t] = target_salinity
 
         # interpolate surface salinity
-        #surface_salinity_array = np.interp(time_array_bp,
+        # surface_salinity_array = np.interp(time_array_bp,
         #                                   Cs['age'].values * 1.0e6,
         #                                   Cs['surface_salinity'])
 
@@ -2532,8 +2486,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         for ni in range(nt_total):
             C_nodes[ni, :] = surface_salinity_array[ni]
 
-        #sal_nodes = np.zeros((nt_total, n_nodes))
-        #for ni in xrange(nt_total):
+        # sal_nodes = np.zeros((nt_total, n_nodes))
+        # for ni in xrange(nt_total):
         #    sal_nodes[ni, :] = surface_temp_array[ni]
 
         # set up arrays to store salt flux over time at top and bottom nodes
@@ -2557,7 +2511,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         if timestep == 0:
             T_init = T_nodes[timestep, active_nodes_i]
         else:
-            T_init = T_nodes[timestep-1, active_nodes_i]
+            T_init = T_nodes[timestep - 1, active_nodes_i]
 
         if np.any(np.isnan(T_init)):
             msg = 'error, nan value in T_init\n' + str(T_init)
@@ -2584,7 +2538,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             if timestep == 0:
                 C_init = C_nodes[timestep, active_nodes_i]
             else:
-                C_init = C_nodes[timestep-1, active_nodes_i]
+                C_init = C_nodes[timestep - 1, active_nodes_i]
 
             if pybasin_params.constant_diffusivity is False:
                 Dw = calculate_diffusion_coeff(T_nodes[timestep,
@@ -2627,9 +2581,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             q_solute_top[timestep] = density[0] * Ks_cells[0] * dC_top / dx_top
 
             dC_bottom = (C_nodes[timestep, active_nodes_i][-1]
-                      - C_nodes[timestep, active_nodes_i][-2])
+                         - C_nodes[timestep, active_nodes_i][-2])
             dx_bottom = (z_nodes[timestep, active_nodes_i][-1] -
-                      z_nodes[timestep, active_nodes_i][-2])
+                         z_nodes[timestep, active_nodes_i][-2])
             q_solute_bottom[timestep] = density[-1] * Ks_cells[-1] \
                                         * dC_bottom / dx_bottom
 
@@ -2637,12 +2591,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
             for cs, ac, rho in zip(cell_strat, active_cells[timestep],
                                    rho_nodes[timestep]):
-
                 print(cs, ac, rho)
 
             raise ValueError('error, nan values in T array')
 
-        #timestep in xrange(nt_total
+        # timestep in xrange(nt_total
         if timestep in cumulative_steps or timestep == nt_total - 1:
 
             print('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' \
@@ -2652,7 +2605,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      z_nodes[timestep, active_nodes_i].max(),
                      T_nodes[timestep, active_nodes_i].min(),
                      T_nodes[timestep, active_nodes_i].max()
-                      )
+                     )
                   )
             if pybasin_params.simulate_salinity is True:
                 print('min, max C = %0.4f - %0.4f' \
@@ -2664,7 +2617,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                      z_nodes, T_nodes, active_nodes,
                      n_nodes, n_cells,
                      node_strat, node_age,
-                     prov_start_nodes, prov_end_nodes,porosity_nodes,k_nodes]
+                     prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes]
 
     if pybasin_params.simulate_salinity is True:
         return_params += [C_nodes,

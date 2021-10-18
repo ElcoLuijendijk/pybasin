@@ -11,3 +11,7 @@ log/*
 model_input/AFT_benchmarks*
 *backup*.*
 *copy*
+*.so*
+*2021*
+*.idea*
+*runtime*
