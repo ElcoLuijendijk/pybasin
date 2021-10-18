@@ -16,3 +16,6 @@ model_input/AFT_benchmarks*
 *.idea*
 *runtime*
 *DS_store*
+*checkpoint*
+notebooks/.ipynb_checkpoints*
+*checkpoint.ipynb*

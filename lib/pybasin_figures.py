@@ -164,6 +164,8 @@ def model_vs_data_figure(model_run_data,
                          right=0.97,
                          top=0.96,
                          max_strat_units=10,
+                         max_age_burial_panel=None,
+                         max_age_thermochron_panel=None,
                          debug=False):
 
     """
@@ -946,8 +948,12 @@ def model_vs_data_figure(model_run_data,
                                 for ai in a])
         max_time = start_times.max() * 1.1
 
+    if max_age_burial_panel is not None:
+        max_time_b = max_age_burial_panel
+    else:
+        max_time_b = max_time
     for ax in time_panels:
-        ax.set_xlim(max_time, 0)
+        ax.set_xlim(max_time_b, 0)
 
     for ax in depth_panels:
         ax.set_ylim(max_depth, -max_depth / 20.0)
@@ -991,6 +997,9 @@ def model_vs_data_figure(model_run_data,
         for ahe_ages_sample in ahe_ages_all_samples:
             if ahe_ages_sample.max() > thermochron_age_max:
                 thermochron_age_max = ahe_ages_sample.max()
+
+    if max_age_thermochron_panel is not None:
+        thermochron_age_max = max_age_thermochron_panel
 
     if AFT_data is not None:
         ax_afta.set_xlim(thermochron_age_max * 1.1, 0)
