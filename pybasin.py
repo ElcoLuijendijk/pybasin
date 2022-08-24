@@ -466,6 +466,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    C0=0.39528, C1=0.01073,
                                    C2=-65.12969, C3=-7.91715,
                                    alpha=0.04672,
+                                   provenance_start_temp=120.0,
                                    location_has_AFT=True):
 
     """
@@ -491,7 +492,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                 annealing_kinetic_param,
                 surface_temp,
                 annealing_eq=annealing_eq,
-                C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+                C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+                provenance_start_temp=provenance_start_temp)
 
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
@@ -559,7 +561,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             annealing_kinetic_param,
             surface_temp,
             annealing_eq=annealing_eq,
-            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+            provenance_start_temp=provenance_start_temp)
 
     (modeled_aft_age_samples, modeled_aft_age_samples_min,
      modeled_aft_age_samples_max,
@@ -599,7 +602,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                                    radius_default=75.0,
                                    ahe_method='RDAAM',
                                    alpha=0.04672, C0=0.39528, C1=0.01073,
-                                   C2=-65.12969, C3=-7.91715):
+                                   C2=-65.12969, C3=-7.91715,
+                                   provenance_start_temp=120.0):
 
     """
     Use modeled temperature history and provneance history to model apatite (U-Th)/He ages
@@ -672,7 +676,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                 prov_start_nodes, prov_end_nodes,
                 surface_temp, ahe_grain_radius_nodes, U_nodes, Th_nodes,
                 ahe_method=ahe_method,
-                alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3)
+                alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                provenance_start_temp=provenance_start_temp)
 
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
@@ -756,7 +761,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
             surface_temp, ahe_grain_radius_samples,
             U_samples, Th_samples,
             ahe_method=ahe_method,
-            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3)
+            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+            provenance_start_temp=provenance_start_temp)
 
     (modeled_ahe_age_samples, modeled_ahe_age_samples_min,
      modeled_ahe_age_samples_max, ahe_node_times_burial,
@@ -998,7 +1004,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C2=pybasin_params.C2,
             C3=pybasin_params.C3,
             alpha=pybasin_params.alpha,
-            location_has_AFT=location_has_AFT)
+            location_has_AFT=location_has_AFT,
+            provenance_start_temp=pybasin_params.provenance_start_temp)
 
         # store surface and bottom VR value
         if simulated_AFT_data is not None:
@@ -1102,7 +1109,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C2=pybasin_params.C2,
             C3=pybasin_params.C3,
             alpha=pybasin_params.alpha,
-            ahe_method=pybasin_params.ahe_method)
+            ahe_method=pybasin_params.ahe_method,
+            provenance_start_temp=pybasin_params.provenance_start_temp)
 
         # store surface and bottom VR value
         if simulated_AHe_data is not None:
@@ -1447,6 +1455,10 @@ def update_model_params_and_run_model_new(model_scenario_number,
     # check if vr method is specified in the parameter file
     if hasattr(pybasin_params, 'vr_method') is False:
         pybasin_params.vr_method = 'easyRo'
+
+    if hasattr(pybasin_params, "provenance_start_temp") is False:
+        print("no provenance_start_temp specified in input file, using a value of 120 degrees C")
+        pybasin_params.provenance_start_temp = 120.0
 
     # get values of all input parameters in pybasin_params class
     attributes = inspect.getmembers(

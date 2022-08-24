@@ -136,7 +136,11 @@ class ModelParameters:
     #############################
     # Thermochronology parameters
     #############################
+    # number of timesteps to discretize the provenance thermal history prior to deposition
     provenance_time_nt = 100
+
+    # temperature at the start of the provenance history of the samples (degr. C)
+    provenance_start_temp = 120.0
 
     # resample timesteps for AFT, AHe calculation and saving modeled temperature histories
     resample_timesteps = 10

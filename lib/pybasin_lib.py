@@ -1482,7 +1482,8 @@ def generate_thermal_histories(resample_t, n_nodes,
                                T_nodes, active_nodes,
                                prov_ages_start_array,
                                prov_ages_end_array,
-                               nt_prov, Ts):
+                               nt_prov, Ts,
+                               provenance_start_temp=120.0):
     aft_node_times = []
     aft_node_temps = []
 
@@ -1504,7 +1505,7 @@ def generate_thermal_histories(resample_t, n_nodes,
             if p1 <= burial_time[0]:
                 print('warning, start deposition in basin earlier than '
                       'start provenance history')
-                print('using a hard coded prov history of 120 C to surface')
+                print(f'using a hard coded prov history of {provenance_start_temp} C to surface')
                 print('from 2 my before deposition to deposition age')
                 p1 = burial_time[0] + 2.0
                 p2 = burial_time[0]
@@ -1521,7 +1522,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                                      provenance_times[1:])]
 
             if len(prov_time_fine) <= 1:
-                prov_T_cooling = np.linspace(120.0,
+                prov_T_cooling = np.linspace(provenance_start_temp,
                                              burial_T[0],
                                              len(prov_time_fine[0]))
                 prov_T = prov_T_cooling
@@ -1529,7 +1530,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                 prov_T_depo = np.interp(prov_time_fine[1],
                                         Ts['age'].values,
                                         Ts['surface_temperature'])
-                prov_T_cooling = np.linspace(120.0,
+                prov_T_cooling = np.linspace(provenance_start_temp,
                                              prov_T_depo[0],
                                              len(prov_time_fine[0]))
                 prov_T = np.concatenate((prov_T_cooling, prov_T_depo))
@@ -1580,8 +1581,7 @@ def generate_burial_histories(resample_t,
             if p1 <= burial_time[0]:
                 print('warning, start deposition in basin earlier than '
                       'start provenance history')
-                print('using a hard coded prov history of 120 C to surface')
-                print('from 2 my before deposition to deposition age')
+                print(f'using a hard coded prov history start of 2 my before deposition to deposition age')
                 p1 = burial_time[0] + 2.0
                 p2 = burial_time[0]
 
@@ -1706,7 +1706,9 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  annealing_kinetics_values, annealing_kinetic_param, Ts,
                  C0=0.39528, C1=0.01073,
                  C2=-65.12969, C3=-7.91715,
-                 alpha=0.04672, annealing_eq='FC', verbose=True):
+                 alpha=0.04672, annealing_eq='FC', 
+                 provenance_start_temp=120.0,
+                 verbose=True):
     """
     simulate fission track ages using calculated burial thermal history
     and provenance thermal history scenarios
@@ -1731,7 +1733,7 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
         resample_t, n_nodes,
         time_array_bp, T_nodes, active_nodes,
         prov_ages_start, prov_ages_end,
-        nt_prov, Ts)
+        nt_prov, Ts, provenance_start_temp=provenance_start_temp)
 
     aft_node_times_burial, aft_node_zs = generate_burial_histories(
         resample_t, n_nodes,
@@ -1792,7 +1794,8 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
                  prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th,
                  ahe_method='RDAAM',
-                 alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715):
+                 alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715, 
+                 provenance_start_temp=120.0):
     """
     simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
 
@@ -1819,7 +1822,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         resample_t, n_nodes,
         time_array_bp, T_nodes, active_nodes,
         prov_ages_start, prov_ages_end,
-        nt_prov, Ts)
+        nt_prov, Ts, provenance_start_temp=provenance_start_temp)
 
     ahe_node_times_burial, ahe_node_zs = generate_burial_histories(
         resample_t, n_nodes,
