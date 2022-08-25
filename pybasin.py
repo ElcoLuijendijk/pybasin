@@ -603,7 +603,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                                    ahe_method='RDAAM',
                                    alpha=0.04672, C0=0.39528, C1=0.01073,
                                    C2=-65.12969, C3=-7.91715,
-                                   provenance_start_temp=120.0):
+                                   provenance_start_temp=120.0,
+                                   log_tT_paths=False, tT_path_filename=""):
 
     """
     Use modeled temperature history and provneance history to model apatite (U-Th)/He ages
@@ -677,7 +678,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                 surface_temp, ahe_grain_radius_nodes, U_nodes, Th_nodes,
                 ahe_method=ahe_method,
                 alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
-                provenance_start_temp=provenance_start_temp)
+                provenance_start_temp=provenance_start_temp,
+                log_tT_paths=False, tT_path_filename=tT_path_filename)
 
         (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
          ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
@@ -762,7 +764,8 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
             U_samples, Th_samples,
             ahe_method=ahe_method,
             alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
-            provenance_start_temp=provenance_start_temp)
+            provenance_start_temp=provenance_start_temp,
+            log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename)
 
     (modeled_ahe_age_samples, modeled_ahe_age_samples_min,
      modeled_ahe_age_samples_max, ahe_node_times_burial,
@@ -1110,7 +1113,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C3=pybasin_params.C3,
             alpha=pybasin_params.alpha,
             ahe_method=pybasin_params.ahe_method,
-            provenance_start_temp=pybasin_params.provenance_start_temp)
+            provenance_start_temp=pybasin_params.provenance_start_temp,
+            log_tT_paths=pybasin_params.log_tT_paths, tT_path_filename=pybasin_params.datafile_output_dir)
 
         # store surface and bottom VR value
         if simulated_AHe_data is not None:
@@ -1452,9 +1456,14 @@ def update_model_params_and_run_model_new(model_scenario_number,
         # print('adjusted duration of exhumation = %0.2f My' \
         #       % exhumation_duration_temp)
 
-    # check if vr method is specified in the parameter file
+    # check for new parameters if they are present in the parameter file
+    # and if not, set a default value
+    # this is for parameters that have been added since the last release to ensure backwards compatibility
     if hasattr(pybasin_params, 'vr_method') is False:
         pybasin_params.vr_method = 'easyRo'
+
+    if hasattr(pybasin_params, "log_tT_paths") is False:
+        pybasin_params.log_tT_paths = False
 
     if hasattr(pybasin_params, "provenance_start_temp") is False:
         print("no provenance_start_temp specified in input file, using a value of 120 degrees C")

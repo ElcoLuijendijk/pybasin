@@ -1791,13 +1791,33 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
             aft_node_times, aft_node_temps)
 
 
+def save_tT_path(t, T, fn, Kelvin=273.15, float_format="%.4f"):
+    """
+    save time-temperature path in HeFTy compatible format
+    """
+
+    ty = t / (365.25 * 24 * 3600)
+
+    tm = np.abs(-(ty - ty.max()) / 1e6)
+
+    df = pd.DataFrame(index=tm, columns=["temperature"])
+
+    Tc = T - Kelvin
+
+    df["temperature"] = Tc
+
+    df.to_csv(fn, sep="\t", header=False, float_format=float_format)
+
+    return
+
+
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
                  prov_ages_start, prov_ages_end, Ts, grain_radius_nodes, U, Th,
                  ahe_method='RDAAM',
                  alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715, 
-                 provenance_start_temp=120.0):
+                 provenance_start_temp=120.0, log_tT_paths=False, tT_path_filename=""):
     """
-    simulate fission track ages using calculated burial thermal history and provenance thermal history scenarios
+    simulate apatite U-Th/He ages using calculated burial thermal history and provenance thermal history scenarios
 
     :param resample_t:
     :param nt_prov:
@@ -1837,6 +1857,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     ahe_age_nodes_min_all = []
     ahe_age_nodes_max_all = []
 
+    if log_tT_paths is True and os.path.exists(tT_path_filename) is False:
+        os.mkdir(tT_path_filename)
+
     print('all samples/nodes:')
     print('.' * n_nodes)
     print('progress:')
@@ -1856,6 +1879,11 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                 Myr = 1e6 * 365.25 * 24 * 60 * 60
                 t = ahe_node_times[nn][n_prov] * Myr
                 T = ahe_node_temps[nn][n_prov] + Kelvin
+
+                if log_tT_paths is True:
+                    fn = os.path.join(tT_path_filename, f"tT_AHe_sample{nn}_grain{ng}_prov{n_prov}.txt")
+                    save_tT_path(t, T, fn)
+
                 grain_radius = grain_radius_nodes[nn][ng]
                 U_grain = U[nn][ng]
                 Th_grain = Th[nn][ng]

@@ -15,8 +15,7 @@ class ModelParameters:
 
     # location of input data .csv files
     output_dir = 'model_output/example_dataset_2'
-    datafile_output_dir = 'model_output/example_dataset_2/thermal_history_datafiles'
-
+ 
     # list of wells to include in model runs
     wells = ['E40']
 
@@ -34,6 +33,12 @@ class ModelParameters:
 
     # option to save model run data (approx 10-20 MB per model run)
     save_model_run_data = True
+
+    # location of detailled output data
+    datafile_output_dir = 'model_output/example_dataset_2/thermal_history_datafiles'
+
+    # save time-temperature paths for each sample, so that they can be used with other codes such as HeFTy or QtQt
+    log_tT_paths = True
 
     # use stratigraphy input data from stratigraphic maps instead of text files
     # this is still an experimental feature, no guarantee that it actually works. Future updates will make this more

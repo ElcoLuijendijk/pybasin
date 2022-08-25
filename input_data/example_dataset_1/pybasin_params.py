@@ -16,8 +16,7 @@ class ModelParameters:
 
     # location of input data .csv files
     output_dir = 'model_output/example_dataset_1'
-    datafile_output_dir = 'model_output/example_dataset_1/thermal_history_datafiles'
-
+    
     # names of wells or surface outcrops to include in a single set of model runs:
     wells = ['NDW-01']
 
@@ -33,8 +32,14 @@ class ModelParameters:
     # note that this increases the amount of computational time quite a bit
     calculate_thermochron_for_all_nodes = True
 
-    # option to save model run data (approx 10-20 MB per model run)
+    # option to save detailled model run data (approx 10-20 MB per model run)
     save_model_run_data = True
+
+    # save time-temperature paths for each sample, so that they can be used with other codes such as HeFTy or QtQt
+    log_tT_paths = True
+
+    # location of detailled output data
+    datafile_output_dir = 'model_output/example_dataset_1/thermal_history_datafiles'
 
     # use stratigraphy input data from stratigraphic maps instead of text files
     # this is still an experimental feature, no guarantee that it actually works. Future updates will make this more
