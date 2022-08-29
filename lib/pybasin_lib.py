@@ -1882,6 +1882,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
                 if log_tT_paths is True:
                     fn = os.path.join(tT_path_filename, f"tT_AHe_sample{nn}_grain{ng}_prov{n_prov}.txt")
+                    print(f"saving time-temp path for sample {nn}, grain {ng} provenance history {n_prov} to {fn}")
                     save_tT_path(t, T, fn)
 
                 grain_radius = grain_radius_nodes[nn][ng]
