@@ -1622,6 +1622,21 @@ def read_model_input_data(input_dir, pybasin_params):
     print('reading input data')
     # stratigraphy description
     strat_info = pd.read_csv(os.path.join(input_dir, 'stratigraphy_info.csv'), skip_blank_lines=True)
+
+    
+    required_cols = ['strat_unit', 'age_bottom', 'age_top']
+    
+    for required_col in required_cols:
+        try:    
+            assert required_col in strat_info.columns
+        except AssertionError:
+            fn_msg = os.path.join(input_dir, 'stratigraphy_info.csv')
+            msg = f"could not find the column {required_col} in the stratigraphy input file {fn_msg}\n"
+            msg += f"instead I found only the following {len(strat_info.columns)} columns: {list(strat_info.columns)}\n"
+            msg += f"please check the file with a text editor to see if {required_col} is present in the header"
+            msg += f"and if the column separators are consistent"
+            raise IndexError(msg)
+        
     strat_info = strat_info.set_index('strat_unit')
 
     # well stratigraphy
