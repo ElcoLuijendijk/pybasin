@@ -22,7 +22,7 @@ class ModelParameters:
 
     # option to calculate apatite fission track data
     simulate_AFT = True
-    simulate_AHe = False
+    simulate_He = False
     simulate_VR = True
     simulate_salinity = False
 

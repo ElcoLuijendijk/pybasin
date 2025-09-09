@@ -38,7 +38,7 @@ import lib.pybasin_figures as pybasin_figures
 try:
     import lib.helium_diffusion_models as he
 except ImportError:
-    print('warning, failed to import AHe module')
+    print('warning, failed to import native  U-Th/He module')
 
 
 # make sure multi-threading for numpy is turned off (this slows down the heat
@@ -301,126 +301,126 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
             age_bins, age_pdfs, aft_data_well)
 
 
-def model_data_comparison_AHe(ahe_samples_well, ahe_data,
-                              ahe_age_bin,
-                              modeled_ahe_age_samples_min,
-                              modeled_ahe_age_samples_max):
+def model_data_comparison_he(he_samples_well, he_data,
+                             he_age_bin,
+                             modeled_he_age_samples_min,
+                             modeled_he_age_samples_max):
 
     """
     Compare modelled and measure apatite (U-Th)/He ages
 
     """
 
-    print('calculating GOF AHe data')
+    print('calculating GOF He data')
 
-    ahe_age_pdfs_all_samples = []
-    ahe_ages_all_samples = []
-    ahe_ages_all_samples_SE = []
+    he_age_pdfs_all_samples = []
+    he_ages_all_samples = []
+    he_ages_all_samples_SE = []
 
-    for ahe_sample_i, ahe_sample_ix, ahe_sample in zip(
+    for he_sample_i, he_sample_ix, he_sample in zip(
             itertools.count(),
-            ahe_samples_well.index,
-            ahe_samples_well['sample']):
+            he_samples_well.index,
+            he_samples_well['sample']):
 
-        ahe_age_pdfs = []
+        he_age_pdfs = []
 
-        if ahe_sample in ahe_data['sample'].values:
-            ind_sample = ahe_data['sample'].values == ahe_sample
+        if he_sample in he_data['sample'].values:
+            ind_sample = he_data['sample'].values == he_sample
 
             grain_pdfs = []
 
-            ahe_ages_all_samples.append(
-                ahe_data.loc[ind_sample, 'ahe_age_uncorrected'].values)
-            ahe_ages_all_samples_SE.append(
-                ahe_data.loc[ind_sample, 'ahe_age_uncorrected_se'].values)
+            he_ages_all_samples.append(
+                he_data.loc[ind_sample, 'he_age_uncorrected'].values)
+            he_ages_all_samples_SE.append(
+                he_data.loc[ind_sample, 'he_age_uncorrected_se'].values)
 
             age_error = 0
 
-            for grain_i, ahe_age_obs, ahe_age_obs_SE \
+            for grain_i, he_age_obs, he_age_obs_SE \
                     in zip(itertools.count(),
-                           ahe_data.loc[ind_sample, 'ahe_age_uncorrected'].values,
-                           ahe_data.loc[ind_sample, 'ahe_age_uncorrected_se'].values):
+                           he_data.loc[ind_sample, 'he_age_uncorrected'].values,
+                           he_data.loc[ind_sample, 'he_age_uncorrected_se'].values):
 
-                ahe_age_pdf = scipy.stats.norm.pdf(ahe_age_bin,
-                                                   ahe_age_obs,
-                                                   ahe_age_obs_SE)
+                he_age_pdf = scipy.stats.norm.pdf(he_age_bin,
+                                                   he_age_obs,
+                                                   he_age_obs_SE)
 
                 # normalize to make sum of pdf 1
-                ahe_age_pdf = ahe_age_pdf / ahe_age_pdf.sum()
+                he_age_pdf = he_age_pdf / he_age_pdf.sum()
 
-                ahe_age_pdfs.append(ahe_age_pdf)
+                he_age_pdfs.append(he_age_pdf)
 
                 # find out how much of pdf is covered by simulated
-                # end-member AHe ages
-                # ahe_age_pdf = ahe_age_pdf / ahe_age_pdf.sum()
+                # end-member U-Th/He ages
+                # he_age_pdf = he_age_pdf / he_age_pdf.sum()
 
-                ahe_age_sim_min = \
-                    modeled_ahe_age_samples_min[ahe_sample_i][grain_i]
-                ahe_age_sim_max = \
-                    modeled_ahe_age_samples_max[ahe_sample_i][grain_i]
+                he_age_sim_min = \
+                    modeled_he_age_samples_min[he_sample_i][grain_i]
+                he_age_sim_max = \
+                    modeled_he_age_samples_max[he_sample_i][grain_i]
 
-                if ahe_age_sim_min == 0:
+                if he_age_sim_min == 0:
                     start_ind = 0
                 else:
-                    start_ind = np.where(ahe_age_sim_min >= ahe_age_bin)[0][-1]
+                    start_ind = np.where(he_age_sim_min >= he_age_bin)[0][-1]
 
-                if ahe_age_sim_max == 0.0:
+                if he_age_sim_max == 0.0:
                     end_ind = 0
                 else:
-                    end_ind = np.where(ahe_age_sim_max <= ahe_age_bin)[0][0]
+                    end_ind = np.where(he_age_sim_max <= he_age_bin)[0][0]
 
-                pdf_fit_sum = np.sum(ahe_age_pdf[start_ind:end_ind])
+                pdf_fit_sum = np.sum(he_age_pdf[start_ind:end_ind])
 
                 grain_pdfs.append(pdf_fit_sum)
 
-                # calculate ahe age error:
+                # calculate U-Th/He age error:
                 # if np.any(np.isnan(age_pdf)) == False:
-                # pc = np.cumsum(ahe_age_pdf)
+                # pc = np.cumsum(he_age_pdf)
 
                 # find +-95% confines of age distribution
                 # start_ind = np.where(pc >= 0.05)[0][0]
                 # end_ind = np.where(pc <= 0.95)[0][-1]
 
-                age_min = ahe_age_obs - ahe_age_obs_SE * 1.96
-                age_max = ahe_age_obs + ahe_age_obs_SE * 1.96
+                age_min = he_age_obs - he_age_obs_SE * 1.96
+                age_max = he_age_obs + he_age_obs_SE * 1.96
 
                 # check difference of min modeled aft age and min. value of age distribution
-                if ahe_age_sim_min < age_min:
+                if he_age_sim_min < age_min:
                     age_error_min = 0
                 else:
-                    age_error_min = ahe_age_sim_min - age_min
+                    age_error_min = he_age_sim_min - age_min
 
                 # check difference of max modeled aft age and max. value of age distribution
-                if ahe_age_sim_max > age_max:
+                if he_age_sim_max > age_max:
                     age_error_max = 0
                 else:
-                    age_error_max = age_max - ahe_age_sim_max
+                    age_error_max = age_max - he_age_sim_max
 
                 age_error += age_error_min + age_error_max
                 # aft_data_well.loc[sample_ix, 'age_error'] = age_error
 
-            ahe_samples_well.loc[ahe_sample_ix, 'mean_GOF_all_grains'] = \
+            he_samples_well.loc[he_sample_ix, 'mean_GOF_all_grains'] = \
                 np.mean(np.array(grain_pdfs))
-            ahe_samples_well.loc[ahe_sample_ix, 'min_GOF_all_grains'] = \
+            he_samples_well.loc[he_sample_ix, 'min_GOF_all_grains'] = \
                 np.min(np.array(grain_pdfs))
-            ahe_samples_well.loc[ahe_sample_ix, 'max_GOF_all_grains'] = \
+            he_samples_well.loc[he_sample_ix, 'max_GOF_all_grains'] = \
                 np.max(np.array(grain_pdfs))
-            ahe_samples_well.loc[ahe_sample_ix, 'mean_ahe_error'] = age_error / len(grain_pdfs)
+            he_samples_well.loc[he_sample_ix, 'mean_he_error'] = age_error / len(grain_pdfs)
 
-        ahe_age_pdfs_all_samples.append(ahe_age_pdfs)
+        he_age_pdfs_all_samples.append(he_age_pdfs)
 
-    if 'mean_GOF_all_grains' in ahe_samples_well.columns:
-        ahe_age_gof = ahe_samples_well['mean_GOF_all_grains'].mean()
+    if 'mean_GOF_all_grains' in he_samples_well.columns:
+        he_age_gof = he_samples_well['mean_GOF_all_grains'].mean()
     else:
-        ahe_age_gof = np.nan
+        he_age_gof = np.nan
 
-    if 'mean_ahe_error' in ahe_samples_well.columns:
-        ahe_age_error = ahe_samples_well.loc[ahe_sample_ix, 'mean_ahe_error'].mean()
+    if 'mean_he_error' in he_samples_well.columns:
+        he_age_error = he_samples_well.loc[he_sample_ix, 'mean_he_error'].mean()
     else:
-        ahe_age_error = 99999.9
+        he_age_error = 99999.9
 
-    return (ahe_age_gof, ahe_age_error, ahe_ages_all_samples, ahe_ages_all_samples_SE,
-            ahe_age_bin, ahe_age_pdfs_all_samples, ahe_samples_well)
+    return (he_age_gof, he_age_error, he_ages_all_samples, he_ages_all_samples_SE,
+            he_age_bin, he_age_pdfs_all_samples, he_samples_well)
 
 
 def model_data_comparison_salinity(salinity_data_well,
@@ -584,8 +584,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             T_samples)
 
 
-def assemble_data_and_simulate_AHe(ahe_samples_well,
-                                   ahe_data,
+def assemble_data_and_simulate_he(he_samples_well,
+                                  he_data,
                                    decay_constant_238U,
                                    decay_constant_235U,
                                    decay_constant_232Th,
@@ -613,9 +613,9 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
     if calculate_thermochron_for_all_nodes is True:
 
         print('-' * 10)
-        print('calculating AHe ages for all nodes')
+        print('calculating U-Th/He ages for all nodes')
 
-        ahe_grain_radius_nodes = np.zeros((n_nodes, 2))
+        he_grain_radius_nodes = np.zeros((n_nodes, 2))
         U_nodes = np.zeros((n_nodes, 2))
         Th_nodes = np.zeros((n_nodes, 2))
 
@@ -623,36 +623,36 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
         # TODO: specify default values in input file
         U_nodes[:, :] = U_default
         Th_nodes[:, :] = Th_default
-        ahe_grain_radius_nodes[:, :] = radius_default
+        he_grain_radius_nodes[:, :] = radius_default
 
         Ur0_max = 0
         Ur0_min = 99999
 
         # find min and max grain diameters and U and Th contents
         # for this location
-        samples = ahe_samples_well['sample'].values
-        # ahe_grain_radius_samples = []
-        for ahe_sample_no, ahe_sample in enumerate(samples):
-            ind_sample = ahe_data['sample'] == ahe_sample
-            ahe_grain_radius_sample = \
-                ahe_data['grain_radius'][ind_sample].values * 1e-6
+        samples = he_samples_well['sample'].values
+        # he_grain_radius_samples = []
+        for he_sample_no, he_sample in enumerate(samples):
+            ind_sample = he_data['sample'] == he_sample
+            he_grain_radius_sample = \
+                he_data['grain_radius'][ind_sample].values * 1e-6
 
             if True in ind_sample.values:
-                if (np.min(ahe_grain_radius_sample)
-                        < ahe_grain_radius_nodes[0, 0]) \
-                        or ahe_sample_no == 0:
-                    ahe_grain_radius_nodes[:, 0] = \
-                        np.min(ahe_grain_radius_sample)
-                if (np.max(ahe_grain_radius_sample)
-                        > ahe_grain_radius_nodes[0, 1]) \
-                        or ahe_sample_no == 0:
-                    ahe_grain_radius_nodes[:, 1] = \
-                        np.max(ahe_grain_radius_sample)
+                if (np.min(he_grain_radius_sample)
+                        < he_grain_radius_nodes[0, 0]) \
+                        or he_sample_no == 0:
+                    he_grain_radius_nodes[:, 0] = \
+                        np.min(he_grain_radius_sample)
+                if (np.max(he_grain_radius_sample)
+                        > he_grain_radius_nodes[0, 1]) \
+                        or he_sample_no == 0:
+                    he_grain_radius_nodes[:, 1] = \
+                        np.max(he_grain_radius_sample)
 
                 # calculate helium production and select min and
                 # max values of helium prodcution of all samples
-                U = ahe_data['U'][ind_sample].values * 1e-6
-                Th = ahe_data['Th'][ind_sample].values * 1e-6
+                U = he_data['U'][ind_sample].values * 1e-6
+                Th = he_data['Th'][ind_sample].values * 1e-6
                 U238 = (137.88 / 138.88) * U
                 U235 = (1.0 / 138.88) * U
                 Th232 = Th
@@ -670,113 +670,113 @@ def assemble_data_and_simulate_AHe(ahe_samples_well,
                     Ur0_min = Ur0.min()
 
         # calculate helium ages for all nodes
-        simulated_AHe_data =\
+        simulated_He_data =\
             pybasin_lib.simulate_ahe(
                 resample_t, nt_prov, n_nodes, time_array_bp,
                 z_nodes, T_nodes, active_nodes,
                 prov_start_nodes, prov_end_nodes,
-                surface_temp, ahe_grain_radius_nodes, U_nodes, Th_nodes,
+                surface_temp, he_grain_radius_nodes, U_nodes, Th_nodes,
                 ahe_method=ahe_method,
                 alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
                 provenance_start_temp=provenance_start_temp,
                 log_tT_paths=False, tT_path_filename=tT_path_filename)
 
-        (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-         ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+        (he_age_nodes, he_age_nodes_min, he_age_nodes_max,
+         he_node_times_burial, he_node_zs) = simulated_He_data
     else:
-        simulated_AHe_data = None
+        simulated_He_data = None
 
     nt = T_nodes.shape[0]
-    n_ahe_samples = len(ahe_samples_well)
+    n_he_samples = len(he_samples_well)
 
-    if n_ahe_samples == 0:
+    if n_he_samples == 0:
         return (None,
                 None,
                 None,
                 None,
                 None,
-                simulated_AHe_data)
+                simulated_He_data)
 
     # get T history for samples only
-    T_ahe_samples = np.zeros((nt, n_ahe_samples))
+    T_he_samples = np.zeros((nt, n_he_samples))
     for h in range(nt):
-        T_ahe_samples[h, :] = \
-            np.interp(ahe_samples_well['depth'],
+        T_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       T_nodes[h, active_nodes[-1]])
 
     # get burial history of samples
-    z_ahe_samples = np.zeros((nt, n_ahe_samples))
+    z_he_samples = np.zeros((nt, n_he_samples))
     for h in range(nt):
-        z_ahe_samples[h, :] = \
-            np.interp(ahe_samples_well['depth'],
+        z_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       z_nodes[h, active_nodes[-1]])
 
     # get provenance history for samples only
     n_prov = prov_start_nodes.shape[1]
-    prov_start_ahe_samples = np.zeros((n_ahe_samples, n_prov))
-    prov_end_ahe_samples = np.zeros((n_ahe_samples, n_prov))
+    prov_start_he_samples = np.zeros((n_he_samples, n_prov))
+    prov_end_he_samples = np.zeros((n_he_samples, n_prov))
     for h in range(n_prov):
-        prov_start_ahe_samples[:, h] = \
-            np.interp(ahe_samples_well['depth'],
+        prov_start_he_samples[:, h] = \
+            np.interp(he_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       prov_start_nodes[active_nodes[-1], h])
-        prov_end_ahe_samples[:, h] = \
-            np.interp(ahe_samples_well['depth'],
+        prov_end_he_samples[:, h] = \
+            np.interp(he_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       prov_end_nodes[active_nodes[-1], h])
 
     # get active node array for samples only
-    active_nodes_ahe_samples = np.zeros((nt, n_ahe_samples),
+    active_nodes_he_samples = np.zeros((nt, n_he_samples),
                                         dtype=bool)
     for h in range(nt):
-        active_nodes_ahe_samples[h, :] = \
-            np.interp(ahe_samples_well['depth'],
+        active_nodes_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
                       z_nodes[-1, active_nodes[-1]],
                       active_nodes[h, active_nodes[-1]])
 
     # assemble grain diameters, U and Th content of each sample
-    samples = ahe_samples_well['sample'].values
-    ahe_grain_radius_samples = []
+    samples = he_samples_well['sample'].values
+    he_grain_radius_samples = []
 
     U_samples = []
     Th_samples = []
 
-    for ahe_sample in samples:
-        ind_sample = ahe_data['sample'] == ahe_sample
-        ahe_grain_radius_sample = ahe_data['grain_radius'][ind_sample].values * 1e-6
-        ahe_grain_radius_samples.append(ahe_grain_radius_sample)
+    for he_sample in samples:
+        ind_sample = he_data['sample'] == he_sample
+        he_grain_radius_sample = he_data['grain_radius'][ind_sample].values * 1e-6
+        he_grain_radius_samples.append(he_grain_radius_sample)
 
-        U_sample = ahe_data['U'][ind_sample].values * 1e-6
+        U_sample = he_data['U'][ind_sample].values * 1e-6
         U_samples.append(U_sample)
-        Th_sample = ahe_data['Th'][ind_sample].values * 1e-6
+        Th_sample = he_data['Th'][ind_sample].values * 1e-6
         Th_samples.append(Th_sample)
 
-    print('calculating AHe for %i samples' % n_ahe_samples)
+    print('calculating He for %i samples' % n_he_samples)
 
-    simulated_ahe_data_samples =\
+    simulated_he_data_samples =\
         pybasin_lib.simulate_ahe(
-            resample_t, nt_prov, n_ahe_samples, time_array_bp,
-            z_ahe_samples, T_ahe_samples, active_nodes_ahe_samples,
-            prov_start_ahe_samples, prov_end_ahe_samples,
-            surface_temp, ahe_grain_radius_samples,
+            resample_t, nt_prov, n_he_samples, time_array_bp,
+            z_he_samples, T_he_samples, active_nodes_he_samples,
+            prov_start_he_samples, prov_end_he_samples,
+            surface_temp, he_grain_radius_samples,
             U_samples, Th_samples,
             ahe_method=ahe_method,
             alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
             provenance_start_temp=provenance_start_temp,
             log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename)
 
-    (modeled_ahe_age_samples, modeled_ahe_age_samples_min,
-     modeled_ahe_age_samples_max, ahe_node_times_burial,
-     ahe_node_zs) = simulated_ahe_data_samples
+    (modeled_he_age_samples, modeled_he_age_samples_min,
+     modeled_he_age_samples_max, he_node_times_burial,
+     he_node_zs) = simulated_he_data_samples
 
-    return (modeled_ahe_age_samples,
-            modeled_ahe_age_samples_min,
-            modeled_ahe_age_samples_max,
-            ahe_node_times_burial,
-            ahe_node_zs,
-            simulated_AHe_data)
+    return (modeled_he_age_samples,
+            modeled_he_age_samples_min,
+            modeled_he_age_samples_max,
+            he_node_times_burial,
+            he_node_zs,
+            simulated_He_data)
 
 
 def run_model_and_compare_to_data(well_number, well, well_strat,
@@ -789,12 +789,12 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   model_results_series,
                                   T_data, vr_data_df,
                                   aft_samples, aft_ages,
-                                  ahe_samples, ahe_data, salinity_data,
+                                  he_samples, he_data, salinity_data,
                                   vr_method='easyRo',
                                   save_csv_files=True):
     """
     run basin & thermal history model and compare modeled  and observed temperature, salinity,
-    vitrinite reflectance, apatite fission track ages and/or apatite (U-Th)/He ages
+    vitrinite reflectance, fission track ages and/or (U-Th)/He ages
 
     """
 
@@ -956,7 +956,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         model_results_series['depth_to_C=0.035kg/kg'] = depth_to_seawater_salinity
 
     if (pybasin_params.simulate_AFT is True
-            or pybasin_params.simulate_AHe is True):
+            or pybasin_params.simulate_He is True):
         calculate_thermochron_for_all_nodes = \
             pybasin_params.calculate_thermochron_for_all_nodes
         if pybasin_params.make_model_data_fig is True:
@@ -1065,34 +1065,34 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     #################################
     # simulate apatite (U-Th)/He ages
     #################################
-    location_has_AHe = False
+    location_has_He_data = False
 
-    if pybasin_params.simulate_AHe is True:
+    if pybasin_params.simulate_He is True:
 
         resample_t = pybasin_params.resample_timesteps
         nt_prov = pybasin_params.provenance_time_nt
 
-        # find if there is any aft data for this well:
-        location_has_AHe = False
-        if ahe_samples is not None:
-            ind = ahe_samples['location'] == well
-            ahe_samples_well = ahe_samples[ind]
+        # find if there is any U-Th/He data for this well:
+        location_has_He_data = False
+        if he_samples is not None:
+            ind = he_samples['location'] == well
+            he_samples_well = he_samples[ind]
 
             if True in ind.values:
-                location_has_AHe = True
+                location_has_He_data = True
 
         decay_constant_238U = pybasin_params.decay_constant_238U
         decay_constant_235U = pybasin_params.decay_constant_235U
         decay_constant_232Th = pybasin_params.decay_constant_232Th
 
-        (modeled_ahe_age_samples,
-         modeled_ahe_age_samples_min,
-         modeled_ahe_age_samples_max,
-         ahe_node_times_burial,
-         ahe_node_zs,
-         simulated_AHe_data) = assemble_data_and_simulate_AHe(
-            ahe_samples_well,
-            ahe_data,
+        (modeled_he_age_samples,
+         modeled_he_age_samples_min,
+         modeled_he_age_samples_max,
+         he_node_times_burial,
+         he_node_zs,
+         simulated_He_data) = assemble_data_and_simulate_he(
+            he_samples_well,
+            he_data,
             decay_constant_238U,
             decay_constant_235U,
             decay_constant_232Th,
@@ -1117,19 +1117,19 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             log_tT_paths=pybasin_params.log_tT_paths, tT_path_filename=pybasin_params.datafile_output_dir)
 
         # store surface and bottom VR value
-        if simulated_AHe_data is not None:
+        if simulated_He_data is not None:
 
-            (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-             ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+            (he_age_nodes, he_age_nodes_min, he_age_nodes_max,
+             he_node_times_burial, he_node_zs) = simulated_He_data
 
-            ahe_age_nodes_array = np.array(ahe_age_nodes)
-            ahe_age_nodes_min_array = np.min(np.array(ahe_age_nodes_min), axis=1)
-            ahe_age_nodes_max_array = np.min(np.array(ahe_age_nodes_min), axis=1)
+            he_age_nodes_array = np.array(he_age_nodes)
+            he_age_nodes_min_array = np.min(np.array(he_age_nodes_min), axis=1)
+            he_age_nodes_max_array = np.min(np.array(he_age_nodes_min), axis=1)
 
-            model_results_series['ahe_age_surface_min'] = ahe_age_nodes_array[active_nodes[-1]][0].min()
-            model_results_series['ahe_age_surface_max'] = ahe_age_nodes_array[active_nodes[-1]][0].max()
-            model_results_series['ahe_age_bottom_min'] = ahe_age_nodes_array[active_nodes[-1]][-1].min()
-            model_results_series['ahe_age_bottom_max'] = ahe_age_nodes_array[active_nodes[-1]][-1].max()
+            model_results_series['he_age_surface_min'] = he_age_nodes_array[active_nodes[-1]][0].min()
+            model_results_series['he_age_surface_max'] = he_age_nodes_array[active_nodes[-1]][0].max()
+            model_results_series['he_age_bottom_min'] = he_age_nodes_array[active_nodes[-1]][-1].min()
+            model_results_series['he_age_bottom_max'] = he_age_nodes_array[active_nodes[-1]][-1].max()
 
             calculate_resetting_depth = True
             nodata_val = -99999.9
@@ -1138,37 +1138,37 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             # todo: add this as a parameter to pybasin_params.py
             full_resetting_age = 0.5
 
-            if ahe_age_nodes_min_array.min() < full_resetting_age:
-                ind_min = ahe_age_nodes_min_array < full_resetting_age
-                model_results_series['full_resetting_depth_ahe_model_min'] = z_nodes[-1][ind_min][0]
-                model_results_series['full_resetting_T_ahe_model_min'] = T_nodes[-1][ind_min][0]
+            if he_age_nodes_min_array.min() < full_resetting_age:
+                ind_min = he_age_nodes_min_array < full_resetting_age
+                model_results_series['full_resetting_depth_he_model_min'] = z_nodes[-1][ind_min][0]
+                model_results_series['full_resetting_T_he_model_min'] = T_nodes[-1][ind_min][0]
             else:
-                model_results_series['full_resetting_depth_ahe_model_min'] = nodata_val
-                model_results_series['full_resetting_T_ahe_model_min'] = nodata_val
+                model_results_series['full_resetting_depth_he_model_min'] = nodata_val
+                model_results_series['full_resetting_T_he_model_min'] = nodata_val
 
-            if ahe_age_nodes_max_array.min() < full_resetting_age:
-                ind_max = ahe_age_nodes_max_array < full_resetting_age
-                model_results_series['full_resetting_depth_ahe_model_max'] = z_nodes[-1][ind_max][0]
-                model_results_series['full_resetting_T_ahe_model_max'] = T_nodes[-1][ind_max][0]
+            if he_age_nodes_max_array.min() < full_resetting_age:
+                ind_max = he_age_nodes_max_array < full_resetting_age
+                model_results_series['full_resetting_depth_he_model_max'] = z_nodes[-1][ind_max][0]
+                model_results_series['full_resetting_T_he_model_max'] = T_nodes[-1][ind_max][0]
             else:
-                model_results_series['full_resetting_depth_ahe_model_max'] = nodata_val
-                model_results_series['full_resetting_T_ahe_model_max'] = nodata_val
+                model_results_series['full_resetting_depth_he_model_max'] = nodata_val
+                model_results_series['full_resetting_T_he_model_max'] = nodata_val
 
             if calculate_resetting_depth is True and pybasin_params.calculate_thermochron_for_all_nodes is True:
 
                 # modeled resetting depth
-                ind_reset_min = ahe_age_nodes_min_array <= node_age
-                ind_reset_max = ahe_age_nodes_max_array <= node_age
+                ind_reset_min = he_age_nodes_min_array <= node_age
+                ind_reset_max = he_age_nodes_max_array <= node_age
                 if True in ind_reset_min:
-                    model_results_series['partial_resetting_depth_ahe_model_min'] = \
+                    model_results_series['partial_resetting_depth_he_model_min'] = \
                         z_nodes[-1][ind_reset_min].min()
                 else:
-                    model_results_series['partial_resetting_depth_ahe_model_min'] = nodata_val
+                    model_results_series['partial_resetting_depth_he_model_min'] = nodata_val
                 if True in ind_reset_max:
-                    model_results_series['partial_resetting_depth_ahe_model_max'] = \
+                    model_results_series['partial_resetting_depth_he_model_max'] = \
                         z_nodes[-1][ind_reset_max].min()
                 else:
-                    model_results_series['partial_resetting_depth_ahe_model_max'] = nodata_val
+                    model_results_series['partial_resetting_depth_he_model_max'] = nodata_val
 
     ##################################
     # calculate model goodness of fit:
@@ -1233,26 +1233,26 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                               modeled_aft_age_samples_max)
 
     # simulate apatite (U-Th)/He data
-    ahe_age_gof = np.nan
-    ahe_age_error = np.nan
+    he_age_gof = np.nan
+    he_age_error = np.nan
 
-    if pybasin_params.simulate_AHe is True:
+    if pybasin_params.simulate_He is True:
 
         # calculate model error fission track data
-        ind = ((ahe_samples['location'] == well) & (ahe_samples['depth'] <= z_nodes[-1].max() + 1.0))
-        ahe_samples_well = ahe_samples[ind]
+        ind = ((he_samples['location'] == well) & (he_samples['depth'] <= z_nodes[-1].max() + 1.0))
+        he_samples_well = he_samples[ind]
 
-        ahe_age_bin = np.linspace(0, prov_start_nodes.max(), 1000)
+        he_age_bin = np.linspace(0, prov_start_nodes.max(), 1000)
 
         if True in ind.values:
 
-            (ahe_age_gof, ahe_age_error, ahe_ages_all_samples,
-             ahe_ages_all_samples_SE,
-             ahe_age_bin, ahe_age_pdfs_all_samples, ahe_samples_well) = \
-                model_data_comparison_AHe(ahe_samples_well, ahe_data,
-                                          ahe_age_bin,
-                                          modeled_ahe_age_samples_min,
-                                          modeled_ahe_age_samples_max)
+            (he_age_gof, he_age_error, he_ages_all_samples,
+             he_ages_all_samples_SE,
+             he_age_bin, he_age_pdfs_all_samples, he_samples_well) = \
+                model_data_comparison_he(he_samples_well, he_data,
+                                          he_age_bin,
+                                          modeled_he_age_samples_min,
+                                          modeled_he_age_samples_max)
 
     # calculate model error salinity data
     salinity_rmse = np.nan
@@ -1320,22 +1320,22 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     else:
         C_data = None
 
-    if (pybasin_params.simulate_AHe is True
-            and location_has_AHe is True):
-        AHe_model_data = [ahe_samples_well['depth'].values,
-                          ahe_ages_all_samples,
-                          ahe_ages_all_samples_SE,
-                          ahe_age_bin,
-                          ahe_age_pdfs_all_samples,
-                          modeled_ahe_age_samples,
-                          modeled_ahe_age_samples_min,
-                          modeled_ahe_age_samples_max,
-                          ahe_age_gof, ahe_age_error,
-                          simulated_AHe_data,
-                          ahe_samples_well]
+    if (pybasin_params.simulate_He is True
+            and location_has_He_data is True):
+        He_model_data = [he_samples_well['depth'].values,
+                          he_ages_all_samples,
+                          he_ages_all_samples_SE,
+                          he_age_bin,
+                          he_age_pdfs_all_samples,
+                          modeled_he_age_samples,
+                          modeled_he_age_samples_min,
+                          modeled_he_age_samples_max,
+                          he_age_gof, he_age_error,
+                          simulated_He_data,
+                          he_samples_well]
 
     else:
-        AHe_model_data = None
+        He_model_data = None
 
     model_run_data = [time_array_bp,
                       surface_temp_array, basal_hf_array,
@@ -1347,8 +1347,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C_data,
             vr_gof, vr_rmse, VR_data,
             aft_age_gof, aft_age_error, AFT_data,
-            ahe_age_gof, ahe_age_error,
-            AHe_model_data,
+            he_age_gof, he_age_error,
+            He_model_data,
             model_results_series)
 
 
@@ -1364,7 +1364,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                           litho_props,
                                           T_data, vr_data_df,
                                           aft_samples, aft_ages,
-                                          ahe_samples, ahe_data,
+                                          he_samples, he_data,
                                           salinity_data,
                                           csv_output_dir,
                                           output_dir,
@@ -1496,8 +1496,8 @@ def update_model_params_and_run_model_new(model_scenario_number,
      C_data,
      vr_gof, vr_rmse, VR_model_data,
      aft_age_gof, aft_age_error, AFT_data,
-     ahe_age_gof, ahe_age_error,
-     AHe_model_data, model_results_series) = \
+     he_age_gof, he_age_error,
+     He_model_data, model_results_series) = \
         run_model_and_compare_to_data(well_number, well, well_strat,
                                       strat_info_mod, pybasin_params,
                                       surface_temp, surface_salinity_well,
@@ -1508,7 +1508,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                       model_results_series,
                                       T_data, vr_data_df,
                                       aft_samples, aft_ages,
-                                      ahe_samples, ahe_data,
+                                      he_samples, he_data,
                                       salinity_data,
                                       vr_method=pybasin_params.vr_method,
                                       save_csv_files=save_burial_csv_files)
@@ -1523,9 +1523,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
         if pybasin_params.simulate_AFT is True:
             model_results_series['aft_age_gof'] = aft_age_gof
             model_results_series['aft_age_error'] = aft_age_error
-        if pybasin_params.simulate_AHe is True:
-            model_results_series['ahe_gof'] = ahe_age_gof
-            model_results_series['ahe_error'] = ahe_age_error
+        if pybasin_params.simulate_He is True:
+            model_results_series['he_gof'] = he_age_gof
+            model_results_series['he_error'] = he_age_error
 
         # calculate cumulative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
@@ -1561,9 +1561,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
     if pybasin_params.simulate_AFT is True:
         print('AFT age GOF = %0.2f' % aft_age_gof)
         print('AFT age error = %0.2f' % aft_age_error)
-    if pybasin_params.simulate_AHe is True:
-        print('AHe GOF = %0.2f' % ahe_age_gof)
-        print('AHe age error = %0.2f' % ahe_age_error)
+    if pybasin_params.simulate_He is True:
+        print('He GOF = %0.2f' % he_age_gof)
+        print('He age error = %0.2f' % he_age_error)
     print('')
 
     return (well_number, well, model_scenario_number,
@@ -1572,8 +1572,8 @@ def update_model_params_and_run_model_new(model_scenario_number,
             C_data,
             vr_gof, VR_model_data,
             aft_age_gof, aft_age_error, AFT_data,
-            ahe_age_gof, ahe_age_error,
-            AHe_model_data,
+            he_age_gof, he_age_error,
+            He_model_data,
             model_results_series)
 
 
@@ -1595,8 +1595,8 @@ def check_input_data_files(input_dir, pybasin_params):
     if pybasin_params.simulate_VR is True:
         fns.append('vitrinite_reflectance.csv')
 
-    if pybasin_params.simulate_AHe is True:
-        fns += ['ahe_samples.csv', 'ahe_data.csv']
+    if pybasin_params.simulate_He is True:
+        fns += ['he_samples.csv', 'he_data.csv']
 
     if pybasin_params.simulate_AFT is True:
         fns += ['aft_samples.csv', 'aft_data.csv']
@@ -1681,28 +1681,28 @@ def read_model_input_data(input_dir, pybasin_params):
         aft_samples = None
         aft_ages = None
 
-    if pybasin_params.simulate_AHe is True:
-        ahe_sample_fn = os.path.join(input_dir, 'ahe_samples.csv')
-        ahe_data_fn = os.path.join(input_dir, 'ahe_data.csv')
-        if os.path.exists(ahe_sample_fn):
-            # read apatite U-Th/He (AHe) data
-            ahe_samples = pd.read_csv(ahe_sample_fn, skip_blank_lines=True)
+    if pybasin_params.simulate_He is True:
+        he_sample_fn = os.path.join(input_dir, 'he_samples.csv')
+        he_data_fn = os.path.join(input_dir, 'he_data.csv')
+        if os.path.exists(he_sample_fn):
+            # read U-Th/He (He) data
+            he_samples = pd.read_csv(he_sample_fn, skip_blank_lines=True)
         else:
-            print('warning, could not find input file %s ' % ahe_sample_fn)
-            print('continuing without AHe sample data')
-            ahe_samples = None
+            print('warning, could not find input file %s ' % he_sample_fn)
+            print('continuing without U-Th/He sample data')
+            he_samples = None
 
-        if os.path.exists(ahe_data_fn):
-            # read apatite U-Th/He (AHe) data
-            ahe_data = pd.read_csv(ahe_data_fn, skip_blank_lines=True)
+        if os.path.exists(he_data_fn):
+            # read apatite U-Th/He (He) data
+            he_data = pd.read_csv(he_data_fn, skip_blank_lines=True)
         else:
-            print('warning, could not find input file %s ' % ahe_data_fn)
-            print('continuing without AHe age data')
-            ahe_data = None
+            print('warning, could not find input file %s ' % he_data_fn)
+            print('continuing without  U-Th/He age data')
+            he_data = None
 
     else:
-        ahe_samples = None
-        ahe_data = None
+        he_samples = None
+        he_data = None
 
     if pybasin_params.simulate_salinity is True:
         # read surface salinity bnd condditions
@@ -1714,7 +1714,7 @@ def read_model_input_data(input_dir, pybasin_params):
     else:
         salinity_data = None
 
-    # T_data, vr_data, aft_samples, aft_ages, ahe_samples, ahe_data, salinity_data
+    # T_data, vr_data, aft_samples, aft_ages, he_samples, he_data, salinity_data
 
     ########
     # calculate porosity-depth and thermal parameters for each strat unit
@@ -1774,7 +1774,7 @@ def read_model_input_data(input_dir, pybasin_params):
     return (well_strats, strat_info_mod, df_sal,
             T_data_df, vr_data_df,
             aft_samples, aft_ages,
-            ahe_samples, ahe_data,
+            he_samples, he_data,
             salinity_data, surface_temp, litho_props)
 
 
@@ -1872,7 +1872,7 @@ def setup_model_output_df(n_scenarios):
             'exhumation_segment_factor', 'exhumation_duration_factor',
             'basal_heat_flow',
             'T_gof', 'vr_gof', 'aft_age_gof', 'aft_age_error',
-            'ahe_gof', 'ahe_error',
+            'he_gof', 'he_error',
             'mean_gof',
             'objective_function',
             'resetting_depth_model_min',
@@ -1964,7 +1964,7 @@ def main():
     (well_strats, strat_info_mod, salinity_bnd_df,
      T_data_df, vr_data_df,
      aft_samples, aft_ages,
-     ahe_samples, ahe_data,
+     he_samples, he_data,
      salinity_data, surface_temp, litho_props) \
         = read_model_input_data(input_dir, Parameters)
 
@@ -2000,7 +2000,7 @@ def main():
     columns = ['model_run', 'model_error', 'well', 'computational_time'] + param_names
     columns += ['well',
                 'T_gof', 'vr_gof', 'aft_age_gof', 'aft_age_error',
-                'ahe_gof', 'ahe_error', 'mean_gof',
+                'he_gof', 'he_error', 'mean_gof',
                 'resetting_depth_model_min',
                 'resetting_depth_model_max',
                 'resetting_depth_data_min',
@@ -2121,8 +2121,8 @@ def main():
                  C_data,
                  vr_gof, VR_model_data,
                  aft_age_gof, aft_age_error, AFT_data,
-                 ahe_age_gof, ahe_age_error,
-                 AHe_model_data, model_results_series_updated) = update_model_params_and_run_model_new(
+                 he_age_gof, he_age_error,
+                 He_model_data, model_results_series_updated) = update_model_params_and_run_model_new(
                     model_scenario_number,
                     Parameters,
                     model_scenario_param_names, model_scenario_params,
@@ -2135,7 +2135,7 @@ def main():
                     litho_props,
                     T_data_df, vr_data_df,
                     aft_samples, aft_ages,
-                    ahe_samples, ahe_data,
+                    he_samples, he_data,
                     salinity_data,
                     csv_output_dir,
                     output_dir,
@@ -2169,7 +2169,7 @@ def main():
                                       litho_props,
                                       T_data_df, vr_data_df,
                                       aft_samples, aft_ages,
-                                      ahe_samples, ahe_data,
+                                      he_samples, he_data,
                                       salinity_data,
                                       csv_output_dir,
                                       output_dir,
@@ -2210,8 +2210,8 @@ def main():
                              C_data,
                              vr_gof, VR_model_data,
                              aft_age_gof, aft_age_error, AFT_data,
-                             ahe_age_gof, ahe_age_error,
-                             AHe_model_data, model_results_series_updated) = p_result
+                             he_age_gof, he_age_error,
+                             He_model_data, model_results_series_updated) = p_result
 
                             for col in model_results_series_updated.index:
                                 if col not in model_results_df.columns:
@@ -2234,7 +2234,7 @@ def main():
                     model_run_data_fig.append(C_data)
                     model_run_data_fig.append(VR_model_data)
                     model_run_data_fig.append(AFT_data)
-                    model_run_data_fig.append(AHe_model_data)
+                    model_run_data_fig.append(He_model_data)
 
                     today = datetime.datetime.now()
                     today_str = '%i-%i-%i' % (today.day, today.month, today.year)
@@ -2471,34 +2471,34 @@ def main():
                             # df_aft.to_csv(fn)
                             aft_data_well.to_csv(fn)
 
-                        # AHe data
-                        if Parameters.simulate_AHe is True and AHe_model_data is not None:
+                        #  U-Th/He data
+                        if Parameters.simulate_He is True and He_model_data is not None:
 
-                            [ahe_sample_depths,
-                             ahe_ages_all_samples,
-                             ahe_ages_all_samples_SE,
-                             ahe_age_bin,
-                             ahe_age_pdfs,
-                             modeled_ahe_age_samples,
-                             modeled_ahe_age_samples_min,
-                             modeled_ahe_age_samples_max,
-                             ahe_age_gof, ahe_age_error,
-                             simulated_AHe_data,
-                             ahe_data_samples] = AHe_model_data
+                            [he_sample_depths,
+                             he_ages_all_samples,
+                             he_ages_all_samples_SE,
+                             he_age_bin,
+                             he_age_pdfs,
+                             modeled_he_age_samples,
+                             modeled_he_age_samples_min,
+                             modeled_he_age_samples_max,
+                             he_age_gof, he_age_error,
+                             simulated_He_data,
+                             he_data_samples] = He_model_data
 
-                            n_samples_ahe = len(modeled_ahe_age_samples)
+                            n_samples_he = len(modeled_he_age_samples)
 
-                            for sample_i, age_mod_sample in enumerate(modeled_ahe_age_samples):
+                            for sample_i, age_mod_sample in enumerate(modeled_he_age_samples):
                                 for grain_i, age_mod_grains in enumerate(age_mod_sample):
                                     for prov_model_i, age_mod_prov in enumerate(age_mod_grains):
-                                        ahe_data_samples.loc[sample_i, 'modeled_ahe_age_grain_%i_prov_%i'
+                                        he_data_samples.loc[sample_i, 'modeled_he_age_grain_%i_prov_%i'
                                                           % (grain_i, prov_model_i)] = age_mod_prov
                                 fn = os.path.join(csv_output_dir,
-                                                  'ahe_model_vs_data_%s_%s_ms%i.csv'
+                                                  'he_model_vs_data_%s_%s_ms%i.csv'
                                                   % (well_store, today_str,
                                                      model_scenario_number_store))
-                                print('saving modeled AHe data to %s' % fn)
-                                ahe_data_samples.to_csv(fn)
+                                print('saving modeled  U-Th/He data to %s' % fn)
+                                he_data_samples.to_csv(fn)
 
                     #############################
                     # make a model vs data figure
