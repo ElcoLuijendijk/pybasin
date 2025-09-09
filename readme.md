@@ -2,16 +2,17 @@
 
 [![DOI](https://zenodo.org/badge/185432723.svg)](https://zenodo.org/badge/latestdoi/185432723)
 
-PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modelled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers apatite fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which allows running large sets of models to explore parameter space and to quantify the values of exhumation rate, timing or basal heat flow that match the data. 
+PyBasin is an open-source basin model code that simulates sediment burial, compaction and thermal history. The modelled geological and thermal history can be compared to vitrinite reflectance data and the low-temperature thermochronometers fission track and (U-Th)/He. The code includes support for setting up and running large series of model runs using parallel computing, which allows running large sets of models to explore parameter space and to quantify the values of exhumation rate, timing or basal heat flow that match subsurface temperature, vitrinite reflectance, or thermochronological data. 
 
 ![Example model run showing burial and temperature history (left-hand panel) and modelled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.](manual/fig/model_example_1_simple_smaller.png)
+
 *Example model run showing provenance and basin burial and temperature history (left-hand panel) and modelled present-day subsurface temperature, vitrinite reflectance and apatite fission track ages.*
 
 
 ## Getting started
 
 * Click the download link on the right for a zip file of the source code or clone the repository
-* Make sure you have installed the necessary python modules (see list below). The easiest is to use a python distribution that already includes all the necessary modules, like [Anaconda](https://www.continuum.io/downloads), [pythonxy](https://code.google.com/p/pythonxy/) or [canopy](https://www.enthought.com/products/canopy/).
+* Make sure you have installed the necessary python modules (see list below)
 * Navigate to the directory where you have saved the code and execute PyBasin by executing the following command from the command line:
 
 ````sh
@@ -69,7 +70,7 @@ Please cite the following paper if you publish work that uses PyBasin:
 
 Luijendijk, E., R.T. Van Balen, M. Ter Voorde, P.A.M. Andriessen. 2011. Reconstructing the Late Cretaceous inversion of the Roer Valley Graben (southern Netherlands) using a new model that integrates burial and provenance history with fission track thermochronology. Journal of Geophysical Research 116 (B6). DOI:10.1029/2010JB008071 
 
-The paper is available for free and can be found [here](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2010JB008071).
+The paper is available for free and can be found [here](https://doi.org/10.1029/2010JB008071).
 
 A [bibtex file](references/10.1029%2F2010JB008071.bib) with the citation is included with the source code. 
 
@@ -80,7 +81,7 @@ The source code of PyBasin has also been published at Zenodo:
 
 
 ## Authors
-* **Elco Luijendijk**, <elco.luijendijk-at-geo.uni-goettingen.de>
+* **Elco Luijendijk**, <elco.luijendijk-at-uib.no>
 
 ## License
 This project is licensed under the GNU lesser general public license (LGPL v3). See the [LICENSE.txt](LICENSE.txt) file for details.
