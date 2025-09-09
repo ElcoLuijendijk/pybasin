@@ -13,7 +13,7 @@ Elco Luijendijk, Goettingen University
 import sys
 import os
 import argparse
-import imp
+import importlib.util
 import ast
 # from runpy import run_path
 
@@ -1923,7 +1923,9 @@ def main():
 
     mpath = os.path.join(model_input_subfolder, 'pybasin_params.py')
 
-    param_module = imp.load_source('pybasin_params', mpath)
+    spec = importlib.util.spec_from_file_location('pybasin_params', mpath)
+    param_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(param_module)
 
     Parameters_original = param_module.ModelParameters
     # model_scenarios = param_module.model_scenarios
