@@ -17,6 +17,8 @@ import itertools
 import numpy as np
 #from pylab import normpdf
 import scipy.stats
+from numba import jit
+
 
 # import fortran module 
 try:
@@ -37,7 +39,7 @@ except:
               '-m calculate_reduced_AFT_lengths')
         print('-' * 20)
 
-
+@jit(nopython=True)
 def Cl_wt_fraction_to_APFU(Cl_wtfract):
     
     """
@@ -63,7 +65,7 @@ def Cl_wt_fraction_to_APFU(Cl_wtfract):
     
     return Cl_apfu
 
-
+@jit(nopython=True)
 def convertDparFrom55to50M(Dpar50):
     """
     convert Dpar from Carlson et al (1999) 5.0 M etching conditions to
@@ -79,6 +81,7 @@ def convertDparFrom55to50M(Dpar50):
     return Dpar55
 
 
+@jit(nopython=True)
 def calculate_normalized_density(r, r_crit=0.765, rmin=0.5275,
                                  d1=1.600, d2=-0.600, d3=9.205,
                                  d4=-9.157, d5=2.269):
@@ -125,6 +128,7 @@ def calculate_normalized_density(r, r_crit=0.765, rmin=0.5275,
     return rho
 
 
+@jit(nopython=True)
 def caxis_project_reduced_lengths(rc, p1=-1.499, p2=4.150, p3=-1.656):
 
     """
@@ -154,6 +158,7 @@ def caxis_project_reduced_lengths(rc, p1=-1.499, p2=4.150, p3=-1.656):
     return p1 * (rc ** 2) + p2 * rc + p3
 
 
+@jit(nopython=True)
 def get_initial_track_length(kinetic_parameter, kinetic_value,
                              apply_c_axis_correction, method='Carlson1999',
                              verbose=False):
@@ -217,9 +222,9 @@ def get_initial_track_length(kinetic_parameter, kinetic_value,
                  # use HeFTy 1.6.7 default values:
                 initial_track_length2 = 16.187 + 0.18 * Clwtfract*100.0
 
-            if verbose is True:
-                print('init. lengths: %0.3f, %0.3f' % (initial_track_length,
-                                                       initial_track_length2))
+            #if verbose is True:
+            #    print('init. lengths: %0.3f, %0.3f' % (initial_track_length,
+            #                                           initial_track_length2))
         
         elif kinetic_parameter == 'rmr0':
             rmr0 = kinetic_value
@@ -231,6 +236,7 @@ def get_initial_track_length(kinetic_parameter, kinetic_value,
     return initial_track_length
 
 
+@jit(nopython=True)
 def calculate_kinetic_parameters(kinetic_parameter, kinetic_value):
     
     """
@@ -266,7 +272,7 @@ def calculate_kinetic_parameters(kinetic_parameter, kinetic_value):
     return rmr0, kappa
 
 
-
+@jit(nopython=True)
 def set_annealing_parameters():
     """
     Ketcham et al. 2007 annealing model parameters
@@ -291,6 +297,7 @@ def set_annealing_parameters():
     return C0, C1, C2, C3, alpha, beta
 
 
+@jit(nopython=True)
 def correct_for_uranium_decay(time_bp, decay_const=1.551e-4):
     
     """
@@ -314,6 +321,7 @@ def correct_for_uranium_decay(time_bp, decay_const=1.551e-4):
     return w
 
 
+@jit(nopython=True)
 def calculate_teq(g1, T1, C0, C1, C2, C3):
     
     """
@@ -323,7 +331,7 @@ def calculate_teq(g1, T1, C0, C1, C2, C3):
     return math.exp(((g1 - C0) / C1 * (math.log(1.0 / T1) - C3)) + C2)
     
     
-    
+@jit(nopython=True)  
 def calculate_reduced_track_lengths(dts, temperatures,
                                     alpha=0.04672,
                                     C0=0.39528, C1=0.01073,
@@ -365,8 +373,11 @@ def calculate_reduced_track_lengths(dts, temperatures,
         g[:] = 0
         dteq[:] = 0
         
+        counter = list(range(len(dts[j:])))
+
         # go through all timesteps and calculate equivalent time and g
-        for ic, dt, T in zip(itertools.count(), dts[j:], temperatures[j:]):
+        #for ic, dt, T in zip(itertools.count(), dts[j:], temperatures[j:]):
+        for ic, dt, T in zip(counter, dts[j:], temperatures[j:]):
             i = ic + j
             # calculate equivalent time (dteq)
             # equivalent time = time needed to reach annealing state of
@@ -382,7 +393,8 @@ def calculate_reduced_track_lengths(dts, temperatures,
 
                 #math.exp(((g1 - C0) / C1 * (math.log(1.0 / T1) - C3)) + C2)
 
-                dteq[i] = calculate_teq(g[i-1], T, C0, C1, C2, C3)
+                #dteq[i] = calculate_teq(g[i-1], T, C0, C1, C2, C3)
+                dteq[i] = math.exp(((g[i-1] - C0) / C1 * (math.log(1.0 / T) - C3)) + C2)
 
             # calculate g at each timestep:              
             g[i] = (C0 + C1 * ((np.log(dt + dteq[i]) - C2) / (np.log(1.0 / T)-C3)))
@@ -401,6 +413,7 @@ def calculate_reduced_track_lengths(dts, temperatures,
     return rc
 
 
+@jit(nopython=True)
 def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
 
     """
@@ -420,6 +433,7 @@ def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
     return rc_mod
 
 
+@jit(nopython=True)
 def kinetic_modifier_reduced_lengths_inverse(rc_mod, rmr0, kappa):
 
     """
@@ -439,7 +453,7 @@ def kinetic_modifier_reduced_lengths_inverse(rc_mod, rmr0, kappa):
     return rc
 
 
-
+#@jit(nopython=True)
 def resample_time_temp_input(timesteps, temperature, max_temp_change=3.5):
 
     """
@@ -491,6 +505,7 @@ def resample_time_temp_input(timesteps, temperature, max_temp_change=3.5):
     return time_new, temperature_new
 
 
+#@jit(nopython=True)
 def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            method='Ketcham2007',
                            apply_c_axis_correction=False,

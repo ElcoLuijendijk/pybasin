@@ -3,6 +3,8 @@ __author__ = 'elco'
 import itertools
 import numpy as np
 import pdb
+from numba import jit
+
 
 from . import AFTannealingLib as AFT
 
@@ -20,6 +22,7 @@ except ImportError:
     print('-' * 30)
 
 
+@jit(nopython=True)
 def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
                                          U_function='constant',
                                          shape='sphere',
@@ -100,8 +103,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
     elif U_function == 'exponential':
         F = decay_time * (1.0 - np.exp(-t / decay_time))
     else:
-        msg = 'please supply value for U_function, '
-        msg += 'choose either "constant" or "exponential"'
+        msg = 'please supply value for U_function, choose either "constant" or "exponential"'
         raise ValueError(msg)
 
     # eq. 5, time integration of diffusivity:
@@ -161,7 +163,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
             cn[n] = x + Ur0 * gamma[n] / mu[n] * beta_sum
 
         # eq. 1
-        Cav = cn.sum()
+        Cav_unused = cn.sum()
 
     # find age, not sure if Ur0 is the correct production term here...
     t_c = Cav / Ur0
@@ -173,7 +175,7 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
 
     return t_c
 
-
+#@jit(nopython=True)
 def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
                                 use_fortran_algorithm=True,
                                 kinetic_parameter='Clwt',
@@ -348,6 +350,7 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
     return D_final
 
 
+#@jit(nopython=True)
 def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          D0_div_a2=np.exp(13.4),
                                          Ea=32.9 * 4184,

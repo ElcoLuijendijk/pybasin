@@ -5,8 +5,10 @@
 
 import itertools, pdb, math
 import numpy as np
+from numba import jit
 
 
+#@jit(nopython=True)
 def easyRo(times, temperatures_in, vr_method='easyRo', debug=False):
     
     """
@@ -108,7 +110,7 @@ def easyRo(times, temperatures_in, vr_method='easyRo', debug=False):
         return Ro
 
 
-
+#@jit(nopython=True)
 def easyRo_slow(timeArray, tempArray, debug = False):
     
     """
