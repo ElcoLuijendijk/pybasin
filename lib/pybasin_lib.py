@@ -1954,7 +1954,10 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     grain_radius_micron = grain_radius * 1e6  #convert to micron
 
                     # resample time-temperature path to reduce number of points
-                    tT_in = np.array([t_Ma_young_to_old[::10], T_degC_young_to_old[::10]]).T  #time-temperature path as a 2D numpy array
+                    nt_resample_for_pyt = 1
+                    print("resampling by retaining every ", nt_resample_for_pyt, "th point for input to PyThermo")
+                    tT_in = np.array([t_Ma_young_to_old[::nt_resample_for_pyt], 
+                                      T_degC_young_to_old[::nt_resample_for_pyt]]).T  #time-temperature path as a 2D numpy array
 
                     print("start, end time (Ma): ", tT_in[0, 0], tT_in[-1, 0])
                     print("start, end temp (C): ", tT_in[:, 1].min(), tT_in[:, 1].max())
@@ -1963,11 +1966,15 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     tT = pyt.tT_path(tT_in)
 
                     # interpolate the path
-                    tT.tT_interpolate()
+                    #print("interpolating tT path to create evenly spaced time steps for input to PyThermo   ")
+                    #tT.tT_interpolate()
 
                     #    create annealing and reduced time temp arrays, you'll need these for the next two cells below
                     try:
                         zirc_anneal, zirc_tT = tT.guenthner_anneal()
+                        Ma= 1e6 * 365 * 24 * 3600
+                        print("start and end time (Ma) of interpolated tT path: ", zirc_tT[0, 0] / Ma, zirc_tT[-1, 0] / Ma  )
+                        print("T at start and end: ", zirc_tT[0, 1], zirc_tT[-1, 1])
                     except Exception as e:
                         msg = str(e) + '\n'
                         msg += "\nerror in calculating zircon annealing "
