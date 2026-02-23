@@ -297,7 +297,16 @@ def add_exhumation_phases(well_strat,
 
             # list (partly) eroded units
             try:
-                youngest_unit = df_ex[df_ex['preserved']].index[-1]
+                #import pdb
+                #pdb.set_trace()
+
+                if df_ex["preserved"].any():
+                    youngest_unit = df_ex[df_ex['preserved']].index[-1]
+                else:
+                    print(f"warning, no preserved units found for exhumation phase starting at {exhumation_period_start:0.2f} Ma."
+                          f" Will assume a fully eroded exhumation phase."
+                          f" this is a case that has not been tested extensively, check results carefully.")
+                    youngest_unit = df_ex.index[-1]
             except IndexError:
                 msg = 'error, cannot implement exhumation. most likely the youngest preserved stratigraphic unit is ' \
                       'not inlcuded in the exhumed_strat_units parameter in the pybasin_params.py file, ' \
@@ -365,12 +374,15 @@ def add_exhumation_phases(well_strat,
                  / df_ex.loc[eroded_units, 'n_additional_units'])
 
             # check if end of exhumation not younger than overlying unit
-            youngest_unit_index = [i for i, wsli in enumerate(wsl)
-                                   if youngest_unit in wsli][0]
-            if youngest_unit_index > 0:
-                overlying_unit = wsl[youngest_unit_index - 1]
-            else:
+            if youngest_unit not in wsl:
                 overlying_unit = None
+            else:
+                youngest_unit_index = [i for i, wsli in enumerate(wsl)
+                                    if youngest_unit in wsli][0]
+                if youngest_unit_index > 0:
+                    overlying_unit = wsl[youngest_unit_index - 1]
+                else:
+                    overlying_unit = None
 
             if (overlying_unit is not None
                     and exhumation_period_end
@@ -498,6 +510,9 @@ def add_exhumation_phases(well_strat,
                         deposition_codes.append(-1)
 
     if two_stage_exh is True:
+
+        print("warning, using experimental two-stage exhumation option, check results carefully")
+        
         # experimental: go through exhumation duration list and
         # adjust duration to implement two-stage cooling
         ind_exh = np.array(deposition_codes) == -1
@@ -1382,11 +1397,24 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
         thickness_list.append(thicknesses.copy())
 
     # now go through burial list and fill the burial history dataframe
+    #for time, strat_column, thicknesses in zip(times[::-1],
+    #                                           strat_column_list, thickness_list):
+
+    #    for s, th in zip(strat_column, thicknesses):
+    #        strat_thickness_df.loc[s, str(time)] = th
+
+    # new version of code to avoid fragmentation warning:
+    # now go through burial list and fill the burial history dataframe
+    columns_dict = {}
     for time, strat_column, thicknesses in zip(times[::-1],
                                                strat_column_list, thickness_list):
-
+        col_key = str(time)
+        if col_key not in columns_dict:
+            columns_dict[col_key] = {}
         for s, th in zip(strat_column, thicknesses):
-            strat_thickness_df.loc[s, str(time)] = th
+            columns_dict[col_key][s] = th
+
+    strat_thickness_df = pd.DataFrame(columns_dict, index=strat_thickness_df.index)
 
     # check if modeled and calculated present-day thickness match
     geohist_df['present-day_thickness_simulated'] = np.nan

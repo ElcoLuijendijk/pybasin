@@ -1087,7 +1087,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         location_has_He_data = False
         if he_samples is not None:
             ind = he_samples['location'] == well
-            he_samples_well = he_samples[ind]
+            he_samples_well = he_samples[ind].copy()
 
             if True in ind.values:
                 location_has_He_data = True
@@ -1135,7 +1135,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
             he_age_nodes_array = np.array(he_age_nodes)
             he_age_nodes_min_array = np.min(np.array(he_age_nodes_min), axis=1)
-            he_age_nodes_max_array = np.min(np.array(he_age_nodes_min), axis=1)
+            he_age_nodes_max_array = np.max(np.array(he_age_nodes_max), axis=1)
 
             model_results_series['he_age_surface_min'] = he_age_nodes_array[active_nodes[-1]][0].min()
             model_results_series['he_age_surface_max'] = he_age_nodes_array[active_nodes[-1]][0].max()
@@ -1251,7 +1251,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         # calculate model error fission track data
         ind = ((he_samples['location'] == well) & (he_samples['depth'] <= z_nodes[-1].max() + 1.0))
-        he_samples_well = he_samples[ind]
+        he_samples_well = he_samples[ind].copy()
 
         he_age_bin = np.linspace(0, prov_start_nodes.max(), 1000)
 
@@ -2308,19 +2308,30 @@ def main():
 
                         df_tt2['time_bp'] = time_array_bp[::rs]
 
+                        # new, store new cols in dicts first to avoid fragmented
+                        # warning by pandas
+                        z_cols = {}
+                        T_cols = {}
+
                         for i in range(n_nodes_store):
 
                             # add depth
                             col_name = 'z_node_%i' % i
                             z_col = z_nodes[::rs, i]
                             z_col[active_nodes[::rs, i] == False] = np.nan
-                            df_tt2[col_name] = z_col
+                            #df_tt2[col_name] = z_col
+                            z_cols[col_name] = z_col
 
                             # add temperature
                             col_name = 'T_node_%i' % i
                             T_col = T_nodes[::rs, i]
                             T_col[active_nodes[::rs, i] == False] = np.nan
-                            df_tt2[col_name] = T_col
+                            #df_tt2[col_name] = T_col
+                            T_cols[col_name] = T_col
+                            
+                        # join the columns to the dataframe in one go to avoid fragmented warning by pandas
+                        new_cols = pd.DataFrame({**z_cols, **T_cols}, index=df_tt2.index)
+                        df_tt2 = pd.concat([df_tt2, new_cols], axis=1)
 
                         fn = os.path.join(csv_output_dir, 'time_depth_temp_%s_%s_ms%i.csv'
                                           % (well_store, today_str,
