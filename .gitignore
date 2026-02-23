@@ -19,3 +19,8 @@ model_input/AFT_benchmarks*
 *checkpoint*
 notebooks/.ipynb_checkpoints*
 *checkpoint.ipynb*
+model_output
+!model_output/example_dataset*
+input_data
+!input_data/example_dataset*
+*.swp
