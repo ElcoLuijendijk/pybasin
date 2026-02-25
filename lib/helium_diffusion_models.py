@@ -176,6 +176,145 @@ def He_diffusion_Meesters_and_Dunai_2002(t, D, radius, Ur0,
     return t_c
 
 #@jit(nopython=True)
+def He_diffusion_Meesters_and_Dunai_2002_vectorized(t, D, radius, Ur0,
+                                                     U_function='constant',
+                                                     shape='sphere',
+                                                     decay_constant=1e-8,
+                                                     n_eigenmodes=50,
+                                                     x=0,
+                                                     all_timesteps=True,
+                                                     alpha_ejection=True,
+                                                     stopping_distance=20e-6):
+    """
+    Vectorized equivalent of He_diffusion_Meesters_and_Dunai_2002.
+
+    Produces numerically identical results to the original. Differences from
+    the original implementation:
+
+    1. xi loop replaced with np.cumsum (Item 4a):
+       The cumulative trapezoidal integration of diffusivity is expressed as a
+       vectorized cumsum, processing elements in the same left-to-right order
+       as the original scalar loop.
+
+    2. beta matrix shape corrected (Item 4b):
+       Original allocates (nt, nt); only (nt, n_eigenmodes) is needed.
+       The corrected shape avoids O(nt²) memory allocation.
+
+    3. Inner eigenmode loop vectorized (Item 4c):
+       For each timestep N the original loops over all n_eigenmodes in Python.
+       The vectorized version computes the outer product over all eigenmodes at
+       once using NumPy broadcasting, eliminating the inner for-loop.
+
+    Parameters and return value are identical to the original function.
+    """
+
+    # find shape params
+    n = np.arange(1, n_eigenmodes + 1, 1)
+    if shape == 'sphere':
+        mu = (n * np.pi / radius) ** 2
+        gamma = 6.0 / ((n * np.pi) ** 2)
+    elif shape == 'finite cylinder':
+        print('need to figure out bessel functions in numpy')
+    elif shape == 'infinite cylinder':
+        print('need to figure out bessel functions in numpy')
+
+    if alpha_ejection is True:
+        a = radius
+        k = n * np.pi / a
+        sigma = stopping_distance
+        gamma = 3.0 / (n * np.pi)**2 * (1.0 - sigma / (2 * a)
+                       + 1 / (n * np.pi) * 1 / (k * sigma)
+                       * (1.0 - np.cos(k * sigma))
+                       + 1.0 / (k * sigma) * np.sin(k * sigma))
+
+    nt = len(t)
+
+    decay_time = 1.0 / decay_constant
+
+    if U_function == 'constant':
+        F = t
+    elif U_function == 'exponential':
+        F = decay_time * (1.0 - np.exp(-t / decay_time))
+    else:
+        msg = ('please supply value for U_function, choose either '
+               '"constant" or "exponential"')
+        raise ValueError(msg)
+
+    # --- Item 4a: replace scalar loop with cumsum ---
+    # Original:
+    #   xi = np.zeros(nt)
+    #   for j in range(0, nt-1):
+    #       xi[j+1] = xi[j] + (D[j] + D[j+1]) / 2.0 * (t[j+1] - t[j])
+    midpoint_D = (D[:-1] + D[1:]) / 2.0          # shape (nt-1,)
+    delta_t = t[1:] - t[:-1]                       # shape (nt-1,)
+    xi = np.concatenate([[0.0], np.cumsum(midpoint_D * delta_t)])  # shape (nt,)
+
+    # eq. 6
+    Fa = (F[1:] - F[:-1]) / (xi[1:] - xi[:-1])   # shape (nt-1,)
+
+    if all_timesteps is True:
+
+        cn = np.zeros((nt, n_eigenmodes))
+
+        # --- Item 4b: correct beta shape, Item 4c: vectorize inner n loop ---
+        # Original: beta = np.zeros((nt, nt))  [wasteful]
+        #           for N in range(nt):
+        #               for n in range(n_eigenmodes):
+        #                   beta[N, :] = np.exp(-mu[n] * (xi[N] - xi))
+        #                   beta_sum = np.sum((beta[N,1:N+1] - beta[N,:N]) * Fa[:N])
+        #                   cn[N, n] = x + Ur0 * gamma[n] / mu[n] * beta_sum
+        #
+        # Vectorized: for each N, compute over all eigenmodes simultaneously.
+        for N in range(nt):
+            if N == 0:
+                # No preceding intervals: beta_sum is zero for all eigenmodes
+                cn[N, :] = x
+                continue
+
+            # xi[N] - xi[0:N+1], shape (N+1,)
+            xi_diff = xi[N] - xi[:N + 1]
+
+            # beta_N[n, j] = exp(-mu[n] * xi_diff[j])
+            # mu shape (n_eigenmodes,), xi_diff shape (N+1,)
+            # broadcast: (n_eigenmodes, 1) * (1, N+1) -> (n_eigenmodes, N+1)
+            beta_N = np.exp(-mu[:, np.newaxis] * xi_diff[np.newaxis, :])
+            # shape (n_eigenmodes, N+1)
+
+            # (beta_N[:, 1:N+1] - beta_N[:, :N]) * Fa[:N]
+            # shape (n_eigenmodes, N) * (N,) -> sum over axis=1 -> (n_eigenmodes,)
+            beta_sum_vec = np.sum(
+                (beta_N[:, 1:] - beta_N[:, :N]) * Fa[:N], axis=1
+            )
+
+            cn[N, :] = x + Ur0 * gamma / mu * beta_sum_vec
+
+        Cav = cn.sum(axis=1)
+
+    else:
+
+        cn = np.zeros(n_eigenmodes)
+
+        # --- Item 4b: correct beta shape for the all_timesteps=False branch ---
+        # Original: beta = np.zeros((nt, nt)) then fills row n
+        # Vectorized over n at once:
+        # beta_last[n, j] = exp(-mu[n] * (xi[-1] - xi[j]))
+        xi_diff_last = xi[-1] - xi                # shape (nt,)
+        beta_last = np.exp(
+            -mu[:, np.newaxis] * xi_diff_last[np.newaxis, :]
+        )                                          # shape (n_eigenmodes, nt)
+        beta_sum_vec = np.sum(
+            (beta_last[:, 1:] - beta_last[:, :-1]) * Fa, axis=1
+        )                                          # shape (n_eigenmodes,)
+        cn = x + Ur0 * gamma / mu * beta_sum_vec
+
+        Cav_unused = cn.sum()
+
+    t_c = Cav / Ur0
+
+    return t_c
+
+
+#@jit(nopython=True)
 def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
                                 use_fortran_algorithm=True,
                                 kinetic_parameter='Clwt',

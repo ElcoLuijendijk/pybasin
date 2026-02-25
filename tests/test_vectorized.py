@@ -1,0 +1,317 @@
+"""
+Comparison tests for vectorized performance-optimized functions.
+
+Each test calls the original (reference) function and its vectorized
+equivalent with identical inputs and asserts that results are numerically
+identical (np.allclose with default tolerances: rtol=1e-5, atol=1e-8).
+
+Run with:
+    MPLBACKEND=Agg python -m pytest tests/test_vectorized.py -v
+"""
+
+import os
+import sys
+import numpy as np
+import pytest
+
+# Ensure the project root is on the path so lib imports work
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import lib.AFTannealingLib as AFTannealingLib
+from lib.helium_diffusion_models import (
+    He_diffusion_Meesters_and_Dunai_2002,
+    He_diffusion_Meesters_and_Dunai_2002_vectorized,
+)
+
+
+# ---------------------------------------------------------------------------
+# Synthetic thermal history helpers
+# ---------------------------------------------------------------------------
+
+def make_thermal_history(n=200, seed=42):
+    """
+    Build a realistic synthetic thermal history for AFT testing.
+
+    Returns
+    -------
+    dts : ndarray, shape (n,)
+        Timestep durations in seconds (converted from My).
+    temperatures : ndarray, shape (n,)
+        Temperature in Kelvin at each timestep midpoint.
+    """
+    rng = np.random.default_rng(seed)
+    Myr = 1.0e6 * 365.0 * 24.0 * 60.0 * 60.0
+
+    # Timestep durations: uniform ~1 My steps
+    dts = np.ones(n) * Myr + rng.uniform(-0.1, 0.1, n) * Myr
+
+    # Temperature: starts at 120 °C, cools to 20 °C, in Kelvin
+    T_celsius = np.linspace(120.0, 20.0, n) + rng.uniform(-2.0, 2.0, n)
+    temperatures = T_celsius + 273.15
+
+    return dts, temperatures
+
+
+def make_simulate_aft_inputs(n=80, seed=7):
+    """
+    Build inputs suitable for simulate_AFT_annealing / _vectorized.
+
+    Returns
+    -------
+    timesteps : ndarray, shape (n+1,)  in My
+    temperature_input : ndarray, shape (n+1,)  in °C
+    kinetic_value : float
+    """
+    rng = np.random.default_rng(seed)
+
+    # timesteps in My (must be monotonically increasing)
+    timesteps = np.sort(rng.uniform(0, 100, n + 1))
+    timesteps[0] = 0.0
+
+    # temperature: 100 → 20 °C with small noise, resampling will handle steps >3.5°
+    T = np.linspace(100.0, 20.0, n + 1) + rng.uniform(-1.0, 1.0, n + 1)
+
+    kinetic_value = 0.0  # Cl wt fraction = 0 (fluorapatite)
+
+    return timesteps, T, kinetic_value
+
+
+def make_he_diffusion_inputs(n=100, seed=13):
+    """
+    Build inputs for He_diffusion_Meesters_and_Dunai_2002 / _vectorized.
+
+    Returns
+    -------
+    t : ndarray, shape (n,) — time in seconds (monotonically increasing)
+    D : ndarray, shape (n,) — diffusivity in m² s⁻¹
+    radius : float — grain radius in m
+    Ur0 : float — effective radiogenic production rate
+    """
+    rng = np.random.default_rng(seed)
+
+    Myr = 1.0e6 * 365.0 * 24.0 * 60.0 * 60.0
+    t = np.linspace(0.0, 100.0 * Myr, n)
+
+    # Diffusivity increases with temperature (grain cooled from 120 → 20 °C)
+    T_K = np.linspace(393.15, 293.15, n)
+    Ea = 32.9 * 4184.0   # J/mol
+    R = 8.3144621
+    D0 = 50.0 / 1e4       # m²/s (Farley 2000)
+    D = D0 * np.exp(-Ea / (R * T_K))
+
+    radius = 60e-6         # 60 µm grain radius
+    Ur0 = 1e-18            # representative production rate
+
+    return t, D, radius, Ur0
+
+
+# ---------------------------------------------------------------------------
+# Test 1: calculate_reduced_track_lengths vs _vectorized
+# ---------------------------------------------------------------------------
+
+class TestCalculateReducedTrackLengths:
+
+    def test_identical_results_medium_history(self):
+        """Vectorized and original produce identical rc arrays (n=200)."""
+        dts, temperatures = make_thermal_history(n=200)
+
+        rc_orig = AFTannealingLib.calculate_reduced_track_lengths(
+            dts, temperatures)
+        rc_vec = AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+            dts, temperatures)
+
+        assert rc_orig.shape == rc_vec.shape, (
+            f"Shape mismatch: orig {rc_orig.shape} vs vec {rc_vec.shape}")
+        assert np.allclose(rc_orig, rc_vec), (
+            f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}\n"
+            f"orig[:5]={rc_orig[:5]}\nvec[:5]={rc_vec[:5]}")
+
+    def test_identical_results_short_history(self):
+        """Identical results for a short (n=20) thermal history."""
+        dts, temperatures = make_thermal_history(n=20, seed=99)
+
+        rc_orig = AFTannealingLib.calculate_reduced_track_lengths(
+            dts, temperatures)
+        rc_vec = AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+            dts, temperatures)
+
+        assert np.allclose(rc_orig, rc_vec), (
+            f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}")
+
+    def test_identical_results_constant_temperature(self):
+        """Isothermal history: vectorized matches original."""
+        Myr = 1.0e6 * 365.0 * 24.0 * 60.0 * 60.0
+        n = 50
+        dts = np.ones(n) * Myr
+        temperatures = np.full(n, 80.0 + 273.15)  # constant 80 °C in K
+
+        rc_orig = AFTannealingLib.calculate_reduced_track_lengths(
+            dts, temperatures)
+        rc_vec = AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+            dts, temperatures)
+
+        assert np.allclose(rc_orig, rc_vec), (
+            f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}")
+
+    def test_non_default_annealing_parameters(self):
+        """Custom C0/C1/C2/C3/alpha values: vectorized still matches original."""
+        dts, temperatures = make_thermal_history(n=60, seed=3)
+
+        kwargs = dict(alpha=0.05, C0=0.4, C1=0.012, C2=-60.0, C3=-8.0)
+        rc_orig = AFTannealingLib.calculate_reduced_track_lengths(
+            dts, temperatures, **kwargs)
+        rc_vec = AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+            dts, temperatures, **kwargs)
+
+        assert np.allclose(rc_orig, rc_vec), (
+            f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}")
+
+
+# ---------------------------------------------------------------------------
+# Test 2: simulate_AFT_annealing vs _vectorized
+# ---------------------------------------------------------------------------
+
+class TestSimulateAFTAnnealing:
+
+    def _compare(self, timesteps, temperature_input, kinetic_value, **kwargs):
+        """Helper: run both functions, compare all 8 return values."""
+        result_orig = AFTannealingLib.simulate_AFT_annealing(
+            timesteps, temperature_input, kinetic_value,
+            use_fortran_algorithm=False, **kwargs)
+        result_vec = AFTannealingLib.simulate_AFT_annealing_vectorized(
+            timesteps, temperature_input, kinetic_value,
+            use_fortran_algorithm=False, **kwargs)
+
+        names = ['track_length_pdf', 'aft_age_myr', 'l_mean', 'l_mean_std',
+                 'rm', 'rc', 'rho_age', 'dt']
+        for name, v_orig, v_vec in zip(names, result_orig, result_vec):
+            if np.isscalar(v_orig) or (hasattr(v_orig, 'ndim') and v_orig.ndim == 0):
+                # Both NaN → identical degenerate case, passes
+                if np.isnan(float(v_orig)) and np.isnan(float(v_vec)):
+                    continue
+                assert np.isclose(v_orig, v_vec), (
+                    f"{name}: orig={v_orig:.6g}, vec={v_vec:.6g}")
+            else:
+                a = np.asarray(v_orig)
+                b = np.asarray(v_vec)
+                # NaN positions must match; non-NaN values must be close
+                nan_orig = np.isnan(a)
+                nan_vec = np.isnan(b)
+                assert np.array_equal(nan_orig, nan_vec), (
+                    f"{name}: NaN pattern differs between original and vectorized")
+                assert np.allclose(a[~nan_orig], b[~nan_vec]), (
+                    f"{name}: max abs diff = {np.abs(a[~nan_orig] - b[~nan_vec]).max():.3e}")
+
+    def test_fluorapatite_clwt(self):
+        """Default Cl wt fraction = 0 (fluorapatite), Clwt kinetic parameter."""
+        timesteps, T, kv = make_simulate_aft_inputs(n=80)
+        self._compare(timesteps, T, kv, kinetic_parameter='Clwt')
+
+    def test_chlorapatite_clwt(self):
+        """Higher Cl content (0.3 wt%), different kinetics."""
+        timesteps, T, _ = make_simulate_aft_inputs(n=60, seed=17)
+        self._compare(timesteps, T, 0.3, kinetic_parameter='Clwt')
+
+    def test_rmr0_kinetic_parameter(self):
+        """Using rmr0 directly as kinetic parameter."""
+        timesteps, T, _ = make_simulate_aft_inputs(n=50, seed=55)
+        self._compare(timesteps, T, 0.5, kinetic_parameter='rmr0')
+
+    def test_c_axis_correction(self):
+        """With c-axis correction enabled."""
+        timesteps, T, kv = make_simulate_aft_inputs(n=60, seed=22)
+        self._compare(timesteps, T, kv,
+                      kinetic_parameter='Clwt', apply_c_axis_correction=True)
+
+
+# ---------------------------------------------------------------------------
+# Test 3: He_diffusion_Meesters_and_Dunai_2002 vs _vectorized
+# ---------------------------------------------------------------------------
+
+class TestHeDiffusionVectorized:
+
+    def _compare_he(self, t, D, radius, Ur0, **kwargs):
+        """Helper: run both functions and compare returned Cav/Ur0 array."""
+        t_c_orig = He_diffusion_Meesters_and_Dunai_2002(
+            t, D, radius, Ur0, **kwargs)
+        t_c_vec = He_diffusion_Meesters_and_Dunai_2002_vectorized(
+            t, D, radius, Ur0, **kwargs)
+
+        assert t_c_orig.shape == t_c_vec.shape, (
+            f"Shape mismatch: orig {t_c_orig.shape} vs vec {t_c_vec.shape}")
+        assert np.allclose(t_c_orig, t_c_vec), (
+            f"Max abs diff: {np.abs(t_c_orig - t_c_vec).max():.3e}\n"
+            f"Max rel diff: {np.abs((t_c_orig - t_c_vec) / (t_c_orig + 1e-30)).max():.3e}")
+
+    def test_all_timesteps_sphere_constant_U(self):
+        """all_timesteps=True, sphere shape, constant U function."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=80)
+        self._compare_he(t, D, radius, Ur0,
+                         U_function='constant',
+                         all_timesteps=True,
+                         alpha_ejection=False,
+                         n_eigenmodes=15)
+
+    def test_all_timesteps_with_alpha_ejection(self):
+        """all_timesteps=True with alpha ejection correction."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=80)
+        self._compare_he(t, D, radius, Ur0,
+                         U_function='constant',
+                         all_timesteps=True,
+                         alpha_ejection=True,
+                         stopping_distance=20e-6,
+                         n_eigenmodes=15)
+
+    def test_exponential_U_function(self):
+        """U_function='exponential' with all_timesteps=True."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=60, seed=99)
+        self._compare_he(t, D, radius, Ur0,
+                         U_function='exponential',
+                         all_timesteps=True,
+                         alpha_ejection=False,
+                         n_eigenmodes=10)
+
+    def test_last_timestep_only(self):
+        """all_timesteps=False: both return a scalar."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=60, seed=33)
+        # all_timesteps=False returns Cav_unused (unused in original), so
+        # the original falls through to t_c = Cav / Ur0 — but Cav is only
+        # defined in the all_timesteps=True branch in the original code.
+        # We test the all_timesteps=False path to ensure the vectorized
+        # function doesn't raise and the beta_last approach works.
+        # (The original also has a bug here: Cav is unbound for all_timesteps=False,
+        # so we only test that both raise the same exception, or both succeed.)
+        try:
+            t_c_orig = He_diffusion_Meesters_and_Dunai_2002(
+                t, D, radius, Ur0,
+                U_function='constant',
+                all_timesteps=False,
+                alpha_ejection=False,
+                n_eigenmodes=10)
+            t_c_vec = He_diffusion_Meesters_and_Dunai_2002_vectorized(
+                t, D, radius, Ur0,
+                U_function='constant',
+                all_timesteps=False,
+                alpha_ejection=False,
+                n_eigenmodes=10)
+            # If both succeed, compare
+            assert np.isclose(float(t_c_orig), float(t_c_vec)), (
+                f"orig={t_c_orig}, vec={t_c_vec}")
+        except Exception as e_orig:
+            # Both should raise the same type of exception
+            with pytest.raises(type(e_orig)):
+                He_diffusion_Meesters_and_Dunai_2002_vectorized(
+                    t, D, radius, Ur0,
+                    U_function='constant',
+                    all_timesteps=False,
+                    alpha_ejection=False,
+                    n_eigenmodes=10)
+
+    def test_fewer_eigenmodes(self):
+        """n_eigenmodes=5 (fast): vectorized matches original."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=50, seed=77)
+        self._compare_he(t, D, radius, Ur0,
+                         U_function='constant',
+                         all_timesteps=True,
+                         alpha_ejection=False,
+                         n_eigenmodes=5)

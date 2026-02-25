@@ -413,6 +413,83 @@ def calculate_reduced_track_lengths(dts, temperatures,
     return rc
 
 
+def calculate_reduced_track_lengths_vectorized(dts, temperatures,
+                                               alpha=0.04672,
+                                               C0=0.39528, C1=0.01073,
+                                               C2=-65.12969, C3=-7.91715):
+    """
+    Vectorized equivalent of calculate_reduced_track_lengths.
+
+    Produces numerically identical results to the original O(n²) scalar loop
+    by processing all starting-track indices j simultaneously as a batch at
+    each inner timestep, rather than sequentially. Each inner step is a NumPy
+    vector operation over all active tracks instead of a Python scalar loop.
+
+    The sequential recurrence (dteq[i] depends on g[i-1]) is preserved: we
+    advance all tracks together through each timestep i, which maintains the
+    same operation order and therefore identical floating-point results.
+
+    Parameters
+    ----------
+    dts : array_like
+        Duration of each timestep (seconds).
+    temperatures : array_like
+        Temperature during each timestep (Kelvin).
+    alpha, C0, C1, C2, C3 : float
+        Ketcham 2007 annealing parameters.
+
+    Returns
+    -------
+    rc : numpy array
+        Modeled reduced c-axis projected track length for each timestep.
+    """
+    nsteps = len(dts)
+
+    # Pre-compute log terms — same values used in original inner loop
+    log_inv_T = np.log(1.0 / temperatures)      # shape (nsteps,)
+    log_dts = np.log(dts)                        # shape (nsteps,)
+
+    # g[j, i] = annealing state of track formed at step j, evaluated at step i
+    # We accumulate in a 2D array but only the lower triangle is active:
+    # track j exists for i >= j.
+    g = np.zeros((nsteps, nsteps))
+    rc = np.zeros(nsteps)
+
+    # Advance all tracks through each timestep i together.
+    # At timestep i, tracks j=0..i are active.
+    for i in range(nsteps):
+        # Indices of all tracks formed at or before timestep i
+        # j = 0, 1, ..., i
+        active = slice(0, i + 1)         # tracks j <= i
+
+        if i == 0:
+            # First step: dteq is zero for all tracks (they were just formed)
+            dteq_active = np.zeros(i + 1)
+        else:
+            # g_prev[j] = g[j, i-1] for active tracks
+            g_prev = g[active, i - 1]    # shape (i,) — track j=i has no prev step
+            # For j == i the track is born this step; dteq = 0.
+            # For j < i we compute dteq from g[j, i-1].
+            dteq_active = np.zeros(i + 1)
+            if i > 0:
+                g_prev_old = g[:i, i - 1]   # shape (i,), tracks j=0..i-1
+                dteq_active[:i] = np.exp(
+                    ((g_prev_old - C0) / C1 * (log_inv_T[i] - C3)) + C2
+                )
+            # dteq_active[i] stays 0 (track born at step i)
+
+        # Compute g[j, i] for all active j
+        g[active, i] = C0 + C1 * ((np.log(dts[i] + dteq_active) - C2)
+                                   / (log_inv_T[i] - C3))
+
+    # rc[j] is derived from g[j, nsteps-1] — the final annealing state
+    g_final = g[:, nsteps - 1]
+    f = g_final ** (1.0 / alpha)
+    rc = 1.0 / (f + 1.0)
+
+    return rc
+
+
 @jit(nopython=True)
 def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
 
@@ -896,6 +973,291 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if verbose is True:
         print('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s'\
             % (aft_age_myr, rho_age.mean(), rho_s))
+
+    if aft_age_corrected == 0:
+        track_length_pdf[:] = 0
+        l_mean = 0
+        l_mean_std = 0
+
+    return track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc, rho_age, dt
+
+
+def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_value,
+                                      method='Ketcham2007',
+                                      apply_c_axis_correction=False,
+                                      kinetic_parameter='Clwt',
+                                      initial_track_length=-99999,
+                                      binsize=0.25,
+                                      rmr0_min=0,
+                                      rmr0_max=0.85,
+                                      kappa=None,
+                                      min_length=2.18,
+                                      surpress_resampling=False,
+                                      use_fortran_algorithm=True,
+                                      annealing_eq='FC',
+                                      alpha=0.04672,
+                                      C0=0.39528,
+                                      C1=0.01073,
+                                      C2=-65.12969,
+                                      C3=-7.91715,
+                                      verbose=False):
+    """
+    Vectorized equivalent of simulate_AFT_annealing.
+
+    Identical to simulate_AFT_annealing in all respects except:
+
+    1. Uses calculate_reduced_track_lengths_vectorized (Item 1) instead of
+       calculate_reduced_track_lengths when the Fortran module is unavailable.
+       This replaces the O(n²) Python scalar loop with O(n) NumPy vector steps.
+
+    2. The track-length PDF construction (Item 5) is fully vectorized:
+       - norm.pdf computed over all timesteps × bins in one broadcast call
+       - weight/density correction applied with array multiplication
+       - bin summation and normalisation via np.sum(axis=0)
+       - l_mean and l_mean_std computed with np.dot instead of scalar loops
+
+    All other logic, parameters, and return values are identical to the
+    original function.
+    """
+
+    Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
+
+    if verbose is True:
+        print('-' * 20)
+        print('T-t path:')
+        print('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f'
+              % (timesteps.max(), temperature_input.mean(),
+                 temperature_input.min(), temperature_input.max()))
+
+    # convert temperature units from degr. C to Kelvin:
+    temperature = temperature_input + 273.15
+
+    ##########################################################
+    # check if no >3.5 degrees temperature change per timestep
+    ##########################################################
+    if surpress_resampling is False:
+        if verbose is True:
+            print('resampling time steps')
+        timesteps, temperature = resample_time_temp_input(timesteps, temperature)
+
+    delta_T = temperature[1:] - temperature[:-1]
+    if (abs(delta_T)).max() > 3.5 and surpress_resampling == False:
+        max_loc = np.argmax(abs(delta_T))
+        msg = 'warning %0.2f degr. change in T in timestep %s of %s My' % (
+            (abs(delta_T)).max(), max_loc, timesteps[max_loc])
+        raise ValueError(msg)
+
+    #####################################
+    # set AFT annealing model parameters:
+    #####################################
+    nsteps = len(temperature)
+    r_standard = 0.893
+
+    if verbose is True:
+        print('calculating reduced track lengths')
+
+    # get duration of each timestep in seconds
+    dts = (timesteps[1:] - timesteps[:-1]) * Myr
+    nsteps = len(dts)
+
+    # take midpoint values of temperature array:
+    if verbose is True:
+        print('taking midpoint values of temperature input array')
+    temperature = (temperature[1:] + temperature[:-1]) / 2.0
+
+    # get annealing kinetics:
+    if kinetic_parameter != 'rmr0':
+        rmr0, kappa = \
+            calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
+    else:
+        if verbose is True:
+            print('using rmr0 as kinetic parameter')
+        rmr0 = kinetic_value
+        if kappa is None:
+            kappa = 1.04 - rmr0
+
+    if verbose is True:
+        print('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
+
+    if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
+        print('!! warning, rmr0 lower than minimum')
+        print('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
+        print('!! setting rmr0 to %0.3f' % rmr0_min)
+        rmr0 = rmr0_min
+        kappa = 1.04 - rmr0
+    elif rmr0 > rmr0_max:
+        print('!! warning, rmr0 value exceeds most resistant apatite in '
+              'Carlson (1999) dataset')
+        print('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
+        rmr0 = rmr0_max
+        kappa = 1.04 - rmr0
+
+    if use_fortran_algorithm is True:
+        if annealing_eq is 'FA':
+            annealing_eq_f90 = 1
+        elif annealing_eq is 'FC':
+            annealing_eq_f90 = 2
+
+        try:
+            rcf = calculate_reduced_AFT_lengths.reduced_ln(
+                dts, temperature,
+                rmr0, kappa,
+                annealing_eq_f90,
+                alpha, C0, C1, C2, C3,
+                nsteps)
+            rmf = caxis_project_reduced_lengths(rcf)
+            rmf[rmf < 0] = 0.0
+            rm = rmf
+            rc = rcf
+
+        except NameError:
+            if verbose is True:
+                print('use vectorized python reduced track length function')
+            # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
+            r_cmod = calculate_reduced_track_lengths_vectorized(
+                dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+            rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+            rmp = caxis_project_reduced_lengths(rcp)
+            rmp[rmp < 0] = 0.0
+            rm = rmp
+            rc = rcp
+
+    else:
+        if verbose is True:
+            print('use vectorized python reduced track length function')
+        # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
+        r_cmod = calculate_reduced_track_lengths_vectorized(
+            dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
+        rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+        rmp = caxis_project_reduced_lengths(rcp)
+        rmp[rmp < 0] = 0.0
+        rm = rmp
+        rc = rcp
+
+    if verbose is True:
+        print('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
+
+    ##########################################################
+    # calculate weighting factor to correct for uranium decay
+    ##########################################################
+    time_Ma = timesteps.max() - timesteps
+    w = correct_for_uranium_decay(time_Ma)
+
+    if verbose is True:
+        print('w mean, min, max %0.2e, %0.2e, %0.2e'
+              % (w.mean(), w.min(), w.max()))
+
+    ###################################################
+    # calculate observation frequency:
+    ###################################################
+    rho = calculate_normalized_density(rc)
+
+    if verbose is True:
+        print('calculated observation frequency')
+        print('rho mean, min, max %0.2e, %0.2e, %0.2e'
+              % (rho.mean(), rho.min(), rho.max()))
+
+    ###########################################
+    # set initial track lengths
+    ##########################################
+    l0 = initial_track_length
+    if initial_track_length <= 0 or initial_track_length > 20:
+        l0 = get_initial_track_length(kinetic_parameter,
+                                      kinetic_value,
+                                      apply_c_axis_correction,
+                                      method=method)
+    if verbose is True:
+        print('initial track length %0.2f' % l0)
+
+    #################################
+    # calculate track lengths
+    #################################
+    l = rm * l0
+    # remove short track lengths (<2.18 um)
+    l = np.where(l < min_length, 0, 1) * l
+
+    # calculate track length standard deviation
+    if apply_c_axis_correction is True:
+        l_std = 0.008452 * l ** 2 - 0.2442 * l + 2.312
+        l_std[np.where(l_std > 3.)] = 3.
+    else:
+        l_std = 0.02858 * l ** 2 - 0.8733 * l + 7.464
+        l_std[np.where(l_std > 4.)] = 4.
+
+    #######################################
+    # calculate probability density function  (Item 5 — vectorized)
+    #######################################
+    if verbose is True:
+        print('start calculation of pdf of track lengths:')
+
+    nbins = int(20 / binsize)
+    bins_ = np.arange(0, 20, binsize)               # shape (nbins,)
+
+    # Compute all per-timestep PDFs in one broadcast call:
+    # l[:, np.newaxis]     shape (nsteps, 1)
+    # bins_[np.newaxis, :] shape (1, nbins)
+    # result               shape (nsteps, nbins)
+    track_ln_prob = scipy.stats.norm.pdf(
+        bins_[np.newaxis, :], l[:, np.newaxis], l_std[:, np.newaxis]
+    )
+
+    # Correct for uranium decay and observation frequency:
+    track_ln_prob *= (w * rho)[:, np.newaxis]
+
+    # Sum over timesteps and normalise:
+    track_length_pdf = track_ln_prob.sum(axis=0)
+    track_length_pdf = track_length_pdf / track_length_pdf.sum()
+
+    if verbose is True:
+        print('done calculating probability density track lengths')
+
+    ####################################################################
+    # mean and standard deviation of model track length  (Item 5 — vectorized)
+    ####################################################################
+    if verbose is True:
+        print('calculate mean and std of track length from PDF')
+
+    # bin centres: j*binsize + 0.5*binsize
+    bin_centers = bins_ + 0.5 * binsize             # shape (nbins,)
+    l_mean = np.dot(bin_centers, track_length_pdf)
+    l_mean_std = np.sqrt(np.dot(track_length_pdf, (bins_ - l_mean) ** 2))
+    l_median = track_length_pdf.argmax() * binsize
+
+    if verbose is True:
+        print('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f'
+              % (l_mean, l_mean_std, l_median))
+    if np.isnan(l_mean) is True:
+        print('warning, track length calculation failed')
+
+    ###################################################
+    # calculate observation frequency:
+    ###################################################
+    rho_s = r_standard
+    dt = dts
+
+    #####################
+    # calculate AFT ages:
+    #####################
+    rc_mid = rc.copy()
+    rc_mid[0] = rc[0]
+    rc_mid[1:] = (rc[1:] + rc[:-1]) * 0.5
+
+    rho_age = calculate_normalized_density(rc_mid) * w
+
+    if verbose is True:
+        print('dt mean, min, max %0.2e, %0.2e, %0.2e'
+              % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
+        print('rho_age mean, min, max %0.2e, %0.2e, %0.2e'
+              % (rho_age.mean(), rho_age.min(), rho_age.max()))
+        print('dt sum = %0.2f' % (dt.sum() / Myr))
+
+    aft_age_uncorrected = np.dot(dt, rho_age)
+    aft_age_corrected = aft_age_uncorrected / rho_s
+    aft_age_myr = aft_age_corrected / Myr
+
+    if verbose is True:
+        print('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s'
+              % (aft_age_myr, rho_age.mean(), rho_s))
 
     if aft_age_corrected == 0:
         track_length_pdf[:] = 0
