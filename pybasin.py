@@ -46,7 +46,7 @@ except ImportError:
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 # set to True to use vectorized thermochron functions (for debugging/benchmarking)
-vectorize_thermochron = False
+vectorize_thermochron = True
 
 
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):

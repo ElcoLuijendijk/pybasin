@@ -5,8 +5,10 @@ Each test calls the original (reference) function and its vectorized
 equivalent with identical inputs and asserts that results are numerically
 identical (np.allclose with default tolerances: rtol=1e-5, atol=1e-8).
 
-Run with:
-    MPLBACKEND=Agg python -m pytest tests/test_vectorized.py -v
+The TestSpeedComparison class times each function pair and prints a summary
+table.  Run with -s to see the output:
+
+    MPLBACKEND=Agg python -m pytest tests/test_vectorized.py -v -s
 """
 
 import os
@@ -315,3 +317,195 @@ class TestHeDiffusionVectorized:
                          all_timesteps=True,
                          alpha_ejection=False,
                          n_eigenmodes=5)
+
+
+# ---------------------------------------------------------------------------
+# Speed comparison
+# ---------------------------------------------------------------------------
+
+class TestSpeedComparison:
+    """
+    Times each original/vectorized function pair and prints a summary table.
+
+    No numerical assertions are made — this class purely benchmarks.
+    Use ``pytest -v -s`` to see the printed table.
+
+    A single sanity assertion guards against catastrophic regressions:
+    the vectorized version must not be more than 10× slower than the original.
+    """
+
+    REPEATS = 5  # number of timing repetitions; best-of-N is reported
+
+    # ------------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _best_of(fn, repeats):
+        """Return the best (minimum) wall-clock time over *repeats* calls."""
+        import time
+        times = []
+        for _ in range(repeats):
+            t0 = time.perf_counter()
+            fn()
+            times.append(time.perf_counter() - t0)
+        return min(times)
+
+    @staticmethod
+    def _fmt(seconds):
+        """Format a duration as ms or µs."""
+        if seconds >= 0.001:
+            return f"{seconds * 1e3:.1f} ms"
+        return f"{seconds * 1e6:.1f} µs"
+
+    @staticmethod
+    def _speedup_str(t_orig, t_vec):
+        ratio = t_orig / t_vec
+        direction = "faster" if ratio >= 1.0 else "slower"
+        return f"{max(ratio, 1.0/ratio):.2f}× {direction}"
+
+    @classmethod
+    def _print_row(cls, label, t_orig, t_vec):
+        speedup = cls._speedup_str(t_orig, t_vec)
+        print(f"  {label:<45s}  orig={cls._fmt(t_orig):>10s}  "
+              f"vec={cls._fmt(t_vec):>10s}  ({speedup})")
+
+    # ------------------------------------------------------------------
+    # calculate_reduced_track_lengths
+    # ------------------------------------------------------------------
+
+    def test_speed_calculate_reduced_track_lengths_n200(self):
+        """Speed comparison: calculate_reduced_track_lengths, n=200 timesteps."""
+        dts, temperatures = make_thermal_history(n=200)
+
+        t_orig = self._best_of(
+            lambda: AFTannealingLib.calculate_reduced_track_lengths(
+                dts, temperatures),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+                dts, temperatures),
+            self.REPEATS)
+
+        print()
+        self._print_row("calculate_reduced_track_lengths (n=200)", t_orig, t_vec)
+        assert t_vec < t_orig * 10, (
+            f"vectorized is unexpectedly slow: orig={self._fmt(t_orig)}, "
+            f"vec={self._fmt(t_vec)}")
+
+    def test_speed_calculate_reduced_track_lengths_n500(self):
+        """Speed comparison: calculate_reduced_track_lengths, n=500 timesteps."""
+        dts, temperatures = make_thermal_history(n=500)
+
+        t_orig = self._best_of(
+            lambda: AFTannealingLib.calculate_reduced_track_lengths(
+                dts, temperatures),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: AFTannealingLib.calculate_reduced_track_lengths_vectorized(
+                dts, temperatures),
+            self.REPEATS)
+
+        print()
+        self._print_row("calculate_reduced_track_lengths (n=500)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+    # ------------------------------------------------------------------
+    # simulate_AFT_annealing
+    # ------------------------------------------------------------------
+
+    def test_speed_simulate_aft_annealing_n80(self):
+        """Speed comparison: simulate_AFT_annealing, n=80 timesteps."""
+        timesteps, T, kv = make_simulate_aft_inputs(n=80)
+
+        t_orig = self._best_of(
+            lambda: AFTannealingLib.simulate_AFT_annealing(
+                timesteps, T, kv,
+                kinetic_parameter='Clwt',
+                use_fortran_algorithm=False),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: AFTannealingLib.simulate_AFT_annealing_vectorized(
+                timesteps, T, kv,
+                kinetic_parameter='Clwt',
+                use_fortran_algorithm=False),
+            self.REPEATS)
+
+        print()
+        self._print_row("simulate_AFT_annealing (n=80)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+    def test_speed_simulate_aft_annealing_n200(self):
+        """Speed comparison: simulate_AFT_annealing, n=200 timesteps."""
+        timesteps, T, kv = make_simulate_aft_inputs(n=200)
+
+        t_orig = self._best_of(
+            lambda: AFTannealingLib.simulate_AFT_annealing(
+                timesteps, T, kv,
+                kinetic_parameter='Clwt',
+                use_fortran_algorithm=False),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: AFTannealingLib.simulate_AFT_annealing_vectorized(
+                timesteps, T, kv,
+                kinetic_parameter='Clwt',
+                use_fortran_algorithm=False),
+            self.REPEATS)
+
+        print()
+        self._print_row("simulate_AFT_annealing (n=200)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+    # ------------------------------------------------------------------
+    # He_diffusion_Meesters_and_Dunai_2002
+    # ------------------------------------------------------------------
+
+    def test_speed_he_diffusion_n100(self):
+        """Speed comparison: He_diffusion_Meesters_and_Dunai_2002, n=100 timesteps."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=100)
+
+        t_orig = self._best_of(
+            lambda: He_diffusion_Meesters_and_Dunai_2002(
+                t, D, radius, Ur0,
+                U_function='exponential',
+                all_timesteps=True,
+                alpha_ejection=False,
+                n_eigenmodes=15),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: He_diffusion_Meesters_and_Dunai_2002_vectorized(
+                t, D, radius, Ur0,
+                U_function='exponential',
+                all_timesteps=True,
+                alpha_ejection=False,
+                n_eigenmodes=15),
+            self.REPEATS)
+
+        print()
+        self._print_row("He_diffusion_Meesters_and_Dunai_2002 (n=100)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+    def test_speed_he_diffusion_n500(self):
+        """Speed comparison: He_diffusion_Meesters_and_Dunai_2002, n=500 timesteps."""
+        t, D, radius, Ur0 = make_he_diffusion_inputs(n=500)
+
+        t_orig = self._best_of(
+            lambda: He_diffusion_Meesters_and_Dunai_2002(
+                t, D, radius, Ur0,
+                U_function='exponential',
+                all_timesteps=True,
+                alpha_ejection=False,
+                n_eigenmodes=15),
+            self.REPEATS)
+        t_vec = self._best_of(
+            lambda: He_diffusion_Meesters_and_Dunai_2002_vectorized(
+                t, D, radius, Ur0,
+                U_function='exponential',
+                all_timesteps=True,
+                alpha_ejection=False,
+                n_eigenmodes=15),
+            self.REPEATS)
+
+        print()
+        self._print_row("He_diffusion_Meesters_and_Dunai_2002 (n=500)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
