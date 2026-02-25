@@ -598,3 +598,72 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
         alpha_ejection=alpha_ejection)
 
     return ahe_age
+
+
+def calculate_he_age_meesters_dunai_2002_vectorized(t, T, radius, U, Th,
+                                         D0_div_a2=np.exp(13.4),
+                                         Ea=32.9 * 4184,
+                                         R=8.3144621,
+                                         decay_constant_238U=4.916e-18,
+                                         decay_constant_232Th=1.57e-18,
+                                         decay_constant_235U=3.12e-17,
+                                         alpha_ejection=True,
+                                         stopping_distance=20e-6,
+                                         method='RDAAM',
+                                         alpha=0.04672,
+                                         C0=0.39528,
+                                         C1=0.01073,
+                                         C2=-65.12969,
+                                         C3=-7.91715,
+                                         use_fortran_algorithm=True,
+                                         n_eigenmodes=15):
+
+    """
+    Vectorized version of calculate_he_age_meesters_dunai_2002.
+
+    Identical to calculate_he_age_meesters_dunai_2002 except uses the
+    vectorized He diffusion solver He_diffusion_Meesters_and_Dunai_2002_vectorized.
+    """
+
+    # calculate He production:
+    U238 = (137.88 / 138.88) * U
+    U235 = (1.0 / 138.88) * U
+    Th232 = Th
+    Ur0 = 8 * U238 * decay_constant_238U + 7 * U235 * decay_constant_235U \
+          + 6 * Th232 * decay_constant_232Th
+    decay_constant = Ur0 / (8*U238 + 7*U235 + 6*Th232)
+
+    if method == 'Farley2000':
+        D0 = 50.0 / 1e4     # m2/sec
+        Ea = 32.9 * 4184.0  # J/mol
+        D_div_a2 = D0 / (radius**2) * np.exp(-Ea / (R*T))
+        D = D_div_a2 * radius**2
+
+    elif method == 'RDAAM':
+        D = calculate_RDAAM_diffusivity(T, t, U238, U235, Th232, radius,
+                                         alpha=alpha, C0=C0, C1=C1,
+                                         C2=C2, C3=C3,
+                                         use_fortran_algorithm=
+                                         use_fortran_algorithm)
+
+    elif method == 'Wolf1996':
+        log_D0_div_a2 = 7.82  # (1/sec), value given in HeFTy 1.8.3
+        D0_div_a2 = 10**log_D0_div_a2
+        Ea = 36.3 * 4184
+        D0 = D0_div_a2 * radius ** 2
+        D = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
+
+    else:
+        msg = 'error, cannot determine method for calculating helium ' \
+              'diffusivity, choose "Wolf1996", "Farley2000", ' \
+              'or "RDAAM", current method = %s' % method
+        raise ValueError(msg)
+
+    ahe_age = He_diffusion_Meesters_and_Dunai_2002_vectorized(
+        t, D, radius, Ur0,
+        decay_constant=decay_constant,
+        U_function='exponential',
+        n_eigenmodes=n_eigenmodes,
+        alpha_ejection=alpha_ejection)
+
+    return ahe_age

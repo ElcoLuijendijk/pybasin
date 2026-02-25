@@ -45,6 +45,9 @@ except ImportError:
 # flow solution a lot...)
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
+# set to True to use vectorized thermochron functions (for debugging/benchmarking)
+vectorize_thermochron = False
+
 
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
 
@@ -467,7 +470,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    C2=-65.12969, C3=-7.91715,
                                    alpha=0.04672,
                                    provenance_start_temp=120.0,
-                                   location_has_AFT=True):
+                                   location_has_AFT=True,
+                                   vectorize_thermochron=False):
 
     """
     Use modeled temperature history and provneance history to model apatite fission track ages and length distributions
@@ -493,7 +497,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                 surface_temp,
                 annealing_eq=annealing_eq,
                 C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
-                provenance_start_temp=provenance_start_temp)
+                provenance_start_temp=provenance_start_temp,
+                vectorize_thermochron=vectorize_thermochron)
 
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
@@ -562,7 +567,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             surface_temp,
             annealing_eq=annealing_eq,
             C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
-            provenance_start_temp=provenance_start_temp)
+            provenance_start_temp=provenance_start_temp,
+            vectorize_thermochron=vectorize_thermochron)
 
     (modeled_aft_age_samples, modeled_aft_age_samples_min,
      modeled_aft_age_samples_max,
@@ -684,7 +690,8 @@ def assemble_data_and_simulate_he(he_samples_well,
                 ahe_method=ahe_method,
                 alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
                 provenance_start_temp=provenance_start_temp,
-                log_tT_paths=False, tT_path_filename=tT_path_filename)
+                log_tT_paths=False, tT_path_filename=tT_path_filename,
+                vectorize_thermochron=vectorize_thermochron)
 
         (he_age_nodes, he_age_nodes_min, he_age_nodes_max,
          he_node_times_burial, he_node_zs) = simulated_He_data
@@ -776,7 +783,8 @@ def assemble_data_and_simulate_he(he_samples_well,
             ahe_method=ahe_method,
             alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
             provenance_start_temp=provenance_start_temp,
-            log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename)
+            log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename,
+            vectorize_thermochron=vectorize_thermochron)
 
     (modeled_he_age_samples, modeled_he_age_samples_min,
      modeled_he_age_samples_max, he_node_times_burial,
@@ -1019,7 +1027,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             C3=pybasin_params.C3,
             alpha=pybasin_params.alpha,
             location_has_AFT=location_has_AFT,
-            provenance_start_temp=pybasin_params.provenance_start_temp)
+            provenance_start_temp=pybasin_params.provenance_start_temp,
+            vectorize_thermochron=vectorize_thermochron)
 
         # store surface and bottom VR value
         if simulated_AFT_data is not None:

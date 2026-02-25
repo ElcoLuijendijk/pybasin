@@ -1734,9 +1734,10 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  annealing_kinetics_values, annealing_kinetic_param, Ts,
                  C0=0.39528, C1=0.01073,
                  C2=-65.12969, C3=-7.91715,
-                 alpha=0.04672, annealing_eq='FC', 
-                 provenance_start_temp=120.0,
-                 verbose=True):
+                  alpha=0.04672, annealing_eq='FC', 
+                  provenance_start_temp=120.0,
+                  verbose=True,
+                  vectorize_thermochron=False):
     """
     simulate fission track ages using calculated burial thermal history
     and provenance thermal history scenarios
@@ -1793,16 +1794,26 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
 
         for n_prov in range(n_prov_scenarios):
             for n_kin in range(n_kinetic_scenarios):
-                trackLengthPDF, AFTage, l_mean, l_mean_std, rm, rc, rho_age, dt = \
-                    AFTannealingLib.simulate_AFT_annealing(
-                        aft_node_times[nn][n_prov],
-                        aft_node_temps[nn][n_prov],
-                        annealing_kinetics_values[n_kin],
-                        kinetic_parameter=annealing_kinetic_param,
-                        use_fortran_algorithm=True,
-                        C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
-                        annealing_eq=annealing_eq)
-
+                if vectorize_thermochron is True:
+                    trackLengthPDF, AFTage, l_mean, l_mean_std, rm, rc, rho_age, dt = \
+                        AFTannealingLib.simulate_AFT_annealing_vectorized(
+                            aft_node_times[nn][n_prov],
+                            aft_node_temps[nn][n_prov],
+                            annealing_kinetics_values[n_kin],
+                            kinetic_parameter=annealing_kinetic_param,
+                            use_fortran_algorithm=True,
+                            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+                            annealing_eq=annealing_eq)
+                else:
+                    trackLengthPDF, AFTage, l_mean, l_mean_std, rm, rc, rho_age, dt = \
+                        AFTannealingLib.simulate_AFT_annealing(
+                            aft_node_times[nn][n_prov],
+                            aft_node_temps[nn][n_prov],
+                            annealing_kinetics_values[n_kin],
+                            kinetic_parameter=annealing_kinetic_param,
+                            use_fortran_algorithm=True,
+                            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+                            annealing_eq=annealing_eq)
                 aft_age_nodes[nn, n_prov, n_kin] = AFTage
                 aft_ln_mean_nodes[nn, n_prov, n_kin] = l_mean
                 aft_ln_std_nodes[nn, n_prov, n_kin] = l_mean_std
@@ -1841,9 +1852,10 @@ def save_tT_path(t, T, fn, Kelvin=273.15, float_format="%.4f"):
 
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
                  prov_ages_start, prov_ages_end, Ts, minerals, grain_radius_nodes, U, Th,
-                 ahe_method='RDAAM',
-                 alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715, 
-                 provenance_start_temp=120.0, log_tT_paths=False, tT_path_filename=""):
+                  ahe_method='RDAAM',
+                  alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715, 
+                  provenance_start_temp=120.0, log_tT_paths=False, tT_path_filename="",
+                  vectorize_thermochron=False):
     """
     simulate apatite U-Th/He ages using calculated burial thermal history and provenance thermal history scenarios
 
@@ -1928,10 +1940,16 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
                 # todo: add option to use other models
                 if mineral == 'apatite':
-                    he_age_i = he.calculate_he_age_meesters_dunai_2002(
-                        t, T, grain_radius, U_grain, Th_grain,
-                        alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
-                        method=ahe_method)
+                    if vectorize_thermochron is True:
+                        he_age_i = he.calculate_he_age_meesters_dunai_2002_vectorized(
+                            t, T, grain_radius, U_grain, Th_grain,
+                            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                            method=ahe_method)
+                    else:
+                        he_age_i = he.calculate_he_age_meesters_dunai_2002(
+                            t, T, grain_radius, U_grain, Th_grain,
+                            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                            method=ahe_method)
                     
                     he_age_final_My = he_age_i[-1] / Myr
 
