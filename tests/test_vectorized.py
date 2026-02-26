@@ -24,6 +24,7 @@ from lib.helium_diffusion_models import (
     He_diffusion_Meesters_and_Dunai_2002,
     He_diffusion_Meesters_and_Dunai_2002_vectorized,
 )
+import lib.easyRo as easyRo
 
 
 # ---------------------------------------------------------------------------
@@ -508,4 +509,125 @@ class TestSpeedComparison:
 
         print()
         self._print_row("He_diffusion_Meesters_and_Dunai_2002 (n=500)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+
+# ---------------------------------------------------------------------------
+# Synthetic VR thermal history helpers
+# ---------------------------------------------------------------------------
+
+def make_vr_thermal_history(n=500, seed=42):
+    """
+    Build a realistic synthetic thermal history for VR testing.
+
+    Returns
+    -------
+    times : ndarray, shape (n,)
+        Time in Ma, monotonically decreasing (oldest first → 0 = present).
+    temperatures : ndarray, shape (n,)
+        Temperature in °C at each timestep.
+    """
+    rng = np.random.default_rng(seed)
+    # times: from ~n*0.5 Ma down to 0, with small jitter so spacing is uneven
+    times_raw = np.linspace(n * 0.5, 0.0, n) + rng.uniform(-0.05, 0.05, n)
+    times_raw = np.clip(times_raw, 0.0, None)
+    times_raw[-1] = 0.0
+    times = np.sort(times_raw)[::-1].copy()  # largest → smallest (oldest first)
+
+    # Temperature: starts at 20 °C, heats to 120 °C, then cools back to 20 °C
+    half = n // 2
+    T = np.concatenate([
+        np.linspace(20.0, 120.0, half) + rng.uniform(-1.0, 1.0, half),
+        np.linspace(120.0, 20.0, n - half) + rng.uniform(-1.0, 1.0, n - half),
+    ])
+    return times, T
+
+
+# ---------------------------------------------------------------------------
+# Test 4: easyRo vs easyRo_vectorized
+# ---------------------------------------------------------------------------
+
+class TestEasyRoVectorized:
+    """Correctness tests: easyRo_vectorized must produce bit-identical results to easyRo."""
+
+    def _compare(self, times, temperatures, vr_method='easyRo'):
+        Ro_orig = easyRo.easyRo(times, temperatures, vr_method=vr_method)
+        Ro_vec = easyRo.easyRo_vectorized(times, temperatures, vr_method=vr_method)
+
+        assert Ro_orig.shape == Ro_vec.shape, (
+            f"Shape mismatch: orig {Ro_orig.shape} vs vec {Ro_vec.shape}")
+        assert np.allclose(Ro_orig, Ro_vec), (
+            f"vr_method={vr_method!r}: max abs diff = "
+            f"{np.abs(Ro_orig - Ro_vec).max():.3e}\n"
+            f"orig[:5]={Ro_orig[:5]}\nvec[:5]={Ro_vec[:5]}")
+
+    def test_easyro_burial_and_exhumation(self):
+        """Heat-up then cool-down history: vectorized matches original."""
+        times, T = make_vr_thermal_history(n=200, seed=1)
+        self._compare(times, T, vr_method='easyRo')
+
+    def test_easyro_short_history(self):
+        """Short n=30 history: vectorized matches original."""
+        times, T = make_vr_thermal_history(n=30, seed=7)
+        self._compare(times, T, vr_method='easyRo')
+
+    def test_easyro_long_history(self):
+        """Long n=2000 history: vectorized matches original."""
+        times, T = make_vr_thermal_history(n=2000, seed=99)
+        self._compare(times, T, vr_method='easyRo')
+
+    def test_easyro_constant_temperature(self):
+        """Isothermal history (no heating rate variation)."""
+        n = 100
+        times = np.linspace(50.0, 0.0, n)
+        T = np.full(n, 80.0)
+        self._compare(times, T, vr_method='easyRo')
+
+    def test_basinro_method(self):
+        """basinRo method: vectorized matches original."""
+        times, T = make_vr_thermal_history(n=300, seed=42)
+        self._compare(times, T, vr_method='basinRo')
+
+    def test_debug_mode_intermediate_arrays(self):
+        """In debug mode, all intermediate arrays are identical."""
+        times, T = make_vr_thermal_history(n=100, seed=5)
+
+        out_orig = easyRo.easyRo(times, T, vr_method='easyRo', debug=True)
+        out_vec = easyRo.easyRo_vectorized(times, T, vr_method='easyRo', debug=True)
+
+        names = ['Ro', 'sumReacted', 'cumulativeReacted', 'deltaI', 'I', 'EdivRT']
+        for name, v_orig, v_vec in zip(names, out_orig, out_vec):
+            assert np.allclose(v_orig, v_vec), (
+                f"debug array '{name}': max abs diff = "
+                f"{np.abs(np.asarray(v_orig) - np.asarray(v_vec)).max():.3e}")
+
+
+# ------------------------------------------------------------------
+# Speed tests: easyRo vs easyRo_vectorized
+# ------------------------------------------------------------------
+
+    def test_speed_easyro_n1000(self):
+        """Speed comparison: easyRo vs easyRo_vectorized, n=1000 timesteps."""
+        times, T = make_vr_thermal_history(n=1000, seed=1)
+
+        t_orig = TestSpeedComparison._best_of(
+            lambda: easyRo.easyRo(times, T), TestSpeedComparison.REPEATS)
+        t_vec = TestSpeedComparison._best_of(
+            lambda: easyRo.easyRo_vectorized(times, T), TestSpeedComparison.REPEATS)
+
+        print()
+        TestSpeedComparison._print_row("easyRo (n=1000)", t_orig, t_vec)
+        assert t_vec < t_orig * 10
+
+    def test_speed_easyro_n10000(self):
+        """Speed comparison: easyRo vs easyRo_vectorized, n=10000 timesteps."""
+        times, T = make_vr_thermal_history(n=10000, seed=2)
+
+        t_orig = TestSpeedComparison._best_of(
+            lambda: easyRo.easyRo(times, T), TestSpeedComparison.REPEATS)
+        t_vec = TestSpeedComparison._best_of(
+            lambda: easyRo.easyRo_vectorized(times, T), TestSpeedComparison.REPEATS)
+
+        print()
+        TestSpeedComparison._print_row("easyRo (n=10000)", t_orig, t_vec)
         assert t_vec < t_orig * 10

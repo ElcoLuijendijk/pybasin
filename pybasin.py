@@ -937,7 +937,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             vr_nodes = pybasin_lib.calculate_vr(T_nodes,
                                                 active_nodes,
                                                 time_array,
-                                                n_nodes, vr_method=vr_method)
+                                                n_nodes, vr_method=vr_method,
+                                                vectorize_thermochron=vectorize_thermochron)
 
             # store surface and bottom VR value
             model_results_series['vr_surface'] = vr_nodes[-1, active_nodes[-1]][0]

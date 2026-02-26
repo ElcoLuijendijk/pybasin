@@ -1710,7 +1710,8 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
     return aft_age_bins, age_pdf_final
 
 
-def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo', verbose=True):
+def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo', verbose=True,
+                 vectorize_thermochron=False):
     vr_nodes = np.zeros(T_nodes.shape)
     for nn in range(n_nodes):
 
@@ -1718,9 +1719,14 @@ def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo',
             sys.stdout.write('.')
             sys.stdout.flush()
 
-        vr_nodes[active_nodes[:, nn], nn] = \
-            easyRo.easyRo(time_array[active_nodes[:, nn]] / 1e6,
-                          T_nodes[active_nodes[:, nn], nn], vr_method=vr_method)
+        if vectorize_thermochron is True:
+            vr_nodes[active_nodes[:, nn], nn] = \
+                easyRo.easyRo_vectorized(time_array[active_nodes[:, nn]] / 1e6,
+                                         T_nodes[active_nodes[:, nn], nn], vr_method=vr_method)
+        else:
+            vr_nodes[active_nodes[:, nn], nn] = \
+                easyRo.easyRo(time_array[active_nodes[:, nn]] / 1e6,
+                              T_nodes[active_nodes[:, nn], nn], vr_method=vr_method)
 
     if verbose is True:
         print(':-)')
