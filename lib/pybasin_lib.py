@@ -1989,9 +1989,12 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     #create your time-temperature path object
                     tT = pyt.tT_path(tT_in)
 
-                    # interpolate the path
-                    #print("interpolating tT path to create evenly spaced time steps for input to PyThermo   ")
-                    #tT.tT_interpolate()
+                    # interpolate the tT path
+                    # note that earlier versions of PyThermo have oversimplified the path
+                    # to the point of missing peak burial temperatures
+                    # the current status of this is unclear 
+                    print("interpolating tT path to create evenly spaced time steps for input to PyThermo   ")
+                    tT.tT_interpolate()
 
                     #    create annealing and reduced time temp arrays, you'll need these for the next two cells below
                     try:
