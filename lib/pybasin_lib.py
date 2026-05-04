@@ -1986,23 +1986,30 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     print("start, end time (Ma): ", tT_in[0, 0], tT_in[-1, 0])
                     print("start, end temp (C): ", tT_in[:, 1].min(), tT_in[:, 1].max())
                     
-                    # resample tT_in so each step has equal temperature change (variable timestep)
-                    # target temperature change per step (degrees C)
-                    dT_step_ZHe = 5.0  
-                    t_orig = tT_in[:, 0]
-                    T_orig = tT_in[:, 1]
+                    resample_tT_for_pyt = False
 
-                    # cumulative absolute temperature change along the path
-                    cumT = np.concatenate([[0], np.cumsum(np.abs(np.diff(T_orig)))])
-                    # new sample points at equal dT intervals
-                    cumT_new = np.arange(0, cumT[-1], dT_step_ZHe)
-                    # interpolate time and temperature at those points
-                    t_new = np.interp(cumT_new, cumT, t_orig)
-                    T_new = np.interp(cumT_new, cumT, T_orig)
-                    tT_in_resampled = np.column_stack([t_new, T_new])
+                    if resample_tT_for_pyt is True:
+                        # resample tT_in so each step has equal temperature change (variable timestep)
+                        # this was needed in earlier versions of PyThermo to avoid oversimplification of the tT path, but may not be needed anymore, check status of this in current version of PyThermo
+                        # target temperature change per step (degrees C)
+                        dT_step_ZHe = 5.0  
+                        t_orig = tT_in[:, 0]
+                        T_orig = tT_in[:, 1]
 
-                    #create your time-temperature path object
-                    tT = pyt.tT_path(tT_in_resampled)
+                        # cumulative absolute temperature change along the path
+                        cumT = np.concatenate([[0], np.cumsum(np.abs(np.diff(T_orig)))])
+                        # new sample points at equal dT intervals
+                        cumT_new = np.arange(0, cumT[-1], dT_step_ZHe)
+                        # interpolate time and temperature at those points
+                        t_new = np.interp(cumT_new, cumT, t_orig)
+                        T_new = np.interp(cumT_new, cumT, T_orig)
+                        tT_in_resampled = np.column_stack([t_new, T_new])
+
+                        #create your time-temperature path object
+                        tT = pyt.tT_path(tT_in_resampled)
+                    else:
+                        #create your time-temperature path object
+                        tT = pyt.tT_path(tT_in)
 
                     # interpolate the tT path
                     # note that earlier versions of PyThermo have oversimplified the path
