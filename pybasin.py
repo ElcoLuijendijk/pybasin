@@ -1102,6 +1102,25 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             if True in ind.values:
                 location_has_He_data = True
 
+                # check if any samples are at or near the bottom of the model
+                model_bottom = z_nodes[-1].max()
+                for _, he_row in he_samples_well.iterrows():
+                    sample_depth = he_row['depth']
+                    depth_diff = model_bottom - sample_depth
+                    if abs(depth_diff) <= 1.0:
+                        print(f'Warning: He sample "{he_row["sample"]}" in well "{well}" is located '
+                              f'at or beyond the bottom of the model '
+                              f'(sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). '
+                              f'This sample may be excluded from the model-data comparison. '
+                              f'Consider extending the well stratigraphy slightly.')
+                    elif abs(depth_diff) <= 5.0:
+                        print(f'Note: He sample "{he_row["sample"]}" in well "{well}" is close to '
+                              f'the bottom of the model '
+                              f'(sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). '
+                              f'Verify that the sample falls within the modeled depth range. '
+                              f'Small discrepancies may result from slight inaccuracies in '
+                              f'decompaction / backstripping.')
+
         decay_constant_238U = pybasin_params.decay_constant_238U
         decay_constant_235U = pybasin_params.decay_constant_235U
         decay_constant_232Th = pybasin_params.decay_constant_232Th
