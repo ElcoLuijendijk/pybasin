@@ -2049,7 +2049,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     zirc_grain = pyt.zircon(grain_radius_micron, log2_nodes, zirc_tT, zirc_anneal, U_ppm, Th_ppm, Sm_ppm)
 
                     #and calculate the alpha-ejection corrected date using the ZRDAAM of Guenthner et al. (2013)
-                    zirc_date = zirc_grain.guenthner_date()
+                    #zirc_date = zirc_grain.guenthner_date()
+                    zirc_date, _, _, _ = zirc_grain.zirc_date("guenthner", "guenthner")
+                    
                     he_age_i = zirc_date
                     he_age_final_My = he_age_i 
                     print(f"simulated zircon age: {zirc_date}")
