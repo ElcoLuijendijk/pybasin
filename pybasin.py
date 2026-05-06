@@ -1256,6 +1256,10 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     # simulate apatite (U-Th)/He data
     he_age_gof = np.nan
     he_age_error = np.nan
+    he_ages_all_samples = None
+    he_ages_all_samples_SE = None
+    he_age_pdfs_all_samples = None
+    he_samples_well = None
 
     if pybasin_params.simulate_He is True:
 
@@ -1274,6 +1278,10 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           he_age_bin,
                                           modeled_he_age_samples_min,
                                           modeled_he_age_samples_max)
+
+        else:
+            print(f'Warning: simulate_He is True but no He samples found within '
+                  f'the depth range of well "{well}". He data will be skipped.')
 
     # calculate model error salinity data
     salinity_rmse = np.nan
