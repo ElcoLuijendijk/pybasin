@@ -29,7 +29,7 @@ class ModelParameters:
     # in a particular borehole
     # is automatically set to True if make_model_data_fig = True
     # note that this increases the amount of computational time quite a bit
-    calculate_thermochron_for_all_nodes = True
+    calculate_thermochron_for_all_nodes = False
 
     # option to save model run data (approx 10-20 MB per model run)
     save_model_run_data = True
@@ -38,7 +38,7 @@ class ModelParameters:
     datafile_output_dir = 'model_output/example_dataset_2/thermal_history_datafiles'
 
     # save time-temperature paths for each sample, so that they can be used with other codes such as HeFTy or QtQt
-    log_tT_paths = True
+    log_tT_paths = False
 
     # use stratigraphy input data from stratigraphic maps instead of text files
     # this is still an experimental feature, no guarantee that it actually works. Future updates will make this more
@@ -52,7 +52,7 @@ class ModelParameters:
     # figure options
     ################
     # option to generate 1 figure for each model run:
-    make_model_data_fig = True
+    make_model_data_fig = False
 
     # variable to show color contours for in burial history panel
     # choose either 'temperature' or 'salinity'
@@ -134,6 +134,14 @@ class ModelParameters:
     # temperature, vitrinite reflectance, apatite fission track age and
     # apatite (U-Th)/He data
     gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
+
+    # use two-sided GOF for age data: also penalizes modelled age range wider
+    # than measured age range
+    two_sided_gof = False
+
+    # percentile range of measured age PDF used to define the measured age range
+    # for the reverse GOF component (fraction of modelled ages within measured range)
+    gof_age_percentile = [5, 95]
 
     #############################
     # Thermochronology parameters

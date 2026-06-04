@@ -138,6 +138,14 @@ class ModelParameters:
     # apatite (U-Th)/He data
     gof_weights = [1.0/3.0, 1.0/3.0, 1.0/3.0, 1.0/3.0]
 
+    # use two-sided GOF for age data: also penalizes modelled age range wider
+    # than measured age range
+    two_sided_gof = False
+
+    # percentile range of measured age PDF used to define the measured age range
+    # for the reverse GOF component (fraction of modelled ages within measured range)
+    gof_age_percentile = [5, 95]
+
     #############################
     # Thermochronology parameters
     #############################

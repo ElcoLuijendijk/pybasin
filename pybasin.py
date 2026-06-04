@@ -135,7 +135,9 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes, vr_u
 def model_data_comparison_AFT_age(aft_data_well, aft_ages,
                                   modeled_aft_age_samples_min,
                                   modeled_aft_age_samples_max,
-                                  verbose=False):
+                                  verbose=False,
+                                  two_sided_gof=False,
+                                  gof_age_percentile=(5, 95)):
 
     """
     Compare modelled and measured apatite fission track ages
@@ -227,6 +229,20 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
             pdf_fit_sum = np.sum(age_pdf[start_ind:end_ind])
             pdf_nofit_sum = np.sum(age_pdf[:start_ind]) + np.sum(age_pdf[end_ind:])
+
+            if two_sided_gof:
+                # find user-defined percentile index range of measured age PDF
+                pc = np.cumsum(age_pdf)
+                pct_low = gof_age_percentile[0] / 100.0
+                pct_high = gof_age_percentile[1] / 100.0
+                m_start = np.where(pc >= pct_low)[0][0]
+                m_end = np.where(pc <= pct_high)[0][-1]
+                modeled_n_bins = end_ind - start_ind
+                if modeled_n_bins > 0:
+                    overlap_bins = max(0, min(end_ind, m_end) - max(start_ind, m_start))
+                    reverse_gof = overlap_bins / modeled_n_bins
+                    pdf_fit_sum = pdf_fit_sum * reverse_gof
+
             aft_data_well.loc[sample_ix, 'GOF_aft_ages'] = pdf_fit_sum
 
             # if aft_data_well.loc[sample_ix, 'aft_age'] == 0 \
@@ -307,7 +323,9 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 def model_data_comparison_he(he_samples_well, he_data,
                              he_age_bin,
                              modeled_he_age_samples_min,
-                             modeled_he_age_samples_max):
+                             modeled_he_age_samples_max,
+                             two_sided_gof=False,
+                             gof_age_percentile=(5, 95)):
 
     """
     Compare modelled and measure apatite (U-Th)/He ages
@@ -373,6 +391,19 @@ def model_data_comparison_he(he_samples_well, he_data,
                     end_ind = np.where(he_age_sim_max <= he_age_bin)[0][0]
 
                 pdf_fit_sum = np.sum(he_age_pdf[start_ind:end_ind])
+
+                if two_sided_gof:
+                    # find user-defined percentile index range of measured He age PDF
+                    pc = np.cumsum(he_age_pdf)
+                    pct_low = gof_age_percentile[0] / 100.0
+                    pct_high = gof_age_percentile[1] / 100.0
+                    m_start = np.where(pc >= pct_low)[0][0]
+                    m_end = np.where(pc <= pct_high)[0][-1]
+                    modeled_n_bins = end_ind - start_ind
+                    if modeled_n_bins > 0:
+                        overlap_bins = max(0, min(end_ind, m_end) - max(start_ind, m_start))
+                        reverse_gof = overlap_bins / modeled_n_bins
+                        pdf_fit_sum = pdf_fit_sum * reverse_gof
 
                 grain_pdfs.append(pdf_fit_sum)
 
@@ -1270,7 +1301,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
              age_bins, age_pdfs, aft_data_well) = \
                 model_data_comparison_AFT_age(aft_data_well, aft_ages,
                                               modeled_aft_age_samples_min,
-                                              modeled_aft_age_samples_max)
+                                              modeled_aft_age_samples_max,
+                                              two_sided_gof=pybasin_params.two_sided_gof,
+                                              gof_age_percentile=pybasin_params.gof_age_percentile)
 
     # simulate apatite (U-Th)/He data
     he_age_gof = np.nan
@@ -1296,7 +1329,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                 model_data_comparison_he(he_samples_well, he_data,
                                           he_age_bin,
                                           modeled_he_age_samples_min,
-                                          modeled_he_age_samples_max)
+                                          modeled_he_age_samples_max,
+                                          two_sided_gof=pybasin_params.two_sided_gof,
+                                          gof_age_percentile=pybasin_params.gof_age_percentile)
 
         else:
             print(f'Warning: simulate_He is True but no He samples found within '
