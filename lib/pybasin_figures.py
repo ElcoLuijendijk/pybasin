@@ -166,6 +166,8 @@ def model_vs_data_figure(model_run_data,
                          max_strat_units=None,
                          max_age_burial_panel=None,
                          max_age_thermochron_panel=None,
+                         show_temp_panel=True,
+                         show_age_scatter=True,
                          debug=False):
 
     """
@@ -335,12 +337,32 @@ def model_vs_data_figure(model_run_data,
         AFT_data = None
         AHe_data = None
 
+    aft_sg_sorted = []
+    if show_age_scatter and AFT_data is not None:
+        aft_sg_sorted = sorted(
+            [j for j in range(len(aft_age_depth))
+             if single_grain_aft_ages[j] is not None
+             and len(single_grain_aft_ages[j]) > 0],
+            key=lambda j: aft_age_depth[j],
+        )
+
+    ahe_sorted_indices = []
+    if show_age_scatter and AHe_data is not None and modeled_ahe_age_samples is not None:
+        ahe_sorted_indices = sorted(
+            range(len(ahe_sample_depths)),
+            key=lambda i: ahe_sample_depths[i],
+        )
+
+    temp_panel_ind = None
     if show_strat_column is True:
         strat_panel_ind = ncols
-        temp_panel_ind = ncols + 1
-        ncols += 2
-        width_ratios += [2, 3]
-    else:
+        ncols += 1
+        width_ratios.append(2)
+        if show_temp_panel:
+            temp_panel_ind = ncols
+            ncols += 1
+            width_ratios.append(3)
+    elif show_temp_panel:
         temp_panel_ind = ncols
         ncols += 1
         width_ratios.append(3)
@@ -368,6 +390,23 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(4)
 
+    aft_scatter_col = None
+    ahe_scatter_col = None
+    if show_age_scatter:
+        has_scatter = len(aft_sg_sorted) > 0 or len(ahe_sorted_indices) > 0
+        if has_scatter:
+            # spacer column so y-axis labels of scatter panels do not overlap the age panels
+            ncols += 1
+            width_ratios.append(2)
+        if len(aft_sg_sorted) > 0:
+            aft_scatter_col = ncols
+            ncols += 1
+            width_ratios.append(3)
+        if len(ahe_sorted_indices) > 0:
+            ahe_scatter_col = ncols
+            ncols += 1
+            width_ratios.append(3)
+
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.06, hspace=0.08,
                            bottom=bottom, top=top,
@@ -386,8 +425,9 @@ def model_vs_data_figure(model_run_data,
         ax_strat = fig.add_subplot(gs[1, strat_panel_ind])
         all_panels.append(ax_strat)
 
-    ax_temp = fig.add_subplot(gs[1, temp_panel_ind])
-    all_panels.append(ax_temp)
+    if show_temp_panel:
+        ax_temp = fig.add_subplot(gs[1, temp_panel_ind])
+        all_panels.append(ax_temp)
 
     if C_data is not None:
         ax_c = fig.add_subplot(gs[1, C_panel_ind])
@@ -401,6 +441,22 @@ def model_vs_data_figure(model_run_data,
     if AHe_data is not None:
         ax_ahe = fig.add_subplot(gs[1, ahe_panel_ind])
         all_panels.append(ax_ahe)
+
+    ax_aft_scatter_list = []
+    ax_ahe_scatter_list = []
+    if show_age_scatter:
+        if aft_scatter_col is not None:
+            n_aft_sc = len(aft_sg_sorted)
+            gs_aft_sc = gridspec.GridSpecFromSubplotSpec(
+                n_aft_sc, 1, subplot_spec=gs[:, aft_scatter_col], hspace=0.5
+            )
+            ax_aft_scatter_list = [fig.add_subplot(gs_aft_sc[i]) for i in range(n_aft_sc)]
+        if ahe_scatter_col is not None:
+            n_ahe_sc = len(ahe_sorted_indices)
+            gs_ahe_sc = gridspec.GridSpecFromSubplotSpec(
+                n_ahe_sc, 1, subplot_spec=gs[:, ahe_scatter_col], hspace=0.5
+            )
+            ax_ahe_scatter_list = [fig.add_subplot(gs_ahe_sc[i]) for i in range(n_ahe_sc)]
 
     depth_panels = [all_panels[1]] + all_panels[3:]
     time_panels = all_panels[:3]
@@ -657,11 +713,11 @@ def model_vs_data_figure(model_run_data,
         axhf.set_ylim(basal_hf_array.min() * 1000.0 * 0.95,
                       basal_hf_array.max() * 1000.0 * 1.05)
 
-    # plot surface temperature
-    leg_model, = ax_temp.plot(T_nodes[-1, active_nodes[-1]],
-                              z_nodes[-1, active_nodes[-1]],
-                              **line_props)
-    model_label.append('temperature')
+    if show_temp_panel:
+        leg_model, = ax_temp.plot(T_nodes[-1, active_nodes[-1]],
+                                  z_nodes[-1, active_nodes[-1]],
+                                  **line_props)
+        model_label.append('temperature')
 
     if show_strat_column is True:
 
@@ -683,7 +739,7 @@ def model_vs_data_figure(model_run_data,
             if strat_name[0] != "+":
                 ax_strat.text(0.03, z_pos, strat_name, fontsize=strat_fontsize)
 
-    if T_data is not None and len(T_data) > 0:
+    if show_temp_panel and T_data is not None and len(T_data) > 0:
         ind = T_data_type == 'BHT'
         nind = T_data_type != 'BHT'
 
@@ -915,6 +971,74 @@ def model_vs_data_figure(model_run_data,
 
         data_label.append('He ages')
 
+    # scatter plots of modelled vs observed ages
+    if show_age_scatter and len(ax_aft_scatter_list) > 0:
+        cmap_sc = pl.get_cmap('tab10')
+        for rank, (j, ax_sc) in enumerate(zip(aft_sg_sorted, ax_aft_scatter_list)):
+            sg_ages = np.array(single_grain_aft_ages[j])
+            sg_se_min = np.array(single_grain_aft_ages_se_min[j])
+            sg_se_plus = np.array(single_grain_aft_ages_se_plus[j])
+            sim_min = float(aft_data_samples['simulated_AFT_min'].iloc[j])
+            sim_max = float(aft_data_samples['simulated_AFT_max'].iloc[j])
+            sim_mid = (sim_min + sim_max) / 2.0
+            color = cmap_sc(rank % 10)
+            y_lo = np.full(len(sg_ages), sim_mid - sim_min)
+            y_hi = np.full(len(sg_ages), sim_max - sim_mid)
+            ax_sc.errorbar(
+                sg_ages, np.full(len(sg_ages), sim_mid),
+                xerr=[sg_se_min * 1.96, sg_se_plus * 1.96],
+                yerr=[y_lo, y_hi],
+                fmt='o', ms=4, color=color, lw=0.75, capsize=2,
+            )
+            age_max_sc = max(float(sg_ages.max()), sim_max) * 1.05
+            ax_sc.plot([0, age_max_sc], [0, age_max_sc], '--', color='grey', lw=0.8, zorder=0)
+            ax_sc.set_xlim(0, age_max_sc)
+            ax_sc.set_ylim(0, age_max_sc)
+            ax_sc.set_aspect('equal', adjustable='box')
+            ax_sc.set_title(
+                '%s (%.0f m)' % (aft_sample_names[j], aft_age_depth[j]),
+                loc='left',
+            )
+            ax_sc.spines['top'].set_visible(False)
+            ax_sc.spines['right'].set_visible(False)
+        ax_aft_scatter_list[-1].set_xlabel('measured AFT age (Ma)')
+        mid_idx = len(ax_aft_scatter_list) // 2
+        ax_aft_scatter_list[mid_idx].set_ylabel('modelled age (Ma)')
+
+    if show_age_scatter and len(ax_ahe_scatter_list) > 0:
+        cmap_sc = pl.get_cmap('tab10')
+        for rank, (i, ax_sc) in enumerate(zip(ahe_sorted_indices, ax_ahe_scatter_list)):
+            grain_ages = np.array(ahe_ages_all_samples[i])
+            grain_ses = np.array(ahe_ages_all_samples_SE[i])
+            mod_ages = np.array(modeled_ahe_age_samples[i])
+            color = cmap_sc(rank % 10)
+            all_vals = list(grain_ages)
+            for g, g_age in enumerate(grain_ages):
+                y_vals = mod_ages[g, :] if mod_ages.ndim == 2 else np.array([mod_ages[g]])
+                y_center = float(np.mean(y_vals))
+                y_lo = y_center - float(y_vals.min())
+                y_hi = float(y_vals.max()) - y_center
+                ax_sc.errorbar(
+                    g_age, y_center,
+                    xerr=grain_ses[g] * 1.96,
+                    yerr=[[y_lo], [y_hi]],
+                    fmt='o', ms=4, color=color, lw=0.75, capsize=2,
+                )
+                all_vals.extend(y_vals.tolist())
+            age_max_sc = max(all_vals) * 1.05
+            ax_sc.plot([0, age_max_sc], [0, age_max_sc], '--', color='grey', lw=0.8, zorder=0)
+            ax_sc.set_xlim(0, age_max_sc)
+            ax_sc.set_ylim(0, age_max_sc)
+            ax_sc.set_aspect('equal', adjustable='box')
+            depth = ahe_sample_depths[i]
+            name = ahe_data_samples['sample'].values[i]
+            ax_sc.set_title('%s (%.0f m)' % (name, depth), loc='left', fontsize="small")
+            ax_sc.spines['top'].set_visible(False)
+            ax_sc.spines['right'].set_visible(False)
+        ax_ahe_scatter_list[-1].set_xlabel('measured\nHe age (Ma)')
+        mid_idx = len(ax_ahe_scatter_list) // 2
+        ax_ahe_scatter_list[mid_idx].set_ylabel('modelled\nage (Ma)')
+
     # add labels:
     axb.set_ylabel('Burial depth (m)')
 
@@ -926,7 +1050,8 @@ def model_vs_data_figure(model_run_data,
         axhf.set_ylabel(r'HF (mW m$^{-2}$)', labelpad=12)
 
     axhf.set_xlabel('Time (Ma)')
-    ax_temp.set_xlabel('T (%sC)' % degree_symbol)
+    if show_temp_panel:
+        ax_temp.set_xlabel('T (%sC)' % degree_symbol)
 
     if C_data is not None:
         ax_c.set_xlabel('Salinity (kg/kg)')
@@ -993,7 +1118,8 @@ def model_vs_data_figure(model_run_data,
         max_T2 = T_obs.max()
         max_T = max(max_T, max_T2)
         
-    ax_temp.set_xlim(0, max_T * 1.2)
+    if show_temp_panel:
+        ax_temp.set_xlim(0, max_T * 1.2)
 
     if contour_variable == 'salinity':
         max_C = C_nodes[-1].max()
@@ -1043,13 +1169,41 @@ def model_vs_data_figure(model_run_data,
     if AHe_data is not None:
         ax_ahe.set_xlim(thermochron_age_max * 1.1, 0)
 
+    # connecting lines from sample depth in age panel to scatter panel top/bottom
+    if show_age_scatter and AFT_data is not None and len(ax_aft_scatter_list) > 0:
+        x_right = ax_afta.get_xlim()[1]
+        for j, ax_sc in zip(aft_sg_sorted, ax_aft_scatter_list):
+            depth = aft_age_depth[j]
+            for y_frac in (1.0, 0.0):
+                con = mpatches.ConnectionPatch(
+                    xyA=(x_right, depth), xyB=(0.0, y_frac),
+                    coordsA='data', coordsB='axes fraction',
+                    axesA=ax_afta, axesB=ax_sc,
+                    color='lightgrey', lw=0.75, clip_on=False,
+                )
+                fig.add_artist(con)
+
+    if show_age_scatter and AHe_data is not None and len(ax_ahe_scatter_list) > 0:
+        x_right = ax_ahe.get_xlim()[1]
+        for i, ax_sc in zip(ahe_sorted_indices, ax_ahe_scatter_list):
+            depth = ahe_sample_depths[i]
+            for y_frac in (1.0, 0.0):
+                con = mpatches.ConnectionPatch(
+                    xyA=(x_right, depth), xyB=(0.0, y_frac),
+                    coordsA='data', coordsB='axes fraction',
+                    axesA=ax_ahe, axesB=ax_sc,
+                    color='lightgrey', lw=0.75, clip_on=False,
+                )
+                fig.add_artist(con)
+
     #ax_aftln.set_xlim(2, 17)
     #if max_T > 75.0:
     #    t_ticks = np.arange(0.0, max_T + 25.0, 25.0)
     #    ax_temp.set_xticks(t_ticks)
 
     # remove last tick label to avoid overlap
-    ax_temp.set_xticks(ax_temp.get_xticks()[:-1])
+    if show_temp_panel:
+        ax_temp.set_xticks(ax_temp.get_xticks()[:-1])
     if VR_model_data is not None:
         ax_vr.set_xticks(ax_vr.get_xticks()[:-1])
     if AFT_data is not None:
@@ -1078,7 +1232,7 @@ def model_vs_data_figure(model_run_data,
         st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
         axst.set_yticks(st_ticks)
 
-    if T_data is not None and np.isnan(T_gof) == False:
+    if show_temp_panel and T_data is not None and np.isnan(T_gof) == False:
         ax_temp.text(0.5, 1.03,
                      'GOF=%0.2f\nRMSE=%0.1f' % (T_gof, T_rmse),
                      transform=ax_temp.transAxes,
@@ -1106,7 +1260,10 @@ def model_vs_data_figure(model_run_data,
 
     #gs.tight_layout(fig, h_pad=0.02, w_pad=0.02)
     # add colorbar
-    cax_left = depth_panels[1].get_position().x0 + cb_buffer_hor
+    if len(depth_panels) > 1:
+        cax_left = depth_panels[1].get_position().x0 + cb_buffer_hor
+    else:
+        cax_left = axb.get_position().x1 + cb_buffer_hor
     pos_right = all_panels[-1].get_position()
     cax_right = pos_right.x0 + pos_right.width
     cax_width = cax_right - cax_left - cb_buffer_hor
