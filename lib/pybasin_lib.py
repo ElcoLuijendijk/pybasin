@@ -1979,7 +1979,8 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
                     # resample time-temperature path to reduce number of points
                     nt_resample_for_pyt = 1
-                    print("resampling by retaining every ", nt_resample_for_pyt, "th point for input to PyThermo")
+                    if nt_resample_for_pyt > 1:
+                        print("resampling by retaining every ", nt_resample_for_pyt, "th point for input to PyThermo")
                     tT_in = np.array([t_Ma_young_to_old[::nt_resample_for_pyt], 
                                       T_degC_young_to_old[::nt_resample_for_pyt]]).T  #time-temperature path as a 2D numpy array
 
