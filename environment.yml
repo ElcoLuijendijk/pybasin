@@ -1,0 +1,43 @@
+# Conda environment for PyBasin
+#
+# Create the environment with:
+#     conda env create -f environment.yml
+# Then activate it with:
+#     conda activate pybasin
+#
+# The dependencies below were derived from the imports in the source code.
+# numpy, scipy, pandas and matplotlib provide the core functionality.
+# numba is imported by the vitrinite reflectance and thermochronology modules
+# (lib/easyRo.py, lib/AFTannealingLib.py and lib/helium_diffusion_models.py)
+# and is therefore required.
+
+name: pybasin
+
+channels:
+  - conda-forge
+
+dependencies:
+  # core runtime requirements
+  - python>=3.9
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - numba
+
+  # optional, provides a fortran compiler to build the faster fission track
+  # annealing module with f2py (run f2py in the lib subdirectory)
+  - fortran-compiler
+
+  # optional, needed to run the test suite
+  - pytest
+
+  # optional, needed to run the jupyter notebooks such as the heat flow
+  # benchmark in the tests directory
+  - jupyter
+
+  # pythermo is only required for zircon (U-Th)/He ages with the ZRDAAM model.
+  # it is not available on conda and is left out of the default environment so
+  # that the environment always builds. if you need zircon ages, install it with:
+  #     pip install git+https://github.com/OpenThermochronology/PyThermo
+  - pip
