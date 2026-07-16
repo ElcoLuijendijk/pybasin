@@ -19,7 +19,14 @@ PyBasin was first written during my PhD research on the thermal history of the R
 # Getting started
 
 * The latest source code for PyBasin can be found on Github:<https://github.com/ElcoLuijendijk/pybasin>. Download the source code as a zip file or clone the repository to get the model code.
-* Make sure you have installed the necessary python modules (see list below). The easiest is to use a python distribution that already includes all the necessary modules, like Anaconda (<https://www.continuum.io/downloads>), pythonxy (<https://code.google.com/p/pythonxy/>) or canopy (<https://www.enthought.com/products/canopy/>).
+* Make sure you have installed the necessary python modules (see list below). The easiest way is to install Anaconda or Miniconda (<https://www.anaconda.com/download/>) and then create a dedicated environment with all required packages using the ``environment.yml`` file included with PyBasin, by running the following commands from the PyBasin source code directory:
+
+````sh
+conda env create -f environment.yml
+conda activate pybasin
+````
+
+* Every time you open a new terminal to run PyBasin, make sure to activate the environment first with ``conda activate pybasin``. If you forget this step, PyBasin will fail immediately with an error such as ``ModuleNotFoundError: No module named 'numpy'`` (see the section "What if the model does not work?" below).
 * Navigate to the directory where you have saved PyBasin and run PyBasin by executing the following command from the command line:
 
 ````sh
@@ -40,12 +47,13 @@ f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths
 
 ## Required modules
 
-PyBasin requires the following Python packages:
+PyBasin requires the following Python packages, all of which are installed automatically if you use ``environment.yml`` as described above:
 
 - Numpy: <http://www.numpy.org/>
 - Pandas: <https://pandas.pydata.org/>
 - Scipy: <https://www.scipy.org/>
 - Matplotlib: <https://matplotlib.org/>
+- Numba: <https://numba.pydata.org/>
 
 ## Running single or multiple models
 
@@ -55,7 +63,7 @@ The command for running pybasin models is:
 python pybasin.py input_directory -w well1,well2,well3
 ````
 
-``input_directory`` is the directory that contains all input files. For one of the example datasets this should be ``example_dataset_1`` or ``example_dataset_2``. With the optional command line option -w you can specify which wells to run. This can either be a single well or a list of wells separated by a comma. If you do not specify an input directory, PyBasin will use the default input directory defined in the file ``default_folder.txt``. If you do not specify which well to run at the command line PyBasin will look for a list of wells in the file ``pybasin_params.py`` in your input directory.
+``input_directory`` is the directory that contains all input files. For one of the example datasets this should be ``example_dataset_1`` or ``example_dataset_2``. With the optional command line option -w you can specify which wells to run. This can either be a single well or a list of wells separated by a comma. If you do not specify an input directory, PyBasin will use the default input directory defined in the file ``default_input_folder.txt``. If you do not specify which well to run at the command line PyBasin will look for a list of wells in the file ``pybasin_params.py`` in your input directory.
 
 
 # Model input 
@@ -468,6 +476,10 @@ The filenames include the well name (x) and the model scenario number (y).
 
 
 # What if the model does not work?
+
+## Python or installation errors
+
+If the very first line of the error mentions ``ModuleNotFoundError`` or ``ImportError`` (for instance ``ModuleNotFoundError: No module named 'numpy'``), this is not a problem with your input data, it means Python cannot find one of the required packages. This is almost always because the ``pybasin`` conda environment is not active in your terminal. Run ``conda activate pybasin`` (see the section "Getting started") and try again. If you get a similar error for the package ``pythermo``, this is expected unless you installed it separately (see the ``environment.yml`` file); it is only required for zircon (U-Th)/He ages.
 
 ## Finding the error
 The most common source of errors are the errors in the stratigraphy input files or errors in the exhumation parameters in the main input file (pybasin_params.py). The recommended steps to find errors are:
