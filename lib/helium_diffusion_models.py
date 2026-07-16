@@ -1,25 +1,25 @@
 __author__ = 'elco'
 
 import itertools
+import logging
 import numpy as np
-import pdb
 from numba import jit
 
 
 from . import AFTannealingLib as AFT
 
+logger = logging.getLogger(__name__)
+
 # import fortran module
 try:
     from . import calculate_reduced_AFT_lengths
 except ImportError:
-    print('-' * 30)
-    print('warning: failed to import fortran annealing module')
-    print('use slower python implementation of AFT annealing module instead')
-    print('compile the fortran module by running the following command ' \
-          'in the source directory of this module:')
-    print('f2py -c calculate_reduced_AFT_lengths.f90 ' \
-          '-m calculate_reduced_AFT_lengths')
-    print('-' * 30)
+    logger.info('-' * 30)
+    logger.warning('warning: failed to import fortran annealing module')
+    logger.info('use slower python implementation of AFT annealing module instead')
+    logger.info('compile the fortran module by running the following command in the source directory of this module:')
+    logger.info('f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths')
+    logger.info('-' * 30)
 
 
 @jit(nopython=True)
@@ -356,22 +356,21 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         rmr0, kappa = \
             AFT.calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
     else:
-        print('using rmr0 as kinetic parameter')
+        logger.info('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         kappa = 1.04 - rmr0
 
     #print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
 
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
-        print('!! warning, rmr0 lower than minimum')
-        print('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
-        print('!! setting rmr0 to %0.3f' % rmr0_min)
+        logger.warning('!! warning, rmr0 lower than minimum')
+        logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
+        logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
         kappa = 1.04 - rmr0
     elif rmr0 > rmr0_max:
-        print('!! warning, rmr0 value exceeds most resistant apatite in ' \
-              'Carlson (1999) dataset')
-        print('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
+        logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
+        logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
         kappa = 1.04 - rmr0
 
@@ -399,7 +398,7 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         rc = rcf
 
     else:
-        print('use python reduced track ln function:')
+        logger.info('use python reduced track ln function:')
         # warning, reduced length is not correct
         # check against fortran function
 
@@ -477,14 +476,12 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
 
     debug = False
     if debug is True:
-        print(rho_v.mean())
-        print(e_rho_s.mean() / 1e6)
-        print(e_rho_s_sum.mean() / 1e6)
-        print(C.mean())
-        print(D_div_a2.mean())
-        print(D.mean())
-
-        pdb.set_trace()
+        logger.info(rho_v.mean())
+        logger.info(e_rho_s.mean() / 1000000.0)
+        logger.info(e_rho_s_sum.mean() / 1000000.0)
+        logger.info(C.mean())
+        logger.info(D_div_a2.mean())
+        logger.info(D.mean())
 
     return D_final
 
@@ -548,7 +545,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
           + 6 * Th232 * decay_constant_232Th
     decay_constant = Ur0 / (8*U238 + 7*U235 + 6*Th232)
 
-    if method is 'Farley2000':
+    if method == 'Farley2000':
         #D0 = D0_div_a2 * radius ** 2
         # values in HeFTy 1.8.3:
         D0 = 50.0 / 1e4     # m2/sec
@@ -557,7 +554,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
         D = D_div_a2 * radius**2
         #print 'using Farley (2000) diffusion parameters'
 
-    elif method is 'RDAAM':
+    elif method == 'RDAAM':
         #print 'using RDAAM model to calculate helium diffusivity'
         #print 'with U238=%0.3e, U235=%0.3e, Th232=%0.3e, radius=%0.3e' % \
         #      (U238, U235, Th232, radius)
@@ -567,7 +564,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          use_fortran_algorithm=
                                          use_fortran_algorithm)
 
-    elif method is 'Wolf1996':
+    elif method == 'Wolf1996':
         #print 'using Wolf et al. (1996) diffusion parameters'
 
         # diffusivity params Wolf et al (1996), table 7, Durango

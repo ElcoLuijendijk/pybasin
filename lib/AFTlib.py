@@ -12,12 +12,15 @@ elco.luijendijk at gmail.com
 
 '''
 
-import math, pdb, itertools
+import math, itertools
+import logging
 
 import numpy as np
 import matplotlib.pyplot as pl
 import scipy.stats
 from scipy.stats import norm
+
+logger = logging.getLogger(__name__)
 
 
 __author__ = "Elco Luijendijk"
@@ -426,8 +429,7 @@ def calculate_central_age( Ns, Ni, Nd, rho_d, zeta, zeta_se,
         Niterations += 1
         
         if Niterations>100:
-            print('error, too many iterations')
-            pdb.set_trace()
+            logger.error('error, too many iterations')
     
     central_age = 1.0/lambda_d * np.log(1.0 + lambda_d * g * zeta * rho_d.mean() *(eta/(1.0-eta))) /1.0e6
     
@@ -678,9 +680,8 @@ def caxis_proj_lengths(l, a=-0.08076, b = 3.856, c=-25.488):
     cl = c-l
     D = (b**2-(4*a*cl))
     if D<0:
-        print('error,  D<0')
-        print(bla)
-        
+        logger.error('error,  D<0')
+
     lm = (-b+(math.sqrt(D)))/(2*a)
     if lm<0:
         lm = (-b-(math.sqrt(D)))/(2*a)

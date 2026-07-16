@@ -6,9 +6,9 @@ module that contains all functions for making figures of pybasin model results
 
 __author__ = 'elcopone'
 
-import pdb
 import itertools
 import sys
+import logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as pl
@@ -17,6 +17,8 @@ import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
 from matplotlib import ticker
 import matplotlib
+
+logger = logging.getLogger(__name__)
 
 
 def setup_figure(width=125.0, height='g', fontsize='x-small',
@@ -77,15 +79,15 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
     elif height == 'max':
         height = 170
     if height > 215.0:
-        print('figure exceeding b5 paper size')
+        logger.info('figure exceeding b5 paper size')
 
     # initialize figure
     if landscape is True:
-        print('landscape figure')
+        logger.info('landscape figure')
         xs = height
         ys = width
     else:
-        print('portrait figure')
+        logger.info('portrait figure')
         xs = width
         ys = height
 
@@ -93,7 +95,7 @@ def setup_figure(width=125.0, height='g', fontsize='x-small',
         xs = xs / 25.4
         ys = ys / 25.4
 
-    print('init fig,  size = %0.1f x %0.1f inch' %(xs, ys))
+    logger.info('init fig,  size = %0.1f x %0.1f inch' % (xs, ys))
 
     fig = pl.figure(figsize=(xs,ys))
 
@@ -333,7 +335,7 @@ def model_vs_data_figure(model_run_data,
     #    AHe_data = None
 
     if show_thermochron_data is False:
-        print('not showing thermochron data:')
+        logger.info('not showing thermochron data:')
         AFT_data = None
         AHe_data = None
 
@@ -373,19 +375,19 @@ def model_vs_data_figure(model_run_data,
         width_ratios.append(3)
 
     if VR_model_data is not None:
-        print('adding panel for VR data')
+        logger.info('adding panel for VR data')
         vr_panel_ind = ncols
         ncols += 1
         width_ratios.append(3)
 
     if AFT_data is not None:
-        print('adding panel for AFT data')
+        logger.info('adding panel for AFT data')
         aft_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
 
     if AHe_data is not None:
-        print('adding panel for AHe data')
+        logger.info('adding panel for AHe data')
         ahe_panel_ind = ncols
         ncols += 1
         width_ratios.append(4)
@@ -543,7 +545,7 @@ def model_vs_data_figure(model_run_data,
     act = active_nodes[::time_int_grid].ravel()
     ind_act = act == True
 
-    print('gridding T or salinity data vs time')
+    logger.info('gridding T or salinity data vs time')
     gridding_ok = True
     # serial 1D interpolation, failproof method, 2D interpolation fails or
     # inaccurate with strongly different x,y scales
@@ -581,7 +583,7 @@ def model_vs_data_figure(model_run_data,
                          s=10,
                          cmap=cmap)
         
-    print("node strat:", node_strat)
+    logger.info(f"node strat: {node_strat}")
 
     major_strat = [n.split('_s_')[0].split('_a_')[0] for n in node_strat]
 
@@ -598,7 +600,7 @@ def model_vs_data_figure(model_run_data,
     n_strat_units_shown = np.sum(strat_transition)
 
     if max_strat_units is not None and n_strat_units_shown > max_strat_units:
-        print('reducing number of strat units shown from %i to %i' % (n_strat_units_shown, max_strat_units))
+        logger.info('reducing number of strat units shown from %i to %i' % (n_strat_units_shown, max_strat_units))
         sint = int(np.ceil(n_strat_units_shown / max_strat_units))
 
         ind = np.where(strat_transition == True)[0]
@@ -606,10 +608,10 @@ def model_vs_data_figure(model_run_data,
         strat_transition[ind[::sint]] = True
         strat_transition[ind[-1]] = True
 
-    print('strat units shown in fig:')
+    logger.info('strat units shown in fig:')
     for i, s in enumerate(strat_transition):
         if s == True:
-            print(major_strat[i])
+            logger.info(major_strat[i])
 
     # plot provenance and burial histories
     #if (AFT_data is not None or AHe_data is not None) \
@@ -689,7 +691,7 @@ def model_vs_data_figure(model_run_data,
     if (AFT_data is not None or AHe_data is not None or show_thermochron_data is False) \
             and show_prov_ages_simple is True:
 
-        print('showing errorbar for AFT start times:')
+        logger.info('showing errorbar for AFT start times:')
 
         x = np.array(prov_ages).mean()
         xerr = np.abs(x - prov_ages[0])
@@ -1157,9 +1159,9 @@ def model_vs_data_figure(model_run_data,
             for mm in modeled_ahe_age_samples_max:
                 if np.max(mm) > thermochron_age_max:
                     thermochron_age_max = np.max(mm)
-                    print('updated thermochron max age to %.2f from modeled AHe ages' % thermochron_age_max)
+                    logger.info('updated thermochron max age to %.2f from modeled AHe ages' % thermochron_age_max)
                 else:
-                    print('modeled AHe ages max %.2f not changing thermochron max age %.2f' % (np.max(mm), thermochron_age_max))
+                    logger.info('modeled AHe ages max %.2f not changing thermochron max age %.2f' % (np.max(mm), thermochron_age_max))
 
     if max_age_thermochron_panel is not None:
         thermochron_age_max = max_age_thermochron_panel
@@ -1213,7 +1215,7 @@ def model_vs_data_figure(model_run_data,
 
     for ax in all_panels[3:]:
         # reduce number of tick labels
-        print(ax.get_xticks())
+        logger.info(ax.get_xticks())
         ax.set_xticks(ax.get_xticks()[::2])
 
     if contour_variable == 'salinity':
@@ -1279,7 +1281,7 @@ def model_vs_data_figure(model_run_data,
         p.xaxis.set_major_locator(locx)
         p.yaxis.set_major_locator(locy)
 
-    if contour_variable is 'salinity':
+    if contour_variable == 'salinity':
         cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
         cb.set_ticks(cb_ticks)
 

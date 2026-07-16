@@ -3,9 +3,12 @@
 
 '''
 
-import itertools, pdb, math
+import itertools, math
+import logging
 import numpy as np
 from numba import jit
+
+logger = logging.getLogger(__name__)
 
 
 #@jit(nopython=True)
@@ -308,12 +311,12 @@ def easyRo_slow(timeArray, tempArray, debug = False):
         #pdb.set_trace()
         
         if np.isnan(Ro[j]) == True:
-            print('!!error in vitrinite function,  no data value at time slice %s: %s' %(j, Ro[j]))
-            print('time  =  %s,  temp =  %s' %(time, T))
-            print('input time + temperature arrays:')
-            print(timeArray)
-            print(tempArray)
-            print(bla)
+            logger.error('!!error in vitrinite function,  no data value at time slice %s: %s' % (j, Ro[j]))
+            logger.info('time  =  %s,  temp =  %s' % (time, T))
+            logger.info('input time + temperature arrays:')
+            logger.info(timeArray)
+            logger.info(tempArray)
+            logger.info(bla)
     
     if debug == True:
         return Ro, sumReacted, cumulativeReacted, deltaI, I, EdivRT

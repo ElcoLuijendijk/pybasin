@@ -15,10 +15,10 @@ import os
 import argparse
 import importlib.util
 import ast
+import logging
 # from runpy import run_path
 
 
-import pdb
 import datetime
 import pickle
 import itertools
@@ -31,6 +31,10 @@ import matplotlib.pyplot as pl
 
 from multiprocessing import Pool
 
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s',
+                    stream=sys.stdout)
+logger = logging.getLogger(__name__)
+
 import lib.pybasin_lib as pybasin_lib
 import lib.pybasin_figures as pybasin_figures
 
@@ -38,7 +42,7 @@ import lib.pybasin_figures as pybasin_figures
 try:
     import lib.helium_diffusion_models as he
 except ImportError:
-    print('warning, failed to import native  U-Th/He module')
+    logger.warning('warning, failed to import native  U-Th/He module')
 
 
 # make sure multi-threading for numpy is turned off (this slows down the heat
@@ -83,8 +87,8 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
     T_rmse = np.sqrt(np.mean(T_data_well['residual']**2))
     T_gof = np.mean(T_data_well['P_fit'])
 
-    print('Temperature data:')
-    print(T_data_well)
+    logger.info('Temperature data:')
+    logger.info(T_data_well)
 
     return T_gof, T_rmse
 
@@ -300,8 +304,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
         else:
             aft_data_well.loc[sample_ix, 'age_error'] = np.nan
-            print('no model-data comparison for sample %s, '
-                  'missing age data?' % sample_ix)
+            logger.info('no model-data comparison for sample %s, missing age data?' % sample_ix)
 
     # calculate mean GOF from single grain GOFs for each sample
     aft_age_mean_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
@@ -309,10 +312,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
     if verbose is True:
 
-        print(aft_data_well[['sample', 'depth',
-                            'aft_age', 'aft_age_stderr_plus',
-                            'simulated_AFT_min', 'simulated_AFT_max',
-                            'GOF_aft_ages', 'age_error']])
+        logger.error(aft_data_well[['sample', 'depth', 'aft_age', 'aft_age_stderr_plus', 'simulated_AFT_min', 'simulated_AFT_max', 'GOF_aft_ages', 'age_error']])
 
     return (aft_age_mean_gof, aft_age_mean_error,
             single_grain_aft_ages, single_grain_aft_ages_se_min,
@@ -332,7 +332,7 @@ def model_data_comparison_he(he_samples_well, he_data,
 
     """
 
-    print('calculating GOF He data')
+    logger.info('calculating GOF He data')
 
     he_age_pdfs_all_samples = []
     he_ages_all_samples = []
@@ -516,7 +516,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
     # pybasin_params.make_model_data_fig is True:
 
     if calculate_thermochron_for_all_nodes is True:
-        print('calculating AFT ages and lengths for all n=%i nodes' % n_nodes)
+        logger.info('calculating AFT ages and lengths for all n=%i nodes' % n_nodes)
         # simulate AFT all nodes
         simulated_AFT_data =\
             pybasin_lib.simulate_aft(
@@ -587,7 +587,7 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                       active_nodes[h, active_nodes[-1]])
 
     # select prov. history for samples:
-    print('calculating AFT ages and lengths for n=%i samples' % n_aft_samples)
+    logger.info('calculating AFT ages and lengths for n=%i samples' % n_aft_samples)
     simulated_aft_data_samples =\
         pybasin_lib.simulate_aft(
             resample_t, nt_prov, n_aft_samples, time_array_bp,
@@ -650,8 +650,8 @@ def assemble_data_and_simulate_he(he_samples_well,
 
     if calculate_thermochron_for_all_nodes is True:
 
-        print('-' * 10)
-        print('calculating U-Th/He ages for all nodes')
+        logger.info('-' * 10)
+        logger.info('calculating U-Th/He ages for all nodes')
 
         minerals_nodes = [[default_he_mineral, default_he_mineral]] * n_nodes
         he_grain_radius_nodes = np.zeros((n_nodes, 2))
@@ -709,7 +709,7 @@ def assemble_data_and_simulate_he(he_samples_well,
                     Ur0_min = Ur0.min()
 
         # calculate helium ages for all nodes
-        print("starting calculation of He ages for all nodes")
+        logger.info('starting calculation of He ages for all nodes')
 
         simulated_He_data =\
             pybasin_lib.simulate_ahe(
@@ -800,7 +800,7 @@ def assemble_data_and_simulate_he(he_samples_well,
         mineral = he_data['mineral'][ind_sample].values
         minerals.append(mineral)
 
-    print('calculating He for %i samples' % n_he_samples)
+    logger.info('calculating He for %i samples' % n_he_samples)
 
     #pdb.set_trace()
 
@@ -903,9 +903,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             end_ind = np.where(time_array_bp / 1e6 == end)[0][0]
 
         else:
-            print('could not find exact start and end of '
-                  'exhumation in time array')
-            print('using closest time instead')
+            logger.info('could not find exact start and end of exhumation in time array')
+            logger.info('using closest time instead')
             start_ind = np.argmin(np.abs(time_array_bp / 1e6 - start))
             end_ind = np.argmin(np.abs(time_array_bp / 1e6 - end))
 
@@ -932,7 +931,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     if pybasin_params.use_strat_map_input is True \
             and os.path.isfile(cebs_input) is True:
 
-        print('reading model input from cebs.py')
+        logger.info('reading model input from cebs.py')
 
         # from . import cebs
         # model_results_series = cebs.present_temp_in_given_depth(
@@ -962,8 +961,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # interpolate vitrinite reflectance data
         if True in ind.values \
                 or pybasin_params.calculate_thermochron_for_all_nodes is True:
-            print('calculating vitrinite reflectance for n=%i nodes'
-                  % n_nodes)
+            logger.info('calculating vitrinite reflectance for n=%i nodes' % n_nodes)
 
             vr_nodes = pybasin_lib.calculate_vr(T_nodes,
                                                 active_nodes,
@@ -1028,7 +1026,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         if True in ind.values:
             location_has_AFT = True
         else:
-            print('no AFT data found for this location')
+            logger.info('no AFT data found for this location')
 
         (modeled_aft_age_samples,
          modeled_aft_age_samples_min,
@@ -1139,18 +1137,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     sample_depth = he_row['depth']
                     depth_diff = model_bottom - sample_depth
                     if abs(depth_diff) <= 1.0:
-                        print(f'Warning: He sample "{he_row["sample"]}" in well "{well}" is located '
-                              f'at or beyond the bottom of the model '
-                              f'(sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). '
-                              f'This sample may be excluded from the model-data comparison. '
-                              f'Consider extending the well stratigraphy slightly.')
+                        logger.warning(f'''Warning: He sample "{he_row['sample']}" in well "{well}" is located at or beyond the bottom of the model (sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). This sample may be excluded from the model-data comparison. Consider extending the well stratigraphy slightly.''')
                     elif abs(depth_diff) <= 5.0:
-                        print(f'Note: He sample "{he_row["sample"]}" in well "{well}" is close to '
-                              f'the bottom of the model '
-                              f'(sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). '
-                              f'Verify that the sample falls within the modeled depth range. '
-                              f'Small discrepancies may result from slight inaccuracies in '
-                              f'decompaction / backstripping.')
+                        logger.info(f'''Note: He sample "{he_row['sample']}" in well "{well}" is close to the bottom of the model (sample depth: {sample_depth:.1f} m, model bottom: {model_bottom:.1f} m). Verify that the sample falls within the modeled depth range. Small discrepancies may result from slight inaccuracies in decompaction / backstripping.''')
 
         decay_constant_238U = pybasin_params.decay_constant_238U
         decay_constant_235U = pybasin_params.decay_constant_235U
@@ -1334,8 +1323,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           gof_age_percentile=pybasin_params.gof_age_percentile)
 
         else:
-            print(f'Warning: simulate_He is True but no He samples found within '
-                  f'the depth range of well "{well}". He data will be skipped.')
+            logger.warning(f'Warning: simulate_He is True but no He samples found within the depth range of well "{well}". He data will be skipped.')
 
     # calculate model error salinity data
     salinity_rmse = np.nan
@@ -1376,7 +1364,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                     aft_data_well]
 
     else:
-        print('no AFT data found for this location')
+        logger.info('no AFT data found for this location')
         AFT_data = None
 
     if pybasin_params.simulate_VR is True:
@@ -1470,14 +1458,16 @@ def update_model_params_and_run_model_new(model_scenario_number,
 
         log_fn = 'log_well_%s_model_scen_%i_PID_%s.out' % (well, model_scenario_number, str(os.getpid()))
         log_path = os.path.join(log_output_dir, log_fn)
-        print('redirecting screen output to log file %s' % log_path)
+        logger.info('redirecting screen output to log file %s' % log_path)
 
         err_fn = 'error_log_well_%s_model_scen_%i_PID_%s.out' % (well, model_scenario_number, str(os.getpid()))
         err_path = os.path.join(log_output_dir, err_fn)
-        print('redirecting screen output for model errors to error log file %s' % err_path)
+        logger.info('redirecting screen output for model errors to error log file %s' % err_path)
 
         sys.stdout = open(log_path, "w")
         sys.stderr = open(err_path, "w")
+        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s',
+                            stream=sys.stdout, force=True)
 
     well_strat = well_strat_orig.copy()
 
@@ -1494,12 +1484,11 @@ def update_model_params_and_run_model_new(model_scenario_number,
                 msg += ', even though it should be updated for model sensitivity or parameter exploration '
                 msg += 'according to the ParameterRanges class. Please check if the spelling of the parameter'
 
-                print(msg)
+                logger.info(msg)
 
-                raise IndexError(msg)
+                raise AttributeError(msg)
 
-            print('updating parameter %s from %s to %s'
-                  % (model_param_name, str(getattr(pybasin_params, model_param_name)), str(scenario_parameter)))
+            logger.info('updating parameter %s from %s to %s' % (model_param_name, str(getattr(pybasin_params, model_param_name)), str(scenario_parameter)))
 
             # update model parameter
             setattr(pybasin_params, model_param_name, scenario_parameter)
@@ -1511,11 +1500,11 @@ def update_model_params_and_run_model_new(model_scenario_number,
 
     # set up array for end of exhumation, if not specified directly
     if hasattr(pybasin_params, "exhumation_durations"):
-        print('using exhumation duration and using this to calculate end of exhumation phase')
+        logger.info('using exhumation duration and using this to calculate end of exhumation phase')
         pybasin_params.exhuamtion_durations = np.array(pybasin_params.exhumation_durations)
         pybasin_params.exhumation_period_ends = pybasin_params.exhumation_period_starts \
                                                 - pybasin_params.exhumation_durations
-        print('calculated end of exhumation period: ', pybasin_params.exhumation_period_ends)
+        logger.info(f"calculated end of exhumation period:  {pybasin_params.exhumation_period_ends}")
 
     ind_nok = pybasin_params.exhumation_period_ends < 0.0
     pybasin_params.exhumation_period_ends[ind_nok] = 0.0
@@ -1549,7 +1538,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
         pybasin_params.log_tT_paths = False
 
     if hasattr(pybasin_params, "provenance_start_temp") is False:
-        print("no provenance_start_temp specified in input file, using a value of 120 degrees C")
+        logger.info('no provenance_start_temp specified in input file, using a value of 120 degrees C')
         pybasin_params.provenance_start_temp = 120.0
 
     # get values of all input parameters in pybasin_params class
@@ -1637,17 +1626,17 @@ def update_model_params_and_run_model_new(model_scenario_number,
     well_strat = well_strat_orig.copy()
 
     # screen output GOF data
-    print('')
-    print('temperature GOF = %0.2f' % T_gof)
+    logger.info('')
+    logger.info('temperature GOF = %0.2f' % T_gof)
     if pybasin_params.simulate_VR is True:
-        print('vitrinite reflectance GOF = %0.2f' % vr_gof)
+        logger.info('vitrinite reflectance GOF = %0.2f' % vr_gof)
     if pybasin_params.simulate_AFT is True:
-        print('AFT age GOF = %0.2f' % aft_age_gof)
-        print('AFT age error = %0.2f' % aft_age_error)
+        logger.info('AFT age GOF = %0.2f' % aft_age_gof)
+        logger.info('AFT age error = %0.2f' % aft_age_error)
     if pybasin_params.simulate_He is True:
-        print('He GOF = %0.2f' % he_age_gof)
-        print('He age error = %0.2f' % he_age_error)
-    print('')
+        logger.info('He GOF = %0.2f' % he_age_gof)
+        logger.info('He age error = %0.2f' % he_age_error)
+    logger.info('')
 
     return (well_number, well, model_scenario_number,
             model_run_data,
@@ -1667,7 +1656,7 @@ def check_input_data_files(input_dir, pybasin_params):
 
     """
 
-    print('checking for input files in %s' % input_dir)
+    logger.info('checking for input files in %s' % input_dir)
 
     fns = ['stratigraphy_info.csv', 'well_stratigraphy.csv', 'surface_temperature.csv',
            'lithology_properties.csv', 'temperature_data.csv']
@@ -1687,9 +1676,9 @@ def check_input_data_files(input_dir, pybasin_params):
     for fn in fns:
         if os.path.exists(os.path.join(input_dir, fn)) is False:
             msg = 'error, could not find input file %s in input directory %s' % (fn, input_dir)
-            raise IndexError(msg)
+            raise FileNotFoundError(msg)
 
-    print('found all necessary input files in %s' % input_dir)
+    logger.info('found all necessary input files in %s' % input_dir)
 
     return
 
@@ -1702,7 +1691,7 @@ def read_model_input_data(input_dir, pybasin_params):
     """
 
     # read all input data
-    print('reading input data')
+    logger.info('reading input data')
     # stratigraphy description
     strat_info = pd.read_csv(os.path.join(input_dir, 'stratigraphy_info.csv'), skip_blank_lines=True)
 
@@ -1718,7 +1707,7 @@ def read_model_input_data(input_dir, pybasin_params):
             msg += f"instead I found only the following {len(strat_info.columns)} columns: {list(strat_info.columns)}\n"
             msg += f"please check the file with a text editor to see if {required_col} is present in the header"
             msg += f"and if the column separators are consistent"
-            raise IndexError(msg)
+            raise ValueError(msg)
         
     strat_info = strat_info.set_index('strat_unit')
 
@@ -1771,16 +1760,16 @@ def read_model_input_data(input_dir, pybasin_params):
             # read U-Th/He (He) data
             he_samples = pd.read_csv(he_sample_fn, skip_blank_lines=True)
         else:
-            print('warning, could not find input file %s ' % he_sample_fn)
-            print('continuing without U-Th/He sample data')
+            logger.warning('warning, could not find input file %s ' % he_sample_fn)
+            logger.info('continuing without U-Th/He sample data')
             he_samples = None
 
         if os.path.exists(he_data_fn):
             # read apatite U-Th/He (He) data
             he_data = pd.read_csv(he_data_fn, skip_blank_lines=True)
         else:
-            print('warning, could not find input file %s ' % he_data_fn)
-            print('continuing without  U-Th/He age data')
+            logger.warning('warning, could not find input file %s ' % he_data_fn)
+            logger.info('continuing without  U-Th/He age data')
             he_data = None
 
     else:
@@ -1814,10 +1803,9 @@ def read_model_input_data(input_dir, pybasin_params):
     try:
         assert litho_props.index[:-1].tolist() == litho_cols
     except AssertionError as msg:
-        print('\nerror, something wrong with input data')
-        print('not all lithology units found in strat info file are also in the '
-              'lithology_properties file')
-        print(msg)
+        logger.error('\nerror, something wrong with input data')
+        logger.info('not all lithology units found in strat info file are also in the lithology_properties file')
+        logger.info(msg)
         raise AssertionError(msg)
 
     # check if no provenance columns left empty
@@ -1877,7 +1865,7 @@ def select_well_strat(well, well_strats):
     if len(well_strat) == 0:
         msg = 'could not find well %s in well strat file' % well
         msg += 'please check your input files and make sure each well can be found in the well stratigraphy file'
-        raise IndexError(msg)
+        raise ValueError(msg)
 
     return well_strat, well_strat_orig
 
@@ -1889,7 +1877,7 @@ def select_well_salinity_bnd(well, salinity_bnd_df):
     """
 
     if well in salinity_bnd_df.columns:
-        print('using surface salinity bnd for well %s from file' % well)
+        logger.info('using surface salinity bnd for well %s from file' % well)
         # cols = ['age_start', 'age_end', 'surface_salinity_%s' % well]
         cols = ['age_start', 'age_end', well]
         surface_salinity_well = salinity_bnd_df[cols]
@@ -1982,8 +1970,6 @@ def main():
     parser.add_argument('-w', dest='wells',
                         help='specify wells to include, separated by a comma for multiple wells')
 
-    parser.print_help()
-
     args = parser.parse_args()
 
     # check if script dir in python path
@@ -2002,12 +1988,33 @@ def main():
         scenario_name = d.split()[-1]
         model_input_subfolder = os.path.join(scriptdir, d.rstrip())
 
-    print('running model input data from folder %s' % model_input_subfolder)
+    logger.info('running model input data from folder %s' % model_input_subfolder)
+
+    if os.path.isdir(model_input_subfolder) is False:
+        msg = 'error, could not find the input directory %s' % model_input_subfolder
+        msg += '\ncheck that the directory name is spelled correctly and that you are running pybasin.py '
+        msg += 'from the pybasin source code directory'
+        raise FileNotFoundError(msg)
 
     mpath = os.path.join(model_input_subfolder, 'pybasin_params.py')
 
+    if os.path.isfile(mpath) is False:
+        msg = 'error, could not find a pybasin_params.py file in the input directory %s' % model_input_subfolder
+        msg += '\nevery pybasin input directory needs a pybasin_params.py file, see the example datasets '
+        msg += 'in input_data/example_dataset_1 or input_data/example_dataset_2 for examples'
+        raise FileNotFoundError(msg)
+
+    # add the input folder to sys.path so that 'pybasin_params' can be
+    # located by name, both here and by worker processes that unpickle
+    # ModelParameters instances during parallel model runs (multiprocessing
+    # spawn propagates sys.path to child processes, which need to be able
+    # to re-import the module the class was defined in)
+    if model_input_subfolder not in sys.path:
+        sys.path.append(model_input_subfolder)
+
     spec = importlib.util.spec_from_file_location('pybasin_params', mpath)
     param_module = importlib.util.module_from_spec(spec)
+    sys.modules['pybasin_params'] = param_module
     spec.loader.exec_module(param_module)
 
     Parameters_original = param_module.ModelParameters
@@ -2029,14 +2036,12 @@ def main():
     # pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
     if (Parameters.save_model_run_data is True
             and os.path.exists(datafile_output_dir) is False):
-        print('creating directory %s to store model result datafiles'
-               % datafile_output_dir)
+        logger.info('creating directory %s to store model result datafiles' % datafile_output_dir)
         os.mkdir(datafile_output_dir)
 
     fig_output_dir = output_dir
     if os.path.exists(fig_output_dir) is False:
-        print('creating directory %s to store model-data comparison figures' \
-            % fig_output_dir)
+        logger.info('creating directory %s to store model-data comparison figures' % fig_output_dir)
         os.mkdir(fig_output_dir)
 
     today = datetime.datetime.now()
@@ -2056,10 +2061,10 @@ def main():
 
     model_scenario_param_names, model_scenario_param_list = setup_model_scenarios_new(ParameterRanges)
 
-    if len(model_scenario_param_names) is 0:
+    if len(model_scenario_param_names) == 0:
         model_scenario_param_names = [None]
         model_scenario_param_list = [[None]]
-        print('single model run, setting up parameter set with base case values')
+        logger.info('single model run, setting up parameter set with base case values')
 
     # check sys arguments to run a particular well
     if args.wells is not None:
@@ -2068,7 +2073,7 @@ def main():
     else:
         wells = Parameters.wells
 
-    print('running the following wells: ', wells)
+    logger.info(f"running the following wells:  {wells}")
 
     n_scenarios = len(wells) * len(model_scenario_param_list)
 
@@ -2097,8 +2102,7 @@ def main():
 
     if ParameterRanges.parallel_model_runs is True:
         pool = Pool(processes=ParameterRanges.max_number_of_processes)
-        print('initialized parallel model runs with max %i simultaneous processes'
-              % ParameterRanges.max_number_of_processes)
+        logger.info('initialized parallel model runs with max %i simultaneous processes' % ParameterRanges.max_number_of_processes)
 
         processes = []
         done_processing = []
@@ -2110,9 +2114,8 @@ def main():
     #######################
     for well_number, well in enumerate(wells):
 
-        print('x' * 20)
-        print('well %s, %i/%i' % (well, well_number + 1,
-                                  len(wells)))
+        logger.info('x' * 20)
+        logger.info('well %s, %i/%i' % (well, well_number + 1, len(wells)))
 
         if np.any(well_strats['well'] == well) == False:
             raise IOError('error, could not find well %s in well strat file in directory %s' % (well, input_dir))
@@ -2154,9 +2157,9 @@ def main():
         for well_scenario_no, model_scenario_params \
                 in enumerate(model_scenario_param_list):
 
-            print('-' * 20)
-            print('setting up model scenario %i / %i' % (model_scenario_number + 1, len(model_scenario_param_list)))
-            print('-' * 20)
+            logger.info('-' * 20)
+            logger.info('setting up model scenario %i / %i' % (model_scenario_number + 1, len(model_scenario_param_list)))
+            logger.info('-' * 20)
 
             # restore original parameter values
             Parameters = Parameters_original()
@@ -2179,9 +2182,9 @@ def main():
                 tekst += 'time per scenario = %s\n' \
                          % datetime.timedelta(seconds=time_per_scenario)
 
-                print(tekst)
+                logger.info(tekst)
 
-                print('writing estimated runtime to runtime.txt')
+                logger.info('writing estimated runtime to runtime.txt')
 
                 fout = open('runtime_%s.txt' % well, 'w')
                 fout.write(tekst)
@@ -2281,9 +2284,9 @@ def main():
                         #  loop instead and wrap output in a seperate function
                         if model_result_ready is False and p.ready() is True and done_processing[ip] is False:
 
-                            print('-' * 20)
-                            print('process %i is done' % ip)
-                            print('-' * 20)
+                            logger.info('-' * 20)
+                            logger.info('process %i is done' % ip)
+                            logger.info('-' * 20)
 
                             p_result = p.get()
 
@@ -2342,7 +2345,7 @@ def main():
                                       'model_data_%s_%s_ms%i.pck'
                                       % (well_store, today_str,
                                          model_scenario_number_store))
-                        print('saving all data for model run as %s' % fn)
+                        logger.info('saving all data for model run as %s' % fn)
                         fout = open(fn, 'wb')
                         pickle.dump(model_run_data_fig, fout)
                         fout.close()
@@ -2359,7 +2362,7 @@ def main():
                         fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i.csv'
                                           % (today_str, well_txt,
                                              n_scenarios))
-                        print('saving model results .csv file %s' % fn)
+                        logger.info('saving model results .csv file %s' % fn)
                         model_results_df.to_csv(fn, index_label='model_scenario_number')
 
                     ####################################
@@ -2409,7 +2412,7 @@ def main():
                                           % (well_store, today_str,
                                              model_scenario_number_store))
 
-                        print('saving time-temperature paths to %s' % fn)
+                        logger.info('saving time-temperature paths to %s' % fn)
                         df_tt2.to_csv(fn, index_label='timestep')
 
                         # salinity data:
@@ -2441,7 +2444,7 @@ def main():
                             fn = os.path.join(csv_output_dir,
                                               'solute_flux_data_%s_%s_ms%i.csv'
                                               % (well_store, today_str, n_scenarios))
-                            print('saving solute flux data to %s' % fn)
+                            logger.info('saving solute flux data to %s' % fn)
                             dfqs.to_csv(fn, index=False)
 
                         ## VR and temperature
@@ -2470,13 +2473,13 @@ def main():
                                 # save depth vs T and VR data
                                 fn = os.path.join(csv_output_dir, 'modeled_depth_T_and_VR_%s_%s_ms%i.csv'
                                                   % (well_store, today_str, model_scenario_number_store))
-                                print('saving depth, temperature and VR data to %s' % fn)
+                                logger.info('saving depth, temperature and VR data to %s' % fn)
                                 dfc.to_csv(fn, index=False)
 
                                 # save depth vs T and VR data
                                 fn = os.path.join(csv_output_dir, 'model_data_comparison_VR_%s_%s_ms%i.csv'
                                                   % (well_store, today_str, model_scenario_number_store))
-                                print('saving depth, temperature and VR data to %s' % fn)
+                                logger.info('saving depth, temperature and VR data to %s' % fn)
                                 vr_data_well.to_csv(fn, index=False)
 
                         # AFT data:
@@ -2542,7 +2545,7 @@ def main():
                                               'aft_sample_time_temp_%s_%s_ms%i.csv'
                                               % (well_store, today_str,
                                                  model_scenario_number_store))
-                            print('saving time-temperature paths AFT samples to %s' % fn)
+                            logger.info('saving time-temperature paths AFT samples to %s' % fn)
                             df_tt_aft.to_csv(fn, index=False)
 
                             ###################################################
@@ -2561,7 +2564,7 @@ def main():
                                               'aft_model_vs_data_%s_%s_ms%i.csv'
                                               % (well_store, today_str,
                                                  model_scenario_number_store))
-                            print('saving modeled AFT data for samples to %s' % fn)
+                            logger.info('saving modeled AFT data for samples to %s' % fn)
                             # df_aft.to_csv(fn)
                             aft_data_well.to_csv(fn)
 
@@ -2591,7 +2594,7 @@ def main():
                                                   'he_model_vs_data_%s_%s_ms%i.csv'
                                                   % (well_store, today_str,
                                                      model_scenario_number_store))
-                                print('saving modeled  U-Th/He data to %s' % fn)
+                                logger.info('saving modeled  U-Th/He data to %s' % fn)
                                 he_data_samples.to_csv(fn)
 
                     #############################
@@ -2621,7 +2624,7 @@ def main():
                                               % (well_store, today_str,
                                                  model_scenario_number_store,
                                                  fa))
-                                print('saving model-data comparison figure %s' % fn)
+                                logger.info('saving model-data comparison figure %s' % fn)
                                 fig.savefig(fn, dpi=200)
 
                             pl.clf()
@@ -2631,7 +2634,7 @@ def main():
                                               % (well_store, today_str,
                                                  model_scenario_number_store,
                                                  Parameters.fig_adj))
-                            print('saving model-data comparison figure %s' % fn)
+                            logger.info('saving model-data comparison figure %s' % fn)
                             fig.savefig(fn, dpi=200)
                             pl.clf()
 
@@ -2655,7 +2658,7 @@ def main():
                     keep_on_processing = False
 
             model_scenario_number += 1
-        print('done with all model scenarios')
+        logger.info('done with all model scenarios')
 
         # creating separate columns for exhumation rates and heat flow
         cols_to_separate = ['exhumed_thicknesses']
@@ -2672,7 +2675,7 @@ def main():
                 for new_col_name, new_col_value in zip(new_col_names, new_cols_a.T):
                     model_results_df[new_col_name] = new_col_value
             except:
-                print('failed to separate column %s in model output dataframe / csv file' % col)
+                logger.info('failed to separate column %s in model output dataframe / csv file' % col)
 
         # saving model results to a .csv file
         if wells[0] == wells[-1]:
@@ -2682,10 +2685,10 @@ def main():
         fn = os.path.join(output_dir, 'model_results_%s_%s_ms0-%i_final.csv'
                           % (today_str, well_txt,
                              n_scenarios))
-        print('saving model results .csv file %s' % fn)
+        logger.info('saving model results .csv file %s' % fn)
         model_results_df.to_csv(fn, index_label='model_scenario_number')
 
-    print('done')
+    logger.info('done')
 
 
 if __name__ == '__main__':

@@ -12,32 +12,32 @@ elco.luijendijk at geo.uni-goettingen.de
 
 import math
 import sys
-import pdb
 import itertools
+import logging
 import numpy as np
 #from pylab import normpdf
 import scipy.stats
 from numba import jit
 
+logger = logging.getLogger(__name__)
 
-# import fortran module 
+
+# import fortran module
 try:
     import calculate_reduced_AFT_lengths
-    print('import fortran annealing module ok')
+    logger.info('import fortran annealing module ok')
 except:
     try:
         import lib.calculate_reduced_AFT_lengths as calculate_reduced_AFT_lengths
-        print('import fortran annealing module ok')
+        logger.info('import fortran annealing module ok')
     except ImportError as e:
-        print('-' * 20)
-        print(e)
-        print('failed to import fortran annealing module')
-        print('use slower python implementation of AFT annealing module instead')
-        print('compile the fortran module by running the following command ' \
-              'in the source directory of this module:')
-        print('f2py -c calculate_reduced_AFT_lengths.f90 ' \
-              '-m calculate_reduced_AFT_lengths')
-        print('-' * 20)
+        logger.info('-' * 20)
+        logger.info(e)
+        logger.info('failed to import fortran annealing module')
+        logger.info('use slower python implementation of AFT annealing module instead')
+        logger.info('compile the fortran module by running the following command in the source directory of this module:')
+        logger.info('f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths')
+        logger.info('-' * 20)
 
 @jit(nopython=True)
 def Cl_wt_fraction_to_APFU(Cl_wtfract):
@@ -575,9 +575,8 @@ def resample_time_temp_input(timesteps, temperature, max_temp_change=3.5):
         
         counter += 1
         if counter > 1000:
-            print('error in temperature resampling function')
-            print('changes in temperature too high')
-            pdb.set_trace()
+            logger.error('error in temperature resampling function')
+            logger.info('changes in temperature too high')
     
     return time_new, temperature_new
 
@@ -704,11 +703,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     
     ####################################################################
     if verbose is True:
-        print('-' * 20)
-        print('T-t path:')
-        print('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f'\
-            % (timesteps.max(), temperature_input.mean(),
-               temperature_input.min(), temperature_input.max()))
+        logger.info('-' * 20)
+        logger.info('T-t path:')
+        logger.info('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f' % (timesteps.max(), temperature_input.mean(), temperature_input.min(), temperature_input.max()))
     
     # convert temperature units from degr. C to Kelvin:
     temperature = temperature_input + 273.15
@@ -719,7 +716,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if surpress_resampling is False:
 
         if verbose is True:
-            print('resampling time steps')
+            logger.info('resampling time steps')
 
         timesteps, temperature = resample_time_temp_input(timesteps,
                                                           temperature)
@@ -745,7 +742,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     # and c-axis non-corrected length (r_cmod):
     ###########################################################
     if verbose is True:
-        print('calculating reduced track lengths')
+        logger.info('calculating reduced track lengths')
     
     # get duration of each timestep in seconds
     dts = (timesteps[1:] - timesteps[:-1]) * Myr
@@ -753,7 +750,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     
     # take midpoint values of temperature array:
     if verbose is True:
-        print('taking midpoint values of temperature input array')
+        logger.info('taking midpoint values of temperature input array')
     temperature = (temperature[1:] + temperature[:-1]) / 2.0
     
     # get annealing kinetics:
@@ -762,24 +759,23 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
     else:
         if verbose is True:
-            print('using rmr0 as kinetic parameter')
+            logger.info('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         if kappa is None:
             kappa = 1.04 - rmr0
 
     if verbose is True:
-        print('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
+        logger.info('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
 
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
-        print('!! warning, rmr0 lower than minimum')
-        print('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
-        print('!! setting rmr0 to %0.3f' % rmr0_min)
+        logger.warning('!! warning, rmr0 lower than minimum')
+        logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
+        logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
         kappa = 1.04 - rmr0
     elif rmr0 > rmr0_max:
-        print('!! warning, rmr0 value exceeds most resistant apatite in ' \
-              'Carlson (1999) dataset')
-        print('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
+        logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
+        logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
         kappa = 1.04 - rmr0
         
@@ -787,9 +783,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
-        if annealing_eq is 'FA':
+        if annealing_eq == 'FA':
             annealing_eq_f90 = 1
-        elif annealing_eq is 'FC':
+        elif annealing_eq == 'FC':
             annealing_eq_f90 = 2
 
         try:
@@ -812,7 +808,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
         except NameError:
             if verbose is True:
-                print('use python reduced track length function instead of fortran')
+                logger.info('use python reduced track length function instead of fortran')
             r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                      C0=C0, C1=C1, C2=C2, C3=C3,
                                                      alpha=alpha)
@@ -825,7 +821,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
 
     else:
         if verbose is True:
-            print('use python reduced track length function instead of fortran')
+            logger.info('use python reduced track length function instead of fortran')
         # python reduced track length function:
         r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                  C0=C0, C1=C1, C2=C2, C3=C3,
@@ -838,7 +834,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         rc = rcp
 
     if verbose is True:
-        print('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
+        logger.info('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
 
     ##########################################################
     # calculate weighting factor to correct for uranium decay 
@@ -848,8 +844,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     w = correct_for_uranium_decay(time_Ma)    
     
     if verbose is True:
-        print('w mean, min, max %0.2e, %0.2e, %0.2e'\
-            % (w.mean(), w.min(), w.max()))
+        logger.info('w mean, min, max %0.2e, %0.2e, %0.2e' % (w.mean(), w.min(), w.max()))
         
     ###################################################
     # calculate observation frequency:
@@ -857,9 +852,8 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     rho = calculate_normalized_density(rc)
     
     if verbose is True:
-        print('calculated observation frequency')
-        print('rho mean, min, max %0.2e, %0.2e, %0.2e'\
-            % (rho.mean(), rho.min(), rho.max()))
+        logger.info('calculated observation frequency')
+        logger.info('rho mean, min, max %0.2e, %0.2e, %0.2e' % (rho.mean(), rho.min(), rho.max()))
     
     ###########################################
     # set initial track lengths
@@ -871,7 +865,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                                       apply_c_axis_correction,
                                       method=method)
     if verbose is True:
-        print('initial track length %0.2f' % l0)
+        logger.info('initial track length %0.2f' % l0)
     
     #################################
     # calculate track lengths
@@ -893,7 +887,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     # calculate probability density function
     #######################################
     if verbose is True:
-        print('start calculation of pdf of track lengths:')
+        logger.info('start calculation of pdf of track lengths:')
     track_ln_prob = np.zeros((nsteps, int(20 / binsize)))
     bins_ = np.arange(0, 20, binsize)
     for i in range(nsteps):
@@ -908,19 +902,19 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     
     # sum probability density,  and normalize
     if verbose is True:
-        print('sum probability density,  and normalize')
+        logger.info('sum probability density,  and normalize')
     track_length_pdf = np.zeros((int(20 / binsize)))
     for j in range(0, int(20 / binsize)):
         track_length_pdf[j] = track_ln_prob[:, j].sum()
     track_length_pdf = track_length_pdf/track_length_pdf[:].sum()
     if verbose is True:
-        print('done calculating probability density track lengths')
+        logger.info('done calculating probability density track lengths')
         
     ####################################################################
     # equation 15+16,  mean and standard deviation of model track length
     ####################################################################
     if verbose is True:
-        print('calculate mean and std of track length from PDF')
+        logger.info('calculate mean and std of track length from PDF')
     l_mean = 0
     for j in range(0, int(20 / binsize)):
         l_mean += (((j * binsize)+(0.5 * binsize)) * track_length_pdf[j])
@@ -931,12 +925,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     l_median = (track_length_pdf[:].argmax() * binsize)
 
     if verbose is True:
-        print('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f'\
-            % (l_mean, l_mean_std, l_median))
+        logger.info('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f' % (l_mean, l_mean_std, l_median))
     if np.isnan(l_mean) is True:
-        print('warning, track length calculation failed')
-        if verbose is True:
-            pdb.set_trace()
+        logger.warning('warning, track length calculation failed')
     
     ###################################################
     # calculate observation frequency:
@@ -956,11 +947,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     rho_age = calculate_normalized_density(rc_mid) * w
     
     if verbose is True:
-        print('dt mean, min, max %0.2e, %0.2e, %0.2e' \
-              % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
-        print('rho_age mean, min, max %0.2e, %0.2e, %0.2e'\
-              % (rho_age.mean(), rho_age.min(), rho_age.max()))
-        print('dt sum = %0.2f' % (dt.sum() / Myr))
+        logger.info('dt mean, min, max %0.2e, %0.2e, %0.2e' % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
+        logger.info('rho_age mean, min, max %0.2e, %0.2e, %0.2e' % (rho_age.mean(), rho_age.min(), rho_age.max()))
+        logger.info('dt sum = %0.2f' % (dt.sum() / Myr))
 
     aft_age_uncorrected = 0
     for i in range(nsteps):
@@ -971,8 +960,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     aft_age_myr = aft_age_corrected / Myr
 
     if verbose is True:
-        print('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s'\
-            % (aft_age_myr, rho_age.mean(), rho_s))
+        logger.info('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s' % (aft_age_myr, rho_age.mean(), rho_s))
 
     if aft_age_corrected == 0:
         track_length_pdf[:] = 0
@@ -1023,11 +1011,9 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
 
     if verbose is True:
-        print('-' * 20)
-        print('T-t path:')
-        print('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f'
-              % (timesteps.max(), temperature_input.mean(),
-                 temperature_input.min(), temperature_input.max()))
+        logger.info('-' * 20)
+        logger.info('T-t path:')
+        logger.info('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f' % (timesteps.max(), temperature_input.mean(), temperature_input.min(), temperature_input.max()))
 
     # convert temperature units from degr. C to Kelvin:
     temperature = temperature_input + 273.15
@@ -1037,7 +1023,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     ##########################################################
     if surpress_resampling is False:
         if verbose is True:
-            print('resampling time steps')
+            logger.info('resampling time steps')
         timesteps, temperature = resample_time_temp_input(timesteps, temperature)
 
     delta_T = temperature[1:] - temperature[:-1]
@@ -1054,7 +1040,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     r_standard = 0.893
 
     if verbose is True:
-        print('calculating reduced track lengths')
+        logger.info('calculating reduced track lengths')
 
     # get duration of each timestep in seconds
     dts = (timesteps[1:] - timesteps[:-1]) * Myr
@@ -1062,7 +1048,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
 
     # take midpoint values of temperature array:
     if verbose is True:
-        print('taking midpoint values of temperature input array')
+        logger.info('taking midpoint values of temperature input array')
     temperature = (temperature[1:] + temperature[:-1]) / 2.0
 
     # get annealing kinetics:
@@ -1071,31 +1057,30 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
             calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
     else:
         if verbose is True:
-            print('using rmr0 as kinetic parameter')
+            logger.info('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         if kappa is None:
             kappa = 1.04 - rmr0
 
     if verbose is True:
-        print('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
+        logger.info('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
 
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
-        print('!! warning, rmr0 lower than minimum')
-        print('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
-        print('!! setting rmr0 to %0.3f' % rmr0_min)
+        logger.warning('!! warning, rmr0 lower than minimum')
+        logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
+        logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
         kappa = 1.04 - rmr0
     elif rmr0 > rmr0_max:
-        print('!! warning, rmr0 value exceeds most resistant apatite in '
-              'Carlson (1999) dataset')
-        print('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
+        logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
+        logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
         kappa = 1.04 - rmr0
 
     if use_fortran_algorithm is True:
-        if annealing_eq is 'FA':
+        if annealing_eq == 'FA':
             annealing_eq_f90 = 1
-        elif annealing_eq is 'FC':
+        elif annealing_eq == 'FC':
             annealing_eq_f90 = 2
 
         try:
@@ -1112,7 +1097,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
 
         except NameError:
             if verbose is True:
-                print('use vectorized python reduced track length function')
+                logger.info('use vectorized python reduced track length function')
             # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
             r_cmod = calculate_reduced_track_lengths_vectorized(
                 dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
@@ -1124,7 +1109,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
 
     else:
         if verbose is True:
-            print('use vectorized python reduced track length function')
+            logger.info('use vectorized python reduced track length function')
         # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
         r_cmod = calculate_reduced_track_lengths_vectorized(
             dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
@@ -1135,7 +1120,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
         rc = rcp
 
     if verbose is True:
-        print('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
+        logger.info('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
 
     ##########################################################
     # calculate weighting factor to correct for uranium decay
@@ -1144,8 +1129,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     w = correct_for_uranium_decay(time_Ma)
 
     if verbose is True:
-        print('w mean, min, max %0.2e, %0.2e, %0.2e'
-              % (w.mean(), w.min(), w.max()))
+        logger.info('w mean, min, max %0.2e, %0.2e, %0.2e' % (w.mean(), w.min(), w.max()))
 
     ###################################################
     # calculate observation frequency:
@@ -1153,9 +1137,8 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     rho = calculate_normalized_density(rc)
 
     if verbose is True:
-        print('calculated observation frequency')
-        print('rho mean, min, max %0.2e, %0.2e, %0.2e'
-              % (rho.mean(), rho.min(), rho.max()))
+        logger.info('calculated observation frequency')
+        logger.info('rho mean, min, max %0.2e, %0.2e, %0.2e' % (rho.mean(), rho.min(), rho.max()))
 
     ###########################################
     # set initial track lengths
@@ -1167,7 +1150,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
                                       apply_c_axis_correction,
                                       method=method)
     if verbose is True:
-        print('initial track length %0.2f' % l0)
+        logger.info('initial track length %0.2f' % l0)
 
     #################################
     # calculate track lengths
@@ -1188,7 +1171,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     # calculate probability density function  (Item 5 — vectorized)
     #######################################
     if verbose is True:
-        print('start calculation of pdf of track lengths:')
+        logger.info('start calculation of pdf of track lengths:')
 
     nbins = int(20 / binsize)
     bins_ = np.arange(0, 20, binsize)               # shape (nbins,)
@@ -1209,13 +1192,13 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     track_length_pdf = track_length_pdf / track_length_pdf.sum()
 
     if verbose is True:
-        print('done calculating probability density track lengths')
+        logger.info('done calculating probability density track lengths')
 
     ####################################################################
     # mean and standard deviation of model track length  (Item 5 — vectorized)
     ####################################################################
     if verbose is True:
-        print('calculate mean and std of track length from PDF')
+        logger.info('calculate mean and std of track length from PDF')
 
     # bin centres: j*binsize + 0.5*binsize
     bin_centers = bins_ + 0.5 * binsize             # shape (nbins,)
@@ -1224,10 +1207,9 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     l_median = track_length_pdf.argmax() * binsize
 
     if verbose is True:
-        print('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f'
-              % (l_mean, l_mean_std, l_median))
+        logger.info('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f' % (l_mean, l_mean_std, l_median))
     if np.isnan(l_mean) is True:
-        print('warning, track length calculation failed')
+        logger.warning('warning, track length calculation failed')
 
     ###################################################
     # calculate observation frequency:
@@ -1245,19 +1227,16 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     rho_age = calculate_normalized_density(rc_mid) * w
 
     if verbose is True:
-        print('dt mean, min, max %0.2e, %0.2e, %0.2e'
-              % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
-        print('rho_age mean, min, max %0.2e, %0.2e, %0.2e'
-              % (rho_age.mean(), rho_age.min(), rho_age.max()))
-        print('dt sum = %0.2f' % (dt.sum() / Myr))
+        logger.info('dt mean, min, max %0.2e, %0.2e, %0.2e' % (dt.mean() / Myr, dt.min() / Myr, dt.max() / Myr))
+        logger.info('rho_age mean, min, max %0.2e, %0.2e, %0.2e' % (rho_age.mean(), rho_age.min(), rho_age.max()))
+        logger.info('dt sum = %0.2f' % (dt.sum() / Myr))
 
     aft_age_uncorrected = np.dot(dt, rho_age)
     aft_age_corrected = aft_age_uncorrected / rho_s
     aft_age_myr = aft_age_corrected / Myr
 
     if verbose is True:
-        print('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s'
-              % (aft_age_myr, rho_age.mean(), rho_s))
+        logger.info('AFT age = %0.2f My, avg rho = %0.3f, rho standard = %s' % (aft_age_myr, rho_age.mean(), rho_s))
 
     if aft_age_corrected == 0:
         track_length_pdf[:] = 0
