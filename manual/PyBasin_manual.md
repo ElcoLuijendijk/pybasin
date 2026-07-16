@@ -54,6 +54,7 @@ PyBasin requires the following Python packages, all of which are installed autom
 - Scipy: <https://www.scipy.org/>
 - Matplotlib: <https://matplotlib.org/>
 - Numba: <https://numba.pydata.org/>
+- Xarray: <https://xarray.dev/>
 
 ## Running single or multiple models
 
