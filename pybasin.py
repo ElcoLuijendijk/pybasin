@@ -485,7 +485,7 @@ def model_data_comparison_salinity(salinity_data_well,
         np.sqrt(np.mean(salinity_data_well['residual']**2))
     salinity_gof = np.mean(salinity_data_well['P_fit'])
 
-    return salinity_gof
+    return salinity_gof, salinity_rmse
 
 
 def assemble_data_and_simulate_aft(resample_t, nt_prov,
@@ -873,9 +873,9 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          z_nodes, T_nodes, active_nodes,
          n_nodes, n_cells,
          node_strat, node_age,
-         prov_start_nodes, prov_end_nodes,
+         prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes,
          C_nodes, surface_salinity_array,
-         salinity_lwr_bnd, Dw, q_solute_bottom, q_solute_top] = \
+         salinity_lwr_bnd, Dw, q_solute_top, q_solute_bottom] = \
             model_result_vars
 
     # find out if exhumation end has changed
@@ -1336,7 +1336,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         salinity_data_well = salinity_data[ind]
 
         if True in ind.values:
-            salinity_gof = model_data_comparison_salinity(
+            salinity_gof, salinity_rmse = model_data_comparison_salinity(
                 salinity_data_well, z_nodes, C_nodes, active_nodes)
 
     # assemble output data
@@ -1416,7 +1416,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     return (model_run_data,
             T_model_data, T_gof,
-            C_data,
+            C_data, salinity_gof, salinity_rmse,
             vr_gof, vr_rmse, VR_data,
             aft_age_gof, aft_age_error, AFT_data,
             he_age_gof, he_age_error,
@@ -1566,7 +1566,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
     # run model:
     (model_run_data,
      T_model_data, T_gof,
-     C_data,
+     C_data, salinity_gof, salinity_rmse,
      vr_gof, vr_rmse, VR_model_data,
      aft_age_gof, aft_age_error, AFT_data,
      he_age_gof, he_age_error,
@@ -1599,6 +1599,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
         if pybasin_params.simulate_He is True:
             model_results_series['he_gof'] = he_age_gof
             model_results_series['he_error'] = he_age_error
+        if pybasin_params.simulate_salinity is True:
+            model_results_series['salinity_gof'] = salinity_gof
+            model_results_series['salinity_rmse'] = salinity_rmse
 
         # calculate cumulative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
@@ -1637,6 +1640,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
     if pybasin_params.simulate_He is True:
         logger.info('He GOF = %0.2f' % he_age_gof)
         logger.info('He age error = %0.2f' % he_age_error)
+    if pybasin_params.simulate_salinity is True:
+        logger.info('salinity GOF = %0.2f' % salinity_gof)
+        logger.info('salinity RMSE = %0.4f' % salinity_rmse)
     logger.info('')
 
     return (well_number, well, model_scenario_number,

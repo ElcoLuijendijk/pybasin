@@ -2112,18 +2112,19 @@ def equations_of_state_batzle1992(P, T, C):
     return rho_b
 
 
-def calculate_diffusion_coeff(T_degC, C):
+def calculate_diffusion_coeff(T_degC, C, D_ref = 2.03e-9):
     """
      taken from paper written by (Simpson and Carr, 1958)
     :param T_degC: Temperature in degree
     :param C: Concentration
+    :param D_ref: Reference diffusion coefficient
     :return:D_cal:calculated diffusion coefficient in the new temperature
     """
 
     C_ppm = C / 1.0e6
 
     T_cal = T_degC + 273.15
-    D_ref = 2.03 * 10 ** -9
+    #D_ref = 2.03 * 10 ** -9
     T_ref = 298.15
     viscosity_ref = 0.890
 
