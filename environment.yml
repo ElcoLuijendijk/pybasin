@@ -10,6 +10,8 @@
 # numba is imported by the vitrinite reflectance and thermochronology modules
 # (lib/easyRo.py, lib/AFTannealingLib.py and lib/helium_diffusion_models.py)
 # and is therefore required.
+# xarray is used by lib/pybasin_io.py to package the burial and thermal
+# history grid saved in each model run's .pck output file.
 #
 # Versions below are pinned to the combination verified against the test
 # suite (tests/test_vectorized.py and tests/test_example_datasets.py). If
@@ -29,6 +31,7 @@ dependencies:
   - pandas=2.2.3
   - matplotlib=3.10.1
   - numba=0.61.2
+  - xarray=2026.4.0
 
   # optional, provides a fortran compiler to build the faster fission track
   # annealing module with f2py (run f2py in the lib subdirectory)
