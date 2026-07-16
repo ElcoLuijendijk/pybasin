@@ -10,6 +10,11 @@
 # numba is imported by the vitrinite reflectance and thermochronology modules
 # (lib/easyRo.py, lib/AFTannealingLib.py and lib/helium_diffusion_models.py)
 # and is therefore required.
+#
+# Versions below are pinned to the combination verified against the test
+# suite (tests/test_vectorized.py and tests/test_example_datasets.py). If
+# conda-forge cannot resolve an exact pin on your platform, relax it to a
+# minimum version bound (e.g. numpy>=2.2) instead of removing the pin.
 
 name: pybasin
 
@@ -18,19 +23,19 @@ channels:
 
 dependencies:
   # core runtime requirements
-  - python>=3.9
-  - numpy
-  - scipy
-  - pandas
-  - matplotlib
-  - numba
+  - python=3.13
+  - numpy=2.2.4
+  - scipy=1.15.2
+  - pandas=2.2.3
+  - matplotlib=3.10.1
+  - numba=0.61.2
 
   # optional, provides a fortran compiler to build the faster fission track
   # annealing module with f2py (run f2py in the lib subdirectory)
   - fortran-compiler
 
   # optional, needed to run the test suite
-  - pytest
+  - pytest=9.0.2
 
   # optional, needed to run the jupyter notebooks such as the heat flow
   # benchmark in the tests directory
