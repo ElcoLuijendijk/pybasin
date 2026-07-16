@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "PyBasin: Numerical model of basin history, heat flow and thermochronology"
+authors:
+  - family-names: Luijendijk
+    given-names: Elco
+    email: elco.luijendijk@uib.no
+version: 0.91-alpha
+date-released: 2020-11-08
+doi: 10.5281/zenodo.4263427
+url: "https://github.com/ElcoLuijendijk/pybasin"
+repository-code: "https://github.com/ElcoLuijendijk/pybasin"
+license: LGPL-3.0-only
+preferred-citation:
+  type: article
+  title: "Reconstructing the Late Cretaceous inversion of the Roer Valley Graben (southern Netherlands) using a new model that integrates burial and provenance history with fission track thermochronology"
+  authors:
+    - family-names: Luijendijk
+      given-names: Elco
+    - family-names: "Van Balen"
+      given-names: R.T.
+    - family-names: "Ter Voorde"
+      given-names: M.
+    - family-names: Andriessen
+      given-names: P.A.M.
+  journal: "Journal of Geophysical Research"
+  volume: 116
+  issue: B6
+  year: 2011
+  doi: 10.1029/2010JB008071
