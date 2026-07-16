@@ -40,6 +40,7 @@ PyBasin requires the following Python packages:
 - [Scipy](https://www.scipy.org/)
 - [Matplotlib](https://matplotlib.org/)
 - [Numba](https://numba.pydata.org/)
+- [Xarray](https://xarray.dev/)
 
 The easiest way to install all required packages is to use the included [environment.yml](environment.yml) file with conda or miniconda:
 
