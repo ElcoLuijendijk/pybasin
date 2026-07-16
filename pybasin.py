@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 import lib.pybasin_lib as pybasin_lib
 import lib.pybasin_figures as pybasin_figures
+import lib.pybasin_io as pybasin_io
 
 # helium diffusion algortihm by Meesters and Dunai (2003)
 try:
@@ -2314,14 +2315,6 @@ def main():
                 else:
                     # process results of a single model run
 
-                    model_run_data_fig = list(model_run_data)
-
-                    model_run_data_fig.append(T_model_data)
-                    model_run_data_fig.append(C_data)
-                    model_run_data_fig.append(VR_model_data)
-                    model_run_data_fig.append(AFT_data)
-                    model_run_data_fig.append(He_model_data)
-
                     today = datetime.datetime.now()
                     today_str = '%i-%i-%i' % (today.day, today.month, today.year)
 
@@ -2330,6 +2323,11 @@ def main():
                      surface_temp_array, basal_hf_array,
                      z_nodes, active_nodes, T_nodes,
                      node_strat, node_age) = model_run_data
+
+                    model_run_data_fig = pybasin_io.build_model_run_data(
+                        time_array_bp, surface_temp_array, basal_hf_array,
+                        z_nodes, active_nodes, T_nodes, node_strat, node_age,
+                        T_model_data, C_data, VR_model_data, AFT_data, He_model_data)
 
                     # l = len(z_nodes[-1, active_nodes[-1]]) - 1
                     # dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \

@@ -18,6 +18,8 @@ import matplotlib.patches as mpatches
 from matplotlib import ticker
 import matplotlib
 
+from . import pybasin_io
+
 logger = logging.getLogger(__name__)
 
 
@@ -198,79 +200,108 @@ def model_vs_data_figure(model_run_data,
     :return:
     """
 
-    [time_array_bp,
-     surface_temp_array, basal_hf_array,
-     z_nodes, active_nodes, T_nodes,
-     node_strat, node_age,
-     T_data, C_data, VR_model_data, AFT_data, AHe_data] = \
-        model_run_data
+    # accept either the current named dict/xarray output format or the
+    # older plain positional list format (older .pck files); normalize
+    # both to the same named format before unpacking
+    normalized = pybasin_io.normalize_model_run_data(model_run_data)
 
+    grid = normalized['grid']
+    time_array_bp = grid['time'].values
+    surface_temp_array = grid['surface_temperature'].values
+    basal_hf_array = grid['basal_heat_flow'].values
+    z_nodes = grid['z'].values
+    active_nodes = grid['active'].values
+    T_nodes = grid['T'].values
+    node_strat = grid['node_strat'].values.tolist()
+    node_age = grid['node_age'].values
+
+    T_data = normalized['T_data']
     if T_data is not None:
-        (T_depth,
-         T_obs,
-         T_obs_sigma,
-         T_data_type,
-         T_gof, T_rmse) = T_data
+        T_depth = T_data['depth']
+        T_obs = T_data['observed']
+        T_obs_sigma = T_data['observed_sigma']
+        T_data_type = T_data['data_type']
+        T_gof = T_data['gof']
+        T_rmse = T_data['rmse']
 
+    C_data = normalized['C_data']
     if C_data is not None:
-        [C_nodes, surface_salinity_array, salinity_lwr_bnd,
-         salinity_depth, salinity_data, salinity_data_unc,
-         salinity_RMSE, q_solute_bottom, q_solute_top] = C_data
+        C_nodes = C_data['C_nodes']
+        surface_salinity_array = C_data['surface_salinity']
+        salinity_lwr_bnd = C_data['salinity_lower_bnd']
+        salinity_depth = C_data['salinity_depth']
+        salinity_data = C_data['salinity_observed']
+        salinity_data_unc = C_data['salinity_observed_unc']
+        salinity_RMSE = C_data['salinity_rmse']
+        q_solute_bottom = C_data['q_solute_bottom']
+        q_solute_top = C_data['q_solute_top']
 
+    VR_model_data = normalized['VR_model_data']
     if VR_model_data is not None:
-        [vr_nodes,
-         vr_depth,
-         vr_obs,
-         vr_min,
-         vr_max,
-         vr_obs_sigma,
-         vr_GOF,
-         vr_rmse,
-         vr_data_well] = VR_model_data
+        vr_nodes = VR_model_data['vr_nodes']
+        vr_depth = VR_model_data['depth']
+        vr_obs = VR_model_data['observed']
+        vr_min = VR_model_data['observed_min']
+        vr_max = VR_model_data['observed_max']
+        vr_obs_sigma = VR_model_data['observed_sigma']
+        vr_GOF = VR_model_data['gof']
+        vr_rmse = VR_model_data['rmse']
+        vr_data_well = VR_model_data['data']
 
-    if AFT_data != None:
-        [simulated_AFT_data,
-         aft_sample_names,
-         aft_age_depth,
-         aft_age,
-         aft_age_stderr_min,
-         aft_age_stderr_plus,
-         aft_length_mean,
-         aft_length_std,
-         aft_age_samples,
-         single_grain_aft_ages,
-         single_grain_aft_ages_se_min,
-         single_grain_aft_ages_se_plus,
-         aft_age_bins,
-         aft_age_pdfs,
-         aft_age_GOF,
-         aft_age_error,
-         aft_sample_times,
-         aft_sample_temps,
-         time_array_bp,
-         z_aft_samples, T_samples,
-         aft_data_samples] = AFT_data
+    AFT_data = normalized['AFT_data']
+    if AFT_data is not None:
+        simulated_AFT_data = AFT_data['simulated']
+        aft_sample_names = AFT_data['sample_names']
+        aft_age_depth = AFT_data['age_depth']
+        aft_age = AFT_data['age']
+        aft_age_stderr_min = AFT_data['age_stderr_min']
+        aft_age_stderr_plus = AFT_data['age_stderr_plus']
+        aft_length_mean = AFT_data['length_mean']
+        aft_length_std = AFT_data['length_std']
+        aft_age_samples = AFT_data['age_samples']
+        single_grain_aft_ages = AFT_data['single_grain_ages']
+        single_grain_aft_ages_se_min = AFT_data['single_grain_ages_se_min']
+        single_grain_aft_ages_se_plus = AFT_data['single_grain_ages_se_plus']
+        aft_age_bins = AFT_data['age_bins']
+        aft_age_pdfs = AFT_data['age_pdfs']
+        aft_age_GOF = AFT_data['gof']
+        aft_age_error = AFT_data['age_error']
+        aft_sample_times = AFT_data['sample_times']
+        aft_sample_temps = AFT_data['sample_temps']
+        # note: time_array_bp is intentionally overwritten here, matching
+        # the historical positional format where AFT_data carried its own copy
+        time_array_bp = AFT_data['time_array_bp']
+        z_aft_samples = AFT_data['z_samples']
+        T_samples = AFT_data['T_samples']
+        aft_data_samples = AFT_data['data']
 
+    AHe_data = normalized['AHe_data']
     if AHe_data is not None:
-        [ahe_sample_depths,
-         ahe_ages_all_samples,
-         ahe_ages_all_samples_SE,
-         ahe_age_bin,
-         ahe_age_pdfs,
-         modeled_ahe_age_samples,
-         modeled_ahe_age_samples_min,
-         modeled_ahe_age_samples_max,
-         ahe_age_gof, ahe_age_error,
-         simulated_AHe_data,
-         ahe_data_samples] = AHe_data
+        ahe_sample_depths = AHe_data['sample_depths']
+        ahe_ages_all_samples = AHe_data['ages_all_samples']
+        ahe_ages_all_samples_SE = AHe_data['ages_all_samples_se']
+        ahe_age_bin = AHe_data['age_bin']
+        ahe_age_pdfs = AHe_data['age_pdfs']
+        modeled_ahe_age_samples = AHe_data['modeled_age_samples']
+        modeled_ahe_age_samples_min = AHe_data['modeled_age_samples_min']
+        modeled_ahe_age_samples_max = AHe_data['modeled_age_samples_max']
+        ahe_age_gof = AHe_data['gof']
+        ahe_age_error = AHe_data['age_error']
+        simulated_AHe_data = AHe_data['simulated']
+        ahe_data_samples = AHe_data['data']
 
     nt_total, n_nodes = T_nodes.shape
 
     if AFT_data is not None and simulated_AFT_data is not None:
-        (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
-         aft_ln_mean_nodes, aft_ln_std_nodes,
-         aft_node_times_burial, aft_node_zs,
-         aft_node_times, aft_node_temps) = simulated_AFT_data
+        aft_age_nodes = simulated_AFT_data['age_nodes']
+        aft_age_nodes_min = simulated_AFT_data['age_nodes_min']
+        aft_age_nodes_max = simulated_AFT_data['age_nodes_max']
+        aft_ln_mean_nodes = simulated_AFT_data['ln_mean_nodes']
+        aft_ln_std_nodes = simulated_AFT_data['ln_std_nodes']
+        aft_node_times_burial = simulated_AFT_data['node_times_burial']
+        aft_node_zs = simulated_AFT_data['node_zs']
+        aft_node_times = simulated_AFT_data['node_times']
+        aft_node_temps = simulated_AFT_data['node_temps']
 
         _, n_prov_scenarios, n_kinetic_scenarios = aft_age_nodes.shape
 
@@ -279,8 +310,11 @@ def model_vs_data_figure(model_run_data,
 
 
     if AHe_data is not None and simulated_AHe_data is not None:
-        (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-         ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
+        ahe_age_nodes = simulated_AHe_data['age_nodes']
+        ahe_age_nodes_min = simulated_AHe_data['age_nodes_min']
+        ahe_age_nodes_max = simulated_AHe_data['age_nodes_max']
+        ahe_node_times_burial = simulated_AHe_data['node_times_burial']
+        ahe_node_zs = simulated_AHe_data['node_zs']
 
         prov_ages = [ahe_node_times_burial[0][0].max(),
                      ahe_node_times_burial[0][-1].max()]
