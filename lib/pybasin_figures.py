@@ -333,7 +333,7 @@ def model_vs_data_figure(model_run_data,
     if add_legend is True:
         ysize = ysize * 1.12
 
-    fig = pl.figure(figsize=(xsize, ysize))
+    fig = pl.figure(figsize=(xsize, ysize), layout="constrained")
 
     font = {'family': 'sans-serif',
             'size': 9}
@@ -448,7 +448,8 @@ def model_vs_data_figure(model_run_data,
                            bottom=bottom, top=top,
                            left=left, right=right,
                            width_ratios=width_ratios,
-                           height_ratios=[1, height_ratio, 1])
+                           height_ratios=[1, height_ratio, 1],
+                           figure=fig)
 
     axb = fig.add_subplot(gs[1, 0])
     axst = fig.add_subplot(gs[0, 0])
@@ -1315,11 +1316,7 @@ def model_vs_data_figure(model_run_data,
         p.xaxis.set_major_locator(locx)
         p.yaxis.set_major_locator(locy)
 
-    if contour_variable == 'salinity':
-        cb_ticks = [0.0, 0.1, 0.2, 0.3, 0.4]
-        cb.set_ticks(cb_ticks)
-
-    if show_thermochron_data is False:
+    if show_thermochron_data is False and contour_variable != 'salinity':
         # fewer ticks in colorbar in case of small space
         max_T = cb.locator().max()
         max_T_tick = np.ceil(max_T / 50.0) * 50.0
@@ -1355,7 +1352,7 @@ def model_vs_data_figure(model_run_data,
             leg_labels += ['modeled He age range samples']
 
         fig.legend(leg_items, leg_labels,
-                   loc='lower center', ncol=ncols_legend, fontsize=legend_fontsize,
+                   loc='outside lower center', ncol=ncols_legend, fontsize=legend_fontsize,
                    frameon=False, numpoints=1, handlelength=2)
 
     if add_panel_titles is True:
