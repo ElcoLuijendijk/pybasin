@@ -7,6 +7,7 @@ module that contains all functions for making figures of pybasin model results
 __author__ = 'elcopone'
 
 import itertools
+import math
 import sys
 import logging
 import numpy as np
@@ -333,8 +334,6 @@ def model_vs_data_figure(model_run_data,
     if add_legend is True:
         ysize = ysize * 1.12
 
-    fig = pl.figure(figsize=(xsize, ysize), layout="constrained")
-
     font = {'family': 'sans-serif',
             'size': 9}
 
@@ -342,7 +341,6 @@ def model_vs_data_figure(model_run_data,
 
     width_ratios = [8]
 
-    nrows = 3
     ncols = 1
 
     if add_legend is True:
@@ -389,6 +387,39 @@ def model_vs_data_figure(model_run_data,
             key=lambda i: ahe_sample_depths[i],
         )
 
+    n_aft_sc = len(aft_sg_sorted)
+    n_ahe_sc = len(ahe_sorted_indices)
+
+    if n_aft_sc > 0 or n_ahe_sc > 0:
+        # a shared, fine-grained row grid lets the stacked scatter panels
+        # each get an equal, whole number of rows without nesting a
+        # subfigure or sub-gridspec for them: nesting shrinks axes that
+        # use set_box_aspect to a fraction of their allotted space under
+        # a constrained-layout figure
+        if n_aft_sc > 0 and n_ahe_sc > 0:
+            n_scatter_units = math.lcm(n_aft_sc, n_ahe_sc)
+        else:
+            n_scatter_units = n_aft_sc or n_ahe_sc
+
+        # extra resolution so the gap reserved between stacked scatter
+        # panels (for their title and tick labels) can be tuned finely.
+        # constrained_layout solve time grows fast with the row count, so
+        # keep this modest
+        row_resolution = 2
+        n_scatter_units *= row_resolution
+
+        hr_units = max(int(round(height_ratio)), 1)
+        row_units = 1 + hr_units + 1
+        nrows = row_units * n_scatter_units
+        row_top = slice(0, n_scatter_units)
+        row_mid = slice(n_scatter_units, n_scatter_units * (1 + hr_units))
+        row_bot = slice(n_scatter_units * (1 + hr_units), nrows)
+        row_height_ratios = [1] * nrows
+    else:
+        nrows = 3
+        row_top, row_mid, row_bot = 0, 1, 2
+        row_height_ratios = [1, height_ratio, 1]
+
     temp_panel_ind = None
     if show_strat_column is True:
         strat_panel_ind = ncols
@@ -426,6 +457,10 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(4)
 
+    # width of the panels that the default figsize was tuned for, i.e.
+    # everything up to and excluding the age scatter columns
+    core_width_units = sum(width_ratios)
+
     aft_scatter_col = None
     ahe_scatter_col = None
     if show_age_scatter:
@@ -437,63 +472,88 @@ def model_vs_data_figure(model_run_data,
         if len(aft_sg_sorted) > 0:
             aft_scatter_col = ncols
             ncols += 1
-            width_ratios.append(3)
+            width_ratios.append(4)
         if len(ahe_sorted_indices) > 0:
             ahe_scatter_col = ncols
             ncols += 1
-            width_ratios.append(3)
+            width_ratios.append(4)
+        if has_scatter:
+            # trailing spacer so the x-axis label of the rightmost scatter
+            # panel is not clipped at the edge of the figure
+            ncols += 1
+            width_ratios.append(1)
+
+    # widen the figure to fit the extra scatter columns
+    xsize = xsize * sum(width_ratios) / core_width_units
+
+    # each stacked scatter panel needs a minimum height to remain
+    # readable, so grow the figure height for wells with several samples
+    n_scatter_rows = max(
+        len(aft_sg_sorted) if aft_scatter_col is not None else 0,
+        len(ahe_sorted_indices) if ahe_scatter_col is not None else 0,
+    )
+    if n_scatter_rows > 0:
+        min_scatter_height = min(n_scatter_rows * 1.6, 14.0)
+        ysize = max(ysize, min_scatter_height)
+
+    fig = pl.figure(figsize=(xsize, ysize), layout="constrained")
 
     gs = gridspec.GridSpec(nrows, ncols,
                            wspace=0.06, hspace=0.08,
                            bottom=bottom, top=top,
                            left=left, right=right,
                            width_ratios=width_ratios,
-                           height_ratios=[1, height_ratio, 1],
+                           height_ratios=row_height_ratios,
                            figure=fig)
 
-    axb = fig.add_subplot(gs[1, 0])
-    axst = fig.add_subplot(gs[0, 0])
-    axhf = fig.add_subplot(gs[2, 0])
-    #ax_strat = fig.add_subplot(gs[1, 1])
+    axb = fig.add_subplot(gs[row_mid, 0])
+    axst = fig.add_subplot(gs[row_top, 0])
+    axhf = fig.add_subplot(gs[row_bot, 0])
 
     all_panels = [axst, axb, axhf]
 
     if show_strat_column is True:
-        ax_strat = fig.add_subplot(gs[1, strat_panel_ind])
+        ax_strat = fig.add_subplot(gs[row_mid, strat_panel_ind])
         all_panels.append(ax_strat)
 
     if show_temp_panel:
-        ax_temp = fig.add_subplot(gs[1, temp_panel_ind])
+        ax_temp = fig.add_subplot(gs[row_mid, temp_panel_ind])
         all_panels.append(ax_temp)
 
     if C_data is not None:
-        ax_c = fig.add_subplot(gs[1, C_panel_ind])
+        ax_c = fig.add_subplot(gs[row_mid, C_panel_ind])
         all_panels.append(ax_c)
     if VR_model_data is not None:
-        ax_vr = fig.add_subplot(gs[1, vr_panel_ind])
+        ax_vr = fig.add_subplot(gs[row_mid, vr_panel_ind])
         all_panels.append(ax_vr)
     if AFT_data is not None:
-        ax_afta = fig.add_subplot(gs[1, aft_panel_ind])
+        ax_afta = fig.add_subplot(gs[row_mid, aft_panel_ind])
         all_panels.append(ax_afta)
     if AHe_data is not None:
-        ax_ahe = fig.add_subplot(gs[1, ahe_panel_ind])
+        ax_ahe = fig.add_subplot(gs[row_mid, ahe_panel_ind])
         all_panels.append(ax_ahe)
 
+    def scatter_row_slices(n_samples, rows_per_panel):
+        # reserve part of each panel's rows as a gap for the title and
+        # tick labels of the next panel down
+        gap = max(int(round(rows_per_panel * 0.3)), 1) if rows_per_panel > 1 else 0
+        return [slice(i * rows_per_panel, (i + 1) * rows_per_panel - gap)
+                for i in range(n_samples)]
+
+    # scatter panels are placed directly on the shared, fine-grained gs
+    # rather than in a nested subfigure or sub-gridspec, since nesting
+    # shrinks axes that use set_box_aspect under constrained layout
     ax_aft_scatter_list = []
     ax_ahe_scatter_list = []
     if show_age_scatter:
         if aft_scatter_col is not None:
-            n_aft_sc = len(aft_sg_sorted)
-            gs_aft_sc = gridspec.GridSpecFromSubplotSpec(
-                n_aft_sc, 1, subplot_spec=gs[:, aft_scatter_col], hspace=0.5
-            )
-            ax_aft_scatter_list = [fig.add_subplot(gs_aft_sc[i]) for i in range(n_aft_sc)]
+            rows_per_aft = nrows // n_aft_sc
+            aft_row_slices = scatter_row_slices(n_aft_sc, rows_per_aft)
+            ax_aft_scatter_list = [fig.add_subplot(gs[s, aft_scatter_col]) for s in aft_row_slices]
         if ahe_scatter_col is not None:
-            n_ahe_sc = len(ahe_sorted_indices)
-            gs_ahe_sc = gridspec.GridSpecFromSubplotSpec(
-                n_ahe_sc, 1, subplot_spec=gs[:, ahe_scatter_col], hspace=0.5
-            )
-            ax_ahe_scatter_list = [fig.add_subplot(gs_ahe_sc[i]) for i in range(n_ahe_sc)]
+            rows_per_ahe = nrows // n_ahe_sc
+            ahe_row_slices = scatter_row_slices(n_ahe_sc, rows_per_ahe)
+            ax_ahe_scatter_list = [fig.add_subplot(gs[s, ahe_scatter_col]) for s in ahe_row_slices]
 
     depth_panels = [all_panels[1]] + all_panels[3:]
     time_panels = all_panels[:3]
@@ -1031,16 +1091,13 @@ def model_vs_data_figure(model_run_data,
             ax_sc.plot([0, age_max_sc], [0, age_max_sc], '--', color='grey', lw=0.8, zorder=0)
             ax_sc.set_xlim(0, age_max_sc)
             ax_sc.set_ylim(0, age_max_sc)
-            ax_sc.set_aspect('equal', adjustable='box')
-            ax_sc.set_title(
-                '%s (%.0f m)' % (aft_sample_names[j], aft_age_depth[j]),
-                loc='left',
-            )
+            ax_sc.set_box_aspect(1)
+            ax_sc.set_title(f'{aft_sample_names[j]}', loc='left', fontsize="x-small")
             ax_sc.spines['top'].set_visible(False)
             ax_sc.spines['right'].set_visible(False)
-        ax_aft_scatter_list[-1].set_xlabel('measured AFT age (Ma)')
+        ax_aft_scatter_list[-1].set_xlabel('measured (Ma)')
         mid_idx = len(ax_aft_scatter_list) // 2
-        ax_aft_scatter_list[mid_idx].set_ylabel('modelled age (Ma)')
+        ax_aft_scatter_list[mid_idx].set_ylabel('modelled (Ma)')
 
     if show_age_scatter and len(ax_ahe_scatter_list) > 0:
         cmap_sc = pl.get_cmap('tab10')
@@ -1066,15 +1123,15 @@ def model_vs_data_figure(model_run_data,
             ax_sc.plot([0, age_max_sc], [0, age_max_sc], '--', color='grey', lw=0.8, zorder=0)
             ax_sc.set_xlim(0, age_max_sc)
             ax_sc.set_ylim(0, age_max_sc)
-            ax_sc.set_aspect('equal', adjustable='box')
+            ax_sc.set_box_aspect(1)
             depth = ahe_sample_depths[i]
             name = ahe_data_samples['sample'].values[i]
-            ax_sc.set_title('%s (%.0f m)' % (name, depth), loc='left', fontsize="small")
+            ax_sc.set_title('%s (%.0f m)' % (name, depth), loc='left', fontsize="x-small")
             ax_sc.spines['top'].set_visible(False)
             ax_sc.spines['right'].set_visible(False)
-        ax_ahe_scatter_list[-1].set_xlabel('measured\nHe age (Ma)')
+        ax_ahe_scatter_list[-1].set_xlabel('measured (Ma)')
         mid_idx = len(ax_ahe_scatter_list) // 2
-        ax_ahe_scatter_list[mid_idx].set_ylabel('modelled\nage (Ma)')
+        ax_ahe_scatter_list[mid_idx].set_ylabel('modelled (Ma)')
 
     # add labels:
     axb.set_ylabel('Burial depth (m)')
