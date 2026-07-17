@@ -2417,6 +2417,18 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     node_strat[2::2] = node_strat_r
     node_strat[0] = node_strat[1]
 
+    if (pybasin_params.simulate_salinity is True
+            and pybasin_params.simulate_flushing is True):
+        # clay fraction of the stratigraphic unit at each node, used to
+        # find the depth of the shallowest clay-rich unit for the
+        # topography-driven flushing boundary condition
+        # use geohist_df rather than strat_info_mod, since geohist_df
+        # also has the clay fraction for subdivided stratigraphic units
+        # (e.g. NUKO_s_1), which are not in strat_info_mod
+        clay_by_unit = geohist_df['clay'].to_dict()
+        clay_fraction_nodes = np.array(
+            [clay_by_unit.get(unit, 0.0) for unit in node_strat])
+
     cell_strat_r = burial_df.index.tolist()
     cell_strat = [''] * n_cells
     cell_strat[::2] = cell_strat_r
@@ -2525,7 +2537,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
     # calculate tortuosity, required for salt diffusion coefficient
     if pybasin_params.simulate_salinity is True:
-        tortuosity_nodes = porosity_nodes ** pybasin_params.tortuosity_factor
+        #tortuosity_nodes = porosity_nodes ** pybasin_params.tortuosity_factor
+        # Modified Weinberg relation, Boudreau (1996), eq. 9
+        b = 2.02
+        tortuosity_nodes = 1.0 - b * np.log(porosity_nodes)
         tortuosity_nodes[tortuosity_nodes <= 0] = 1e-5
 
     # check to remove 0 depth nodes after erosion phases
@@ -2715,9 +2730,14 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
 
             if pybasin_params.constant_diffusivity is False:
                 Dw = calculate_diffusion_coeff(T_nodes[timestep,
-                                                       active_nodes_i], C_init)
+                                                       active_nodes_i], C_init, 
+                                                       D_ref=pybasin_params.Dw)
             else:
                 Dw = pybasin_params.Dw
+
+            #b = 2.02
+            #tau = 1.0 - b * np.log(phi_mid)
+            #Dm = phi_mid * DmT / tau
 
             Ks_nodes = porosity_nodes[timestep, active_nodes_i] / \
                        tortuosity_nodes[timestep, active_nodes_i] * Dw
@@ -2736,6 +2756,30 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                     None,
                     surface_salinity_array[timestep],
                     fixed_lower_salinity)
+
+            if (pybasin_params.simulate_flushing is True
+                    and surface_salinity_array[timestep]
+                    == pybasin_params.salinity_freshwater):
+                # reset salinity to the surface value above the
+                # shallowest clay-rich unit, as a proxy for freshening
+                # by topography-driven groundwater flow
+                active_idx = np.where(active_nodes_i)[0]
+                z_active = z_nodes[timestep, active_nodes_i]
+                clay_active = clay_fraction_nodes[active_nodes_i]
+
+                clay_idx = np.where(
+                    clay_active >= pybasin_params.flushing_clay_fraction)[0]
+                if clay_idx.size > 0:
+                    z_clay_top = z_active[clay_idx[0]]
+                else:
+                    z_clay_top = np.inf
+
+                z_cutoff = min(z_clay_top, pybasin_params.flushing_max_depth)
+
+                flush_mask = z_active <= z_cutoff
+                flush_node_idx = active_idx[flush_mask]
+                C_nodes[timestep, flush_node_idx] = \
+                    surface_salinity_array[timestep]
 
             # calculate density
             P = z_nodes[timestep, active_nodes_i] \

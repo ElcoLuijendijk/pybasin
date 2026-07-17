@@ -1542,6 +1542,15 @@ def update_model_params_and_run_model_new(model_scenario_number,
         logger.info('no provenance_start_temp specified in input file, using a value of 120 degrees C')
         pybasin_params.provenance_start_temp = 120.0
 
+    if hasattr(pybasin_params, "simulate_flushing") is False:
+        pybasin_params.simulate_flushing = False
+
+    if hasattr(pybasin_params, "flushing_clay_fraction") is False:
+        pybasin_params.flushing_clay_fraction = 0.4
+
+    if hasattr(pybasin_params, "flushing_max_depth") is False:
+        pybasin_params.flushing_max_depth = 200.0
+
     # get values of all input parameters in pybasin_params class
     attributes = inspect.getmembers(
         pybasin_params, lambda attribute: not (inspect.isroutine(attribute)))
