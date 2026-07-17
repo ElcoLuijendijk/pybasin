@@ -1,4 +1,4 @@
-well,LAT_PALEO,EAR_EOC_YP,EAR_EOC_MY,EAR_EOC_LY,MID_EOC,LAT_EOC,EAR_OLIG,LAT_OLIG,EAR_MIOC,MID_MIOC,EAR_PLIOC,MID_QUART
-age_start,59.2,56,53,51,41.2,37.8,33.9,28.1,23.03,15.97,5.33,2.58
-age_end,56,53,51,47.8,37.8,33.9,28.1,23.03,15.97,5.33,2.58,0
-AST-02,marine,marine,marine,marine,marine,marine,marine,marine,marine,marine,marine,terrestrial
+well,EXHUMATION,LAT_PALEO,EAR_EOC_YP,EAR_EOC_MY,EAR_EOC_LY,MID_EOC,LAT_EOC,EAR_OLIG,LAT_OLIG,EAR_MIOC,MID_MIOC,EAR_PLIOC,MID_QUART
+age_start,61.7,59.2,56,53,51,41.2,37.8,33.9,28.1,23.03,15.97,5.33,2.58
+age_end,59.2,56,53,51,47.8,37.8,33.9,28.1,23.03,15.97,5.33,2.58,0
+AST-02,terrestrial,marine,marine,marine,marine,marine,marine,marine,marine,marine,terrestrial,terrestrial,terrestrial

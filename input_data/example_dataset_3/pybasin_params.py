@@ -239,7 +239,7 @@ class ModelParameters:
     Dw = 20.3e-10
 
     # fixed salinity at the lower boundary of the model domain (kg/kg)
-    fixed_lower_bnd_salinity = 0.30
+    fixed_lower_bnd_salinity = 0.035
 
     # salinity of seawater (kg/kg), used for stratigraphic units or time
     # periods marked as marine
@@ -253,6 +253,22 @@ class ModelParameters:
     # history from surface_salinity.csv, instead of only relying on the
     # marine/non-marine history recorded in stratigraphy_info.csv
     well_specific_surface_salinity_bnd = True
+
+    # option to simulate freshening of the shallow subsurface by
+    # topography-driven groundwater flow, implemented as a reset of
+    # salinity to the surface value above the shallowest clay-rich unit
+    simulate_flushing = True
+
+    # clay fraction above which a stratigraphic unit is considered an
+    # aquitard that stops topography-driven flushing
+    flushing_clay_fraction = 0.4
+
+    # maximum depth of topography-driven flushing (m), used if no
+    # clay-rich unit is present above this depth. set well above the
+    # depth of the first clay-rich unit in well AST-02 (992 m, top of
+    # unit NMVFO) so that the clay fraction, not this cap, controls the
+    # flushing depth for this example
+    flushing_max_depth = 1500.0
 
 
 class ParameterRanges:
