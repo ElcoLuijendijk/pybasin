@@ -220,6 +220,7 @@ Contains the depth and name of stratigraphic units for one or more wells or surf
 	* ``thermal_conductivity``: Thermal conductivity of the rock matrix (excluding pore space) (W m^-1^ K^-1^).
 	* ``heat_capacity``: Heat capacity of the rock matrix (J kg^-1^ K^-1^).
 	* ``heat_production``: Heat production of the rock matrix (W m^-3^).
+	* ``compressibility_stress`` (optional): Compressibility with respect to effective stress instead of depth, used instead of ``compressibility`` if ``compaction_method`` is set to ``'effective_stress'`` in ``pybasin_params.py``: $\phi = \phi_0 e^{-c_\sigma \sigma'}$, where $\sigma'$ is vertical effective stress (Pa) and $c_\sigma$ is compressibility (Pa^-1^). If this column is absent, or empty for a given lithology, PyBasin derives an approximate value from that lithology's ``compressibility`` and ``density`` values. This is only an approximation (it assumes a single reference bulk density for the whole lithology) and can be overridden by supplying an explicit value.
 
 
 **File: ``surface_temperature.csv``**
@@ -358,9 +359,10 @@ The parameters can be several python data types:
 
 ## Burial history model parameters
  
-* ``max_thickness`` = *float*. Maximum thickness of strat units (m). Units that exceed this thickness are subdivided into smaller units to keep the modeled temperatures accurate.
+* ``max_thickness`` = *float*. Maximum thickness of strat units (m). Units that exceed this thickness are subdivided into smaller units to keep the modeled temperatures accurate. When ``compaction_method`` is ``'effective_stress'``, this also controls the resolution of the effective stress calculation, so a smaller value gives a more accurate result.
 * ``NcompactionIterations`` = *integer*. Number of iterations for the calculation of decompaction. In general around 5 iterations are sufficient to get an accurate value for decompacted thicknesses of stratigraphci units.
 * ``max_decompaction_error`` = *float*. Maximum error in meters for the iterative decompaction equation.
+* ``compaction_method`` = *string*, optional. ``'depth'`` (default) uses the standard Athy's law porosity-depth relation. ``'effective_stress'`` uses a porosity-effective stress relation instead (see ``compressibility_stress`` in ``lithology_properties.csv``), so that a stratigraphic unit's compaction depends on the actual weight of the units above it rather than on depth alone. Effective stress is calculated as overburden (lithostatic) stress minus pore pressure; PyBasin does not yet include a pore pressure (dissipation) model, so pore pressure is assumed to be hydrostatic. If this parameter is not set, PyBasin defaults to ``'depth'``, so existing input datasets do not need any changes.
 
 
 ## Exhumation parameters

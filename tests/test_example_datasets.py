@@ -156,11 +156,11 @@ def _run_single_scenario(dataset_name):
 
     (_, _, _,
      _model_run_data,
-     _T_model_data, T_gof,
+     _T_model_data, T_gof, _T_r2,
      _C_data,
-     vr_gof, _VR_model_data,
-     aft_age_gof, _aft_age_error, _AFT_data,
-     he_age_gof, _he_age_error,
+     vr_gof, _vr_r2, _VR_model_data,
+     aft_age_gof, _aft_age_error, _aft_age_r2, _AFT_data,
+     he_age_gof, _he_age_error, _he_age_r2,
      _He_model_data,
      _model_results_series_updated) = result
 

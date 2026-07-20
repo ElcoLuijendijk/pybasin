@@ -54,6 +54,87 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 vectorize_thermochron = True
 
 
+def calculate_r_squared(observed, simulated):
+
+    """
+    calculate the coefficient of determination (R^2) of a set of
+    modeled vs. observed values
+
+    R^2 = 1 - SS_res / SS_tot, with SS_res the sum of squared residuals
+    (observed - simulated) and SS_tot the sum of squared deviations of
+    the observed values from their mean.
+
+    note this is the plain, unweighted R^2, it does not take into
+    account uncertainty in the observed values.
+    """
+
+    observed = np.asarray(observed, dtype=float)
+    simulated = np.asarray(simulated, dtype=float)
+
+    ind = (np.isnan(observed) == False) & (np.isnan(simulated) == False)
+    observed = observed[ind]
+    simulated = simulated[ind]
+
+    if len(observed) < 2:
+        return np.nan
+
+    ss_res = np.sum((observed - simulated)**2)
+    ss_tot = np.sum((observed - np.mean(observed))**2)
+
+    if ss_tot == 0:
+        return np.nan
+
+    r_squared = 1.0 - ss_res / ss_tot
+
+    return r_squared
+
+
+def calculate_r_squared_range(observed, sim_min, sim_max):
+
+    """
+    calculate the coefficient of determination (R^2) of a set of
+    observed values against a modeled range [sim_min, sim_max], instead
+    of a single modeled value
+
+    observed values that fall within the modeled range are assigned an
+    error of 0. observed values outside the modeled range are assigned
+    an error equal to the distance to the nearest end-member of the
+    modeled range.
+
+    note this is the plain, unweighted R^2, it does not take into
+    account uncertainty in the observed values.
+    """
+
+    observed = np.asarray(observed, dtype=float)
+    sim_min = np.asarray(sim_min, dtype=float)
+    sim_max = np.asarray(sim_max, dtype=float)
+
+    ind = ((np.isnan(observed) == False)
+           & (np.isnan(sim_min) == False)
+           & (np.isnan(sim_max) == False))
+    observed = observed[ind]
+    sim_min = sim_min[ind]
+    sim_max = sim_max[ind]
+
+    if len(observed) < 2:
+        return np.nan
+
+    # distance to the nearest end-member age, 0 if within the modeled range
+    error_below = np.clip(sim_min - observed, 0.0, None)
+    error_above = np.clip(observed - sim_max, 0.0, None)
+    residual = error_below + error_above
+
+    ss_res = np.sum(residual**2)
+    ss_tot = np.sum((observed - np.mean(observed))**2)
+
+    if ss_tot == 0:
+        return np.nan
+
+    r_squared = 1.0 - ss_res / ss_tot
+
+    return r_squared
+
+
 def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
 
     """
@@ -87,11 +168,13 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
 
     T_rmse = np.sqrt(np.mean(T_data_well['residual']**2))
     T_gof = np.mean(T_data_well['P_fit'])
+    T_r2 = calculate_r_squared(T_data_well['temperature'],
+                               T_data_well['simulated_T'])
 
     logger.info('Temperature data:')
     logger.info(T_data_well)
 
-    return T_gof, T_rmse
+    return T_gof, T_rmse, T_r2
 
 
 def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes, vr_unc_sigma=0.05):
@@ -133,8 +216,9 @@ def model_data_comparison_VR(vr_data_well, z_nodes, vr_nodes, active_nodes, vr_u
     # calculate total rmse and goodness of fit statistic:
     vr_rmse = np.sqrt(np.mean(vr_data_well['residual']**2))
     vr_gof = np.mean(vr_data_well['P_fit'])
+    vr_r2 = calculate_r_squared(vr_data_well['VR'], vr_data_well['simulated_vr'])
 
-    return vr_rmse, vr_gof, vr_data_well
+    return vr_rmse, vr_gof, vr_r2, vr_data_well
 
 
 def model_data_comparison_AFT_age(aft_data_well, aft_ages,
@@ -311,11 +395,32 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
     aft_age_mean_gof = aft_data_well['GOF_aft_ages'].dropna().mean()
     aft_age_mean_error = aft_data_well['age_error'].dropna().mean()
 
+    # coefficient of determination for modeled vs. measured single grain
+    # ages. the model predicts a range of end-member ages per sample
+    # (not per grain), so this compares each observed single grain age
+    # to the modeled range of the sample it belongs to: grain ages
+    # within the modeled range get an error of 0, grain ages outside
+    # the range get an error equal to the distance to the nearest
+    # end-member age
+    single_grain_obs_for_r2 = []
+    single_grain_sim_min_for_r2 = []
+    single_grain_sim_max_for_r2 = []
+    for sample_i, grain_ages in enumerate(single_grain_aft_ages):
+        if grain_ages is not None:
+            single_grain_obs_for_r2.extend(grain_ages)
+            single_grain_sim_min_for_r2.extend(
+                [modeled_aft_age_samples_min[sample_i]] * len(grain_ages))
+            single_grain_sim_max_for_r2.extend(
+                [modeled_aft_age_samples_max[sample_i]] * len(grain_ages))
+    aft_age_r2 = calculate_r_squared_range(single_grain_obs_for_r2,
+                                           single_grain_sim_min_for_r2,
+                                           single_grain_sim_max_for_r2)
+
     if verbose is True:
 
         logger.error(aft_data_well[['sample', 'depth', 'aft_age', 'aft_age_stderr_plus', 'simulated_AFT_min', 'simulated_AFT_max', 'GOF_aft_ages', 'age_error']])
 
-    return (aft_age_mean_gof, aft_age_mean_error,
+    return (aft_age_mean_gof, aft_age_mean_error, aft_age_r2,
             single_grain_aft_ages, single_grain_aft_ages_se_min,
             single_grain_aft_ages_se_plus,
             age_bins, age_pdfs, aft_data_well)
@@ -338,6 +443,14 @@ def model_data_comparison_he(he_samples_well, he_data,
     he_age_pdfs_all_samples = []
     he_ages_all_samples = []
     he_ages_all_samples_SE = []
+
+    # single grain observed vs. modeled ages, for the coefficient of
+    # determination. grain ages within the modeled [min, max] range of
+    # their grain get an error of 0, grain ages outside this range get
+    # an error equal to the distance to the nearest end-member age
+    single_grain_obs_he_for_r2 = []
+    single_grain_sim_min_he_for_r2 = []
+    single_grain_sim_max_he_for_r2 = []
 
     for he_sample_i, he_sample_ix, he_sample in zip(
             itertools.count(),
@@ -380,6 +493,10 @@ def model_data_comparison_he(he_samples_well, he_data,
                     modeled_he_age_samples_min[he_sample_i][grain_i]
                 he_age_sim_max = \
                     modeled_he_age_samples_max[he_sample_i][grain_i]
+
+                single_grain_obs_he_for_r2.append(he_age_obs)
+                single_grain_sim_min_he_for_r2.append(he_age_sim_min)
+                single_grain_sim_max_he_for_r2.append(he_age_sim_max)
 
                 if he_age_sim_min == 0:
                     start_ind = 0
@@ -454,7 +571,11 @@ def model_data_comparison_he(he_samples_well, he_data,
     else:
         he_age_error = 99999.9
 
-    return (he_age_gof, he_age_error, he_ages_all_samples, he_ages_all_samples_SE,
+    he_age_r2 = calculate_r_squared_range(single_grain_obs_he_for_r2,
+                                          single_grain_sim_min_he_for_r2,
+                                          single_grain_sim_max_he_for_r2)
+
+    return (he_age_gof, he_age_error, he_age_r2, he_ages_all_samples, he_ages_all_samples_SE,
             he_age_bin, he_age_pdfs_all_samples, he_samples_well)
 
 
@@ -484,8 +605,10 @@ def model_data_comparison_salinity(salinity_data_well,
     salinity_rmse = \
         np.sqrt(np.mean(salinity_data_well['residual']**2))
     salinity_gof = np.mean(salinity_data_well['P_fit'])
+    salinity_r2 = calculate_r_squared(salinity_data_well['salinity'],
+                                      salinity_data_well['simulated_salinity'])
 
-    return salinity_gof, salinity_rmse
+    return salinity_gof, salinity_rmse, salinity_r2
 
 
 def assemble_data_and_simulate_aft(resample_t, nt_prov,
@@ -1240,8 +1363,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
     if True in ind.values:
 
-        T_gof, T_rmse = model_data_comparison_T(T_data_well, z_nodes,
-                                                T_nodes, active_nodes)
+        T_gof, T_rmse, T_r2 = model_data_comparison_T(T_data_well, z_nodes,
+                                                       T_nodes, active_nodes)
 
         T_model_data = (T_data_well['depth'].values,
                         T_data_well['temperature'].values,
@@ -1252,11 +1375,13 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     else:
         T_rmse = np.nan
         T_gof = np.nan
+        T_r2 = np.nan
         T_model_data = None
 
     # calculate model error VR data
     vr_rmse = np.nan
     vr_gof = np.nan
+    vr_r2 = np.nan
     if pybasin_params.simulate_VR is True:
 
         # calculate model error vitrinite reflectance data
@@ -1267,7 +1392,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # interpolate vitrinite reflectance data
         if True in ind.values:
 
-            vr_rmse, vr_gof, vr_data_well = model_data_comparison_VR(
+            vr_rmse, vr_gof, vr_r2, vr_data_well = model_data_comparison_VR(
                 vr_data_well,
                 z_nodes, vr_nodes,
                 active_nodes,
@@ -1276,6 +1401,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     # calculate model error AFT data
     aft_age_gof = np.nan
     aft_age_error = np.nan
+    aft_age_r2 = np.nan
     if pybasin_params.simulate_AFT is True:
 
         # calculate model error fission track data
@@ -1284,7 +1410,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         if True in ind.values:
 
-            (aft_age_gof, aft_age_error,
+            (aft_age_gof, aft_age_error, aft_age_r2,
              single_grain_aft_ages,
              single_grain_aft_ages_se_min,
              single_grain_aft_ages_se_plus,
@@ -1298,6 +1424,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     # simulate apatite (U-Th)/He data
     he_age_gof = np.nan
     he_age_error = np.nan
+    he_age_r2 = np.nan
     he_ages_all_samples = None
     he_ages_all_samples_SE = None
     he_age_pdfs_all_samples = None
@@ -1313,7 +1440,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         if True in ind.values:
 
-            (he_age_gof, he_age_error, he_ages_all_samples,
+            (he_age_gof, he_age_error, he_age_r2, he_ages_all_samples,
              he_ages_all_samples_SE,
              he_age_bin, he_age_pdfs_all_samples, he_samples_well) = \
                 model_data_comparison_he(he_samples_well, he_data,
@@ -1329,6 +1456,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     # calculate model error salinity data
     salinity_rmse = np.nan
     salinity_gof = np.nan
+    salinity_r2 = np.nan
     if pybasin_params.simulate_salinity is True:
 
         ind = (salinity_data['well'] == well) & \
@@ -1336,7 +1464,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         salinity_data_well = salinity_data[ind]
 
         if True in ind.values:
-            salinity_gof, salinity_rmse = model_data_comparison_salinity(
+            salinity_gof, salinity_rmse, salinity_r2 = model_data_comparison_salinity(
                 salinity_data_well, z_nodes, C_nodes, active_nodes)
 
     # assemble output data
@@ -1415,11 +1543,11 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                       node_strat, node_age]
 
     return (model_run_data,
-            T_model_data, T_gof,
-            C_data, salinity_gof, salinity_rmse,
-            vr_gof, vr_rmse, VR_data,
-            aft_age_gof, aft_age_error, AFT_data,
-            he_age_gof, he_age_error,
+            T_model_data, T_gof, T_r2,
+            C_data, salinity_gof, salinity_rmse, salinity_r2,
+            vr_gof, vr_rmse, vr_r2, VR_data,
+            aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
+            he_age_gof, he_age_error, he_age_r2,
             He_model_data,
             model_results_series)
 
@@ -1574,11 +1702,11 @@ def update_model_params_and_run_model_new(model_scenario_number,
 
     # run model:
     (model_run_data,
-     T_model_data, T_gof,
-     C_data, salinity_gof, salinity_rmse,
-     vr_gof, vr_rmse, VR_model_data,
-     aft_age_gof, aft_age_error, AFT_data,
-     he_age_gof, he_age_error,
+     T_model_data, T_gof, T_r2,
+     C_data, salinity_gof, salinity_rmse, salinity_r2,
+     vr_gof, vr_rmse, vr_r2, VR_model_data,
+     aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
+     he_age_gof, he_age_error, he_age_r2,
      He_model_data, model_results_series) = \
         run_model_and_compare_to_data(well_number, well, well_strat,
                                       strat_info_mod, pybasin_params,
@@ -1599,18 +1727,23 @@ def update_model_params_and_run_model_new(model_scenario_number,
         # store gof in model results dataframe
         model_results_series['well'] = well
         model_results_series['T_gof'] = T_gof
+        model_results_series['T_r2'] = T_r2
         if pybasin_params.simulate_VR is True:
             model_results_series['vr_gof'] = vr_gof
             model_results_series['vr_rmse'] = vr_rmse
+            model_results_series['vr_r2'] = vr_r2
         if pybasin_params.simulate_AFT is True:
             model_results_series['aft_age_gof'] = aft_age_gof
             model_results_series['aft_age_error'] = aft_age_error
+            model_results_series['aft_age_r2'] = aft_age_r2
         if pybasin_params.simulate_He is True:
             model_results_series['he_gof'] = he_age_gof
             model_results_series['he_error'] = he_age_error
+            model_results_series['he_r2'] = he_age_r2
         if pybasin_params.simulate_salinity is True:
             model_results_series['salinity_gof'] = salinity_gof
             model_results_series['salinity_rmse'] = salinity_rmse
+            model_results_series['salinity_r2'] = salinity_r2
 
         # calculate cumulative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
@@ -1640,27 +1773,27 @@ def update_model_params_and_run_model_new(model_scenario_number,
 
     # screen output GOF data
     logger.info('')
-    logger.info('temperature GOF = %0.2f' % T_gof)
+    logger.info('temperature GOF = %0.2f, R2 = %0.2f' % (T_gof, T_r2))
     if pybasin_params.simulate_VR is True:
-        logger.info('vitrinite reflectance GOF = %0.2f' % vr_gof)
+        logger.info('vitrinite reflectance GOF = %0.2f, R2 = %0.2f' % (vr_gof, vr_r2))
     if pybasin_params.simulate_AFT is True:
-        logger.info('AFT age GOF = %0.2f' % aft_age_gof)
+        logger.info('AFT age GOF = %0.2f, R2 = %0.2f' % (aft_age_gof, aft_age_r2))
         logger.info('AFT age error = %0.2f' % aft_age_error)
     if pybasin_params.simulate_He is True:
-        logger.info('He GOF = %0.2f' % he_age_gof)
+        logger.info('He GOF = %0.2f, R2 = %0.2f' % (he_age_gof, he_age_r2))
         logger.info('He age error = %0.2f' % he_age_error)
     if pybasin_params.simulate_salinity is True:
-        logger.info('salinity GOF = %0.2f' % salinity_gof)
+        logger.info('salinity GOF = %0.2f, R2 = %0.2f' % (salinity_gof, salinity_r2))
         logger.info('salinity RMSE = %0.4f' % salinity_rmse)
     logger.info('')
 
     return (well_number, well, model_scenario_number,
             model_run_data,
-            T_model_data, T_gof,
+            T_model_data, T_gof, T_r2,
             C_data,
-            vr_gof, VR_model_data,
-            aft_age_gof, aft_age_error, AFT_data,
-            he_age_gof, he_age_error,
+            vr_gof, vr_r2, VR_model_data,
+            aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
+            he_age_gof, he_age_error, he_age_r2,
             He_model_data,
             model_results_series)
 
@@ -1748,6 +1881,36 @@ def read_model_input_data(input_dir, pybasin_params):
     litho_props = pd.read_csv(os.path.join(input_dir,
                                            'lithology_properties.csv'), skip_blank_lines=True)
     litho_props = litho_props.set_index('lithology')
+
+    # for the optional effective stress-based compaction method: make
+    # sure a compressibility_stress column (Pa^-1) is present, and
+    # auto-derive it from the existing depth-based compressibility
+    # (m^-1) for any lithology that does not have an explicit value.
+    # this means existing lithology_properties.csv files keep working
+    # unchanged, since this column and the auto-derivation are only
+    # used if compaction_method is set to 'effective_stress'
+    compaction_method = getattr(pybasin_params, 'compaction_method', 'depth')
+    if compaction_method == 'effective_stress':
+        if 'compressibility_stress' not in litho_props.columns:
+            litho_props['compressibility_stress'] = np.nan
+
+        water_density = litho_props.loc['water', 'density']
+
+        for lith in litho_props.index:
+            if lith == 'water':
+                continue
+            if pd.isnull(litho_props.loc[lith, 'compressibility_stress']):
+                density_contrast = litho_props.loc[lith, 'density'] - water_density
+                if density_contrast <= 0:
+                    msg = (f"cannot auto-derive compressibility_stress for lithology "
+                           f"'{lith}': its density ({litho_props.loc[lith, 'density']}) is "
+                           f"not greater than the water density ({water_density}). Please "
+                           f"provide an explicit compressibility_stress value for this "
+                           f"lithology in lithology_properties.csv")
+                    raise ValueError(msg)
+                litho_props.loc[lith, 'compressibility_stress'] = (
+                    litho_props.loc[lith, 'compressibility']
+                    / (density_contrast * pybasin_lib.G_ACCEL))
 
     # present-day temperature data
     T_data_df = pd.read_csv(os.path.join(input_dir, 'temperature_data.csv'), skip_blank_lines=True)
@@ -2219,11 +2382,11 @@ def main():
 
                 (well_number_check, well_check, model_scenario_number_check,
                  model_run_data,
-                 T_model_data, T_gof,
+                 T_model_data, T_gof, T_r2,
                  C_data,
-                 vr_gof, VR_model_data,
-                 aft_age_gof, aft_age_error, AFT_data,
-                 he_age_gof, he_age_error,
+                 vr_gof, vr_r2, VR_model_data,
+                 aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
+                 he_age_gof, he_age_error, he_age_r2,
                  He_model_data, model_results_series_updated) = update_model_params_and_run_model_new(
                     model_scenario_number,
                     Parameters,
@@ -2308,11 +2471,11 @@ def main():
 
                             (well_number_store, well_store, model_scenario_number_store,
                              model_run_data,
-                             T_model_data, T_gof,
+                             T_model_data, T_gof, T_r2,
                              C_data,
-                             vr_gof, VR_model_data,
-                             aft_age_gof, aft_age_error, AFT_data,
-                             he_age_gof, he_age_error,
+                             vr_gof, vr_r2, VR_model_data,
+                             aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
+                             he_age_gof, he_age_error, he_age_r2,
                              He_model_data, model_results_series_updated) = p_result
 
                             for col in model_results_series_updated.index:

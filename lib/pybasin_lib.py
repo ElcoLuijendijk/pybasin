@@ -144,6 +144,106 @@ def compact(bm, n0, c, z_top, b_guess, max_decompaction_error,
     return bi
 
 
+# gravitational acceleration (m s^-2), used only by the effective stress
+# compaction option
+G_ACCEL = 9.81
+
+
+def local_compaction_params_effective_stress(n0, c_sigma, grain_density,
+                                              water_density,
+                                              cum_stress_total, cum_depth):
+    """
+    convert surface porosity and a stress-based compressibility into a
+    locally equivalent surface porosity and depth-based compressibility,
+    so that the existing depth-based compact()/decompact()/
+    calculate_matrix_thickness() functions can be reused unchanged for a
+    single stratigraphic unit (or subdivided piece of a unit).
+
+    assumes a hydrostatic pore pressure and a bulk density that is
+    constant over the (thin) unit and equal to the density at the top of
+    the unit. this piecewise-constant approximation matches the
+    resolution already provided by the max_thickness subdivision of
+    strat units.
+
+    Parameters
+    ----------
+    n0 : float
+        surface porosity of the unit (dimensionless)
+    c_sigma : float
+        compressibility with respect to effective stress (Pa^-1)
+    grain_density : float
+        density of the solid grains of the unit (kg m^-3)
+    water_density : float
+        density of pore water (kg m^-3)
+    cum_stress_total : float
+        cumulative overburden (lithostatic) stress at the top of the
+        unit, from the units above (Pa)
+    cum_depth : float
+        cumulative depth at the top of the unit, from the units above
+        (m), used only to calculate the hydrostatic pore pressure
+
+    Returns
+    -------
+    local_n0 : float
+        porosity at the top of the unit, to be used as the surface
+        porosity for a local, depth-from-0 compaction calculation
+    local_c : float
+        locally equivalent depth-based compressibility (m^-1), to be
+        used together with local_n0 and a local depth measured from 0 at
+        the top of the unit
+    """
+
+    pore_pressure_top = water_density * G_ACCEL * cum_depth
+    sigma_eff_top = cum_stress_total - pore_pressure_top
+    if sigma_eff_top < 0:
+        sigma_eff_top = 0.0
+
+    local_n0 = n0 * np.exp(-c_sigma * sigma_eff_top)
+
+    bulk_density_local = (grain_density * (1.0 - local_n0)
+                          + water_density * local_n0)
+
+    local_c = c_sigma * (bulk_density_local - water_density) * G_ACCEL
+
+    return local_n0, local_c
+
+
+def update_cumulative_stress(cum_stress_total, thickness, bm,
+                             grain_density, water_density):
+    """
+    advance the cumulative overburden stress accumulator by one
+    stratigraphic unit, given its (already computed) thickness and
+    matrix thickness.
+
+    Parameters
+    ----------
+    cum_stress_total : float
+        cumulative overburden stress at the top of the unit (Pa)
+    thickness : float
+        thickness of the unit (m)
+    bm : float
+        matrix (grain) thickness of the unit (m)
+    grain_density : float
+        density of the solid grains of the unit (kg m^-3)
+    water_density : float
+        density of pore water (kg m^-3)
+
+    Returns
+    -------
+    cum_stress_total_new : float
+        cumulative overburden stress at the base of the unit (Pa)
+    """
+
+    if thickness > 0:
+        porosity = 1.0 - bm / thickness
+    else:
+        porosity = 0.0
+
+    bulk_density = grain_density * (1.0 - porosity) + water_density * porosity
+
+    return cum_stress_total + bulk_density * G_ACCEL * thickness
+
+
 def subdivide_strat_units(input_df, max_thickness):
     """
     subdivide strat units:
@@ -710,7 +810,9 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
 
 
 def find_maximum_depth(input_df, exhumation_phases,
-                       max_decompaction_error):
+                       max_decompaction_error,
+                       compaction_method='depth',
+                       water_density=1025.0):
     """
     find maximum depth of units by reconstructing burial depth before
     exhumation phases and comparing to present-day depth
@@ -724,6 +826,8 @@ def find_maximum_depth(input_df, exhumation_phases,
     'matrix_thickness'
     'surface_porosity'
     'compressibility'
+    (and, if compaction_method is 'effective_stress': 'compressibility_stress'
+    and 'density')
 
     returns a modified dataframe with the columns 'maximum_depth_top' and
     'maximum_depth_bottom'
@@ -735,6 +839,11 @@ def find_maximum_depth(input_df, exhumation_phases,
     exhumation_phases : list
         list with names of exhumation phases
     max_decompaction_error : float
+    compaction_method : str
+        'depth' (default) or 'effective_stress'
+    water_density : float
+        density of pore water (kg m^-3), only used if compaction_method
+        is 'effective_stress'
 
 
     Returns
@@ -756,6 +865,11 @@ def find_maximum_depth(input_df, exhumation_phases,
         pre_exhumation_start = \
             np.where(input_df.index == exhumation_phase)[0][0]
         pre_exhumation_strat = input_df.index[pre_exhumation_start + 1:]
+
+        # cumulative overburden stress accumulator, only used if
+        # compaction_method is 'effective_stress'. reset at the start of
+        # each exhumation phase, consistent with z_top being reset to 0
+        cum_stress_total = 0.0
 
         for i, strat_unit in enumerate(pre_exhumation_strat):
 
@@ -781,6 +895,17 @@ def find_maximum_depth(input_df, exhumation_phases,
                     input_df.loc[strat_unit, 'present-day_thickness']
 
             # otherwise: calculate compacted thickness:
+            elif compaction_method == 'effective_stress':
+                local_n0, local_c = local_compaction_params_effective_stress(
+                    input_df.loc[strat_unit, 'surface_porosity'],
+                    input_df.loc[strat_unit, 'compressibility_stress'],
+                    input_df.loc[strat_unit, 'density'],
+                    water_density, cum_stress_total, z_top)
+                input_df.loc[strat_unit, 'maximum_burial_thickness_temp'] = \
+                    compact(input_df.loc[strat_unit, 'matrix_thickness'],
+                            local_n0, local_c, 0,
+                            input_df.loc[strat_unit, 'present-day_thickness'],
+                            max_decompaction_error)
             else:
                 # error in present-day thickness input for SLDNA...
                 input_df.loc[strat_unit, 'maximum_burial_thickness_temp'] = \
@@ -794,6 +919,14 @@ def find_maximum_depth(input_df, exhumation_phases,
             input_df.loc[strat_unit, 'maximum_depth_bottom_temp'] = \
                 z_top + input_df.loc[strat_unit,
                                      'maximum_burial_thickness_temp']
+
+            if compaction_method == 'effective_stress':
+                cum_stress_total = update_cumulative_stress(
+                    cum_stress_total,
+                    input_df.loc[strat_unit, 'maximum_burial_thickness_temp'],
+                    input_df.loc[strat_unit, 'matrix_thickness'],
+                    input_df.loc[strat_unit, 'density'],
+                    water_density)
 
         # compare to previous estimate of max depth and copy if units more
         # deeply buried
@@ -1147,6 +1280,79 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
     return C_new, A
 
 
+def calculate_present_day_compaction_effective_stress(
+        well_strat, water_density, max_decompaction_error,
+        depth_top_col='depth_top', depth_bottom_col='depth_bottom',
+        calculate_initial_thickness_too=True):
+    """
+    calculate matrix thickness (and, optionally, decompacted initial
+    thickness) of each stratigraphic unit for a fixed depth column,
+    using effective stress-based compaction instead of depth-based
+    compaction.
+
+    marches top to bottom through the column (ordered by depth_top_col),
+    accumulating overburden stress from the bulk density of the units
+    above and a hydrostatic pore pressure (see
+    local_compaction_params_effective_stress()). used both for the
+    present-day column and for the maximum (pre-exhumation) burial
+    column.
+
+    Parameters
+    ----------
+    well_strat : pandas DataFrame
+        stratigraphy of a well, must contain the columns depth_top_col,
+        depth_bottom_col, 'surface_porosity', 'compressibility_stress'
+        and 'density' (grain density)
+    water_density : float
+        density of pore water (kg m^-3)
+    max_decompaction_error : float
+        max error (m) for the iterative decompaction equation
+    depth_top_col, depth_bottom_col : str
+        names of the columns with the top and bottom depth of each unit
+    calculate_initial_thickness_too : bool
+        if False, only matrix thickness is calculated (initial_thickness
+        is returned as a series of nan values)
+
+    Returns
+    -------
+    matrix_thickness : pandas Series
+    initial_thickness : pandas Series
+    """
+
+    order = well_strat[depth_top_col].sort_values().index
+
+    matrix_thickness = pd.Series(index=well_strat.index, dtype=float)
+    initial_thickness = pd.Series(index=well_strat.index, dtype=float)
+
+    cum_stress_total = 0.0
+
+    for unit in order:
+
+        n0 = well_strat.loc[unit, 'surface_porosity']
+        c_sigma = well_strat.loc[unit, 'compressibility_stress']
+        grain_density = well_strat.loc[unit, 'density']
+        depth_top = well_strat.loc[unit, depth_top_col]
+        depth_bottom = well_strat.loc[unit, depth_bottom_col]
+        thickness = depth_bottom - depth_top
+
+        local_n0, local_c = local_compaction_params_effective_stress(
+            n0, c_sigma, grain_density, water_density,
+            cum_stress_total, depth_top)
+
+        bm = calculate_matrix_thickness(local_n0, local_c, 0.0, thickness)
+
+        matrix_thickness[unit] = bm
+
+        if calculate_initial_thickness_too is True:
+            initial_thickness[unit] = calculate_initial_thickness(
+                max_decompaction_error, local_n0, local_c, 0.0, thickness)
+
+        cum_stress_total = update_cumulative_stress(
+            cum_stress_total, thickness, bm, grain_density, water_density)
+
+    return matrix_thickness, initial_thickness
+
+
 def get_geo_history(well_strat, strat_info_mod,
                     max_decompaction_error,
                     exhumation_period_starts,
@@ -1158,12 +1364,22 @@ def get_geo_history(well_strat, strat_info_mod,
                     two_stage_exh=False,
                     exhumation_segment_factor=0.5,
                     exhumation_duration_factor=0.5,
-                    min_exh_thickness=5.0):
+                    min_exh_thickness=5.0,
+                    compaction_method='depth',
+                    water_density=1025.0):
     """
     set up a geohistory dataframe from an input file containing well stratigraphy
     and a file containing compaction parameters of strat units
 
     :param well_strat:
+    :param compaction_method: 'depth' (default) for the standard Athy's
+        law porosity-depth relation, or 'effective_stress' to use a
+        porosity-effective stress relation instead. 'effective_stress'
+        requires a 'compressibility_stress' column in the stratigraphy
+        input data (see calculate_present_day_compaction_effective_stress()
+        and reconstruct_strat_thickness()).
+    :param water_density: density of pore water (kg m^-3), only used if
+        compaction_method is 'effective_stress'
     :return:
     """
 
@@ -1215,22 +1431,31 @@ def get_geo_history(well_strat, strat_info_mod,
 
     well_strat = subdivide_strat_units(well_strat, max_thickness)
 
-    # calculate matrix thickness of units (ie thickness with all pore space removed)
-    well_strat['matrix_thickness'] = \
-        calculate_matrix_thickness(well_strat['surface_porosity'],
-                                   well_strat['compressibility'],
-                                   well_strat['depth_top'],
-                                   well_strat['depth_bottom'])
+    if compaction_method == 'effective_stress':
+        # calculate matrix thickness and decompacted initial thickness
+        # using effective stress-based compaction, marching top to
+        # bottom through the present-day column
+        logger.info('decompacting (effective stress-based compaction)')
+        well_strat['matrix_thickness'], well_strat['initial_thickness'] = \
+            calculate_present_day_compaction_effective_stress(
+                well_strat, water_density, max_decompaction_error)
+    else:
+        # calculate matrix thickness of units (ie thickness with all pore space removed)
+        well_strat['matrix_thickness'] = \
+            calculate_matrix_thickness(well_strat['surface_porosity'],
+                                       well_strat['compressibility'],
+                                       well_strat['depth_top'],
+                                       well_strat['depth_bottom'])
 
-    # calculate decompacted initial thickness
-    logger.info('decompacting')
-    well_strat['initial_thickness'] = \
-        calculate_initial_thickness(
-            max_decompaction_error,
-            well_strat['surface_porosity'],
-            well_strat['compressibility'],
-            well_strat['depth_top'],
-            well_strat['depth_bottom'])
+        # calculate decompacted initial thickness
+        logger.info('decompacting')
+        well_strat['initial_thickness'] = \
+            calculate_initial_thickness(
+                max_decompaction_error,
+                well_strat['surface_porosity'],
+                well_strat['compressibility'],
+                well_strat['depth_top'],
+                well_strat['depth_bottom'])
 
     # add exhumation phases
     geohist_df = \
@@ -1265,30 +1490,55 @@ def get_geo_history(well_strat, strat_info_mod,
     # calculate matrix thickness of fully eroded units
     for strat in geohist_df.index:
         if strat[0] == '+':
-            geohist_df.loc[strat, 'matrix_thickness'] = \
-                calculate_matrix_thickness(
+            if compaction_method == 'effective_stress':
+                # fully eroded units are assumed to have started
+                # compacting from the surface (consistent with the
+                # depth-based calculation below)
+                local_n0, local_c = local_compaction_params_effective_stress(
                     geohist_df.loc[strat, 'surface_porosity'],
-                    geohist_df.loc[strat, 'compressibility'],
-                    0,
-                    geohist_df.loc[strat, 'eroded_thickness'])
+                    geohist_df.loc[strat, 'compressibility_stress'],
+                    geohist_df.loc[strat, 'density'],
+                    water_density, 0.0, 0.0)
+                geohist_df.loc[strat, 'matrix_thickness'] = \
+                    calculate_matrix_thickness(
+                        local_n0, local_c,
+                        0, geohist_df.loc[strat, 'eroded_thickness'])
+            else:
+                geohist_df.loc[strat, 'matrix_thickness'] = \
+                    calculate_matrix_thickness(
+                        geohist_df.loc[strat, 'surface_porosity'],
+                        geohist_df.loc[strat, 'compressibility'],
+                        0,
+                        geohist_df.loc[strat, 'eroded_thickness'])
 
     # find exhumation phases
     exhumation_phases = list(geohist_df.index[geohist_df['deposition_code'] == -1])
 
     # find maximum burial depth of units:
     geohist_df = find_maximum_depth(geohist_df, exhumation_phases,
-                                    max_decompaction_error)
+                                    max_decompaction_error,
+                                    compaction_method=compaction_method,
+                                    water_density=water_density)
 
     # remove hiatusses and later eroded units:
     ind = [(s[0] != '~') & (s[0] != '-') for s in geohist_df.index]
     # recalculate matrix thickness using maximum depth instead of
     # present-day depth
-    geohist_df.loc[ind, 'matrix_thickness'] = \
-        calculate_matrix_thickness(
-            geohist_df.loc[ind, 'surface_porosity'].values,
-            geohist_df.loc[ind, 'compressibility'].values,
-            geohist_df.loc[ind, 'maximum_depth_top'].values,
-            geohist_df.loc[ind, 'maximum_depth_bottom'].values)
+    if compaction_method == 'effective_stress':
+        max_burial_matrix_thickness, _ = \
+            calculate_present_day_compaction_effective_stress(
+                geohist_df.loc[ind], water_density, max_decompaction_error,
+                depth_top_col='maximum_depth_top',
+                depth_bottom_col='maximum_depth_bottom',
+                calculate_initial_thickness_too=False)
+        geohist_df.loc[ind, 'matrix_thickness'] = max_burial_matrix_thickness.values
+    else:
+        geohist_df.loc[ind, 'matrix_thickness'] = \
+            calculate_matrix_thickness(
+                geohist_df.loc[ind, 'surface_porosity'].values,
+                geohist_df.loc[ind, 'compressibility'].values,
+                geohist_df.loc[ind, 'maximum_depth_top'].values,
+                geohist_df.loc[ind, 'maximum_depth_bottom'].values)
 
     # find hiatusses
     hiatus_list, hiatus_start_list, hiatus_end_list = \
@@ -1320,11 +1570,16 @@ def get_geo_history(well_strat, strat_info_mod,
     return geohist_df
 
 
-def reconstruct_strat_thickness(geohist_df, verbose=False):
+def reconstruct_strat_thickness(geohist_df, verbose=False,
+                                compaction_method='depth',
+                                water_density=1025.0):
     """
     create dataframe with thicknesses strat units over time
 
     :param geohist_df:
+    :param compaction_method: 'depth' (default) or 'effective_stress'
+    :param water_density: density of pore water (kg m^-3), only used if
+        compaction_method is 'effective_stress'
     :return:
     """
 
@@ -1355,14 +1610,35 @@ def reconstruct_strat_thickness(geohist_df, verbose=False):
 
             # construct lists with compaction params
             n0s = [geohist_df.loc[s, 'surface_porosity'] for s in strat_column]
-            betas = [geohist_df.loc[s, 'compressibility'] for s in strat_column]
             bms = [geohist_df.loc[s, 'matrix_thickness'] for s in strat_column]
 
-            # calculate new compacted thicknesses
             thicknesses = np.zeros((len(strat_column)))
-            for i, n0, beta, bm in zip(itertools.count(), n0s, betas, bms):
-                thicknesses[i] = compact(bm, n0, beta,
-                                         thicknesses[:i].sum(), bm, 0.001)
+
+            if compaction_method == 'effective_stress':
+                c_sigmas = [geohist_df.loc[s, 'compressibility_stress'] for s in strat_column]
+                densities = [geohist_df.loc[s, 'density'] for s in strat_column]
+
+                # calculate new compacted thicknesses, marching top to
+                # bottom and accumulating overburden stress from the
+                # (paleo-)bulk density of the units above
+                cum_stress_total = 0.0
+                for i, n0, c_sigma, density, bm in zip(
+                        itertools.count(), n0s, c_sigmas, densities, bms):
+                    local_n0, local_c = local_compaction_params_effective_stress(
+                        n0, c_sigma, density, water_density,
+                        cum_stress_total, thicknesses[:i].sum())
+                    thicknesses[i] = compact(bm, local_n0, local_c,
+                                             0, bm, 0.001)
+                    cum_stress_total = update_cumulative_stress(
+                        cum_stress_total, thicknesses[i], bm, density,
+                        water_density)
+            else:
+                betas = [geohist_df.loc[s, 'compressibility'] for s in strat_column]
+
+                # calculate new compacted thicknesses
+                for i, n0, beta, bm in zip(itertools.count(), n0s, betas, bms):
+                    thicknesses[i] = compact(bm, n0, beta,
+                                             thicknesses[:i].sum(), bm, 0.001)
 
             if timestep is not geohist_df.index[-1]:
                 # check if thickness higher than pre-compacted thickness
@@ -2165,6 +2441,12 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     pybasin_params.exhumed_thicknesses = np.array(pybasin_params.exhumed_thicknesses)
     # pybasin_params.pybasin_params.original_thicknesses = np.array(pybasin_params.original_thicknesses)
 
+    # optional compaction method, defaults to 'depth' (standard Athy's
+    # law) for backward compatibility with input datasets that do not
+    # set this parameter
+    compaction_method = getattr(pybasin_params, 'compaction_method', 'depth')
+    water_density = litho_props.loc['water', 'density']
+
     geohist_df = get_geo_history(
         well_strat, strat_info_mod,
         pybasin_params.max_decompaction_error,
@@ -2176,7 +2458,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         pybasin_params.max_thickness,
         two_stage_exh=pybasin_params.two_stage_exhumation,
         exhumation_segment_factor=pybasin_params.exhumation_segment_factor,
-        exhumation_duration_factor=pybasin_params.exhumation_duration_factor)
+        exhumation_duration_factor=pybasin_params.exhumation_duration_factor,
+        compaction_method=compaction_method,
+        water_density=water_density)
 
     if save_csv_files is True:
         # save geohistory dataframe as .csv file
@@ -2185,7 +2469,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                        % (well, model_scenario_number)),
                           index_label='strat_unit')
 
-    strat_thickness_df = reconstruct_strat_thickness(geohist_df)
+    strat_thickness_df = reconstruct_strat_thickness(
+        geohist_df, compaction_method=compaction_method,
+        water_density=water_density)
 
     if save_csv_files is True:
         strat_thickness_df.to_csv(
