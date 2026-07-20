@@ -246,6 +246,200 @@ def update_cumulative_stress(cum_stress_total, thickness, bm,
     return cum_stress_total + bulk_density * G_ACCEL * thickness
 
 
+# porosity-permeability relations for noncemented sand and clay
+# mixtures, following Luijendijk and Gleeson (2014), Geofluids 15,
+# https://doi.org/10.1111/gfl.12115, and the accompanying notebooks at
+# https://github.com/ElcoLuijendijk/permeability_notebooks
+
+# calibrated exponential void ratio-permeability parameters for pure
+# clay minerals: k0 (permeability at a void ratio of 1, m^2) and m
+# (dimensionless exponent), Luijendijk and Gleeson (2014)
+CLAY_PERMEABILITY_PARAMS = {
+    'kaolinite': (10 ** -16.21, 3.61),
+    'illite': (10 ** -18.81, 3.58),
+    'smectite': (10 ** -20.93, 3.01),
+}
+
+# Kozeny-Carman constant and percolation threshold porosity, Luijendijk
+# and Gleeson (2014)
+KC_CONSTANT = 5.0
+KC_PHI_THRESHOLD = 0.025
+
+# floor value used to keep permeabilities strictly positive before
+# taking a logarithm in mix_permeability_geometric_mean()
+MIN_PERMEABILITY = 1e-30
+
+
+def kozeny_carman(porosity, specific_surface, grain_density=2650.0,
+                  C=KC_CONSTANT, phi_threshold=KC_PHI_THRESHOLD):
+    """
+    Kozeny-Carman permeability of a granular (sand, silt, gravel)
+    sediment, following Luijendijk and Gleeson (2014)
+
+    Parameters
+    ----------
+    porosity : float or array
+        porosity (dimensionless)
+    specific_surface : float or array
+        specific surface area of the solid grains (m^2 kg^-1)
+    grain_density : float or array
+        density of the solid grains (kg m^-3)
+    C : float
+        Kozeny-Carman constant (dimensionless)
+    phi_threshold : float
+        percolation threshold porosity, subtracted from porosity to
+        give the effective porosity used in the Kozeny-Carman equation
+        (dimensionless)
+
+    Returns
+    -------
+    k : float or array
+        permeability (m^2)
+    """
+
+    phi_eff = np.clip(porosity - phi_threshold, MIN_PERMEABILITY, None)
+
+    specific_surface_volumetric = (specific_surface * (1.0 - porosity)
+                                   * grain_density)
+
+    k = (1.0 / (C * specific_surface_volumetric ** 2)) \
+        * phi_eff ** 3 / (1.0 - phi_eff) ** 2
+
+    return k
+
+
+def calculate_k_clay_exponential(porosity, k0, m):
+    """
+    exponential void ratio-permeability relation for clay, following
+    Luijendijk and Gleeson (2014)
+
+    Parameters
+    ----------
+    porosity : float or array
+        porosity (dimensionless)
+    k0 : float or array
+        permeability at a void ratio of 1 (m^2)
+    m : float or array
+        exponent of the void ratio-permeability relation (dimensionless)
+
+    Returns
+    -------
+    k : float or array
+        permeability (m^2)
+    """
+
+    void_ratio = np.clip(porosity, MIN_PERMEABILITY, None) \
+        / (1.0 - porosity)
+
+    return k0 * void_ratio ** m
+
+
+def mix_permeability_geometric_mean(permeabilities, fractions):
+    """
+    combine end-member permeabilities into a single bulk permeability
+    using a fraction-weighted geometric mean, ie. the power mean with
+    exponent 0. this is the first-order mixture estimate recommended by
+    Luijendijk and Gleeson (2014) for mixtures of sediment types.
+
+    Parameters
+    ----------
+    permeabilities : sequence of float or array
+        permeability of each end-member (m^2), one entry per end-member
+    fractions : sequence of float or array
+        volume or mass fraction of each end-member (dimensionless),
+        one entry per end-member, matching permeabilities. does not
+        need to be normalized to 1
+
+    Returns
+    -------
+    k_bulk : float or array
+        bulk permeability (m^2)
+    """
+
+    k = np.clip(np.array(permeabilities), MIN_PERMEABILITY, None)
+    w = np.array(fractions)
+
+    log_k_bulk = (w * np.log10(k)).sum(axis=0) / w.sum(axis=0)
+
+    return 10.0 ** log_k_bulk
+
+
+def calculate_bulk_permeability_df(porosity_df, geohist_df, litho_props):
+    """
+    calculate bulk permeability for each stratigraphic unit and age,
+    from the lithology fractions of that unit and the bulk porosity of
+    that unit at that age.
+
+    granular lithologies (with a 'specific_surface' value in
+    litho_props) use the Kozeny-Carman equation, clay lithologies
+    (with a 'clay_mineral' value) use the exponential void
+    ratio-permeability relation, and lithologies with neither use a
+    constant 'permeability' value. end-members are combined with a
+    fraction-weighted geometric mean, following Luijendijk and Gleeson
+    (2014)
+
+    Parameters
+    ----------
+    porosity_df : pandas DataFrame
+        bulk porosity of each stratigraphic unit (rows) at each age
+        (columns)
+    geohist_df : pandas DataFrame
+        geohistory dataframe, must contain a lithology fraction column
+        (0-1) for each lithology present in litho_props
+    litho_props : pandas DataFrame
+        lithology properties, indexed by lithology name, must contain
+        'specific_surface', 'clay_mineral' and 'permeability' columns
+
+    Returns
+    -------
+    permeability_df : pandas DataFrame
+        bulk permeability (m^2), same shape as porosity_df
+    """
+
+    litho_names = [name for name in litho_props.index
+                   if name != 'water' and name in geohist_df.columns]
+
+    permeability_df = pd.DataFrame(index=porosity_df.index,
+                                   columns=porosity_df.columns, dtype=float)
+
+    n_ages = len(porosity_df.columns)
+
+    for unit in porosity_df.index:
+
+        phi = porosity_df.loc[unit].astype(float).values
+
+        k_members = []
+        w_members = []
+
+        for name in litho_names:
+
+            fraction = float(geohist_df.loc[unit, name])
+
+            if pd.notnull(litho_props.loc[name, 'specific_surface']):
+                k = kozeny_carman(phi, litho_props.loc[name, 'specific_surface'],
+                                  grain_density=litho_props.loc[name, 'density'])
+            elif pd.notnull(litho_props.loc[name, 'clay_mineral']):
+                k0, m = CLAY_PERMEABILITY_PARAMS[
+                    litho_props.loc[name, 'clay_mineral']]
+                k = calculate_k_clay_exponential(phi, k0, m)
+            elif pd.notnull(litho_props.loc[name, 'permeability']):
+                k = np.full(n_ages, litho_props.loc[name, 'permeability'])
+            else:
+                msg = ('no permeability method defined for lithology %s: '
+                       'add a specific_surface, clay_mineral or '
+                       'permeability value in lithology_properties.csv'
+                       % name)
+                raise ValueError(msg)
+
+            k_members.append(k)
+            w_members.append(np.full(n_ages, fraction))
+
+        permeability_df.loc[unit] = mix_permeability_geometric_mean(
+            k_members, w_members)
+
+    return permeability_df
+
+
 def subdivide_strat_units(input_df, max_thickness):
     """
     subdivide strat units:
@@ -1280,6 +1474,217 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
         raise ValueError(msg)
 
     return C_new, A
+
+
+def solve_1D_pore_pressure(P_ex, z, dt, K_hydraulic, storage, Q,
+                           upper_bnd_flux,
+                           lower_bnd_flux,
+                           fixed_upper_pressure,
+                           fixed_lower_pressure,
+                           A=None,
+                           verbose=False):
+    """
+    solve the transient 1D excess pore pressure (consolidation)
+    equation:
+
+        storage * dP_ex/dt = d/dz(K_hydraulic * dP_ex/dz) + Q
+
+    where P_ex is pressure in excess of hydrostatic. this has the same
+    form as the heat conduction and solute diffusion equations, and
+    reuses the same implicit finite difference machinery, with
+    K_hydraulic (m^2 Pa^-1 s^-1, ie. permeability / fluid viscosity)
+    taking the role of thermal conductivity, storage (Pa^-1, see
+    compaction_storage()) taking the role of volumetric heat capacity,
+    and Q the loading source term, ie. storage times the rate of
+    increase of buoyant (hydrostatic-effective) overburden stress. a
+    fixed lower boundary flux of 0 corresponds to a no-flow lower
+    boundary.
+
+    Parameters
+    ----------
+    P_ex : array
+        excess pore pressure at the previous timestep (Pa)
+    z : array
+        depth of each node (m)
+    dt : float
+        timestep (s)
+    K_hydraulic : array
+        hydraulic conductivity of each grid cell, ie. permeability
+        divided by fluid viscosity (m^2 Pa^-1 s^-1)
+    storage : array
+        specific storage of each node (Pa^-1)
+    Q : array
+        loading source term of each node (Pa s^-1)
+    upper_bnd_flux, lower_bnd_flux : float or None
+        specified fluid flux boundary conditions, ignored if the
+        corresponding fixed pressure is not None
+    fixed_upper_pressure, fixed_lower_pressure : float or None
+        specified excess pressure boundary conditions (Pa)
+    A : array, optional
+        precomputed system matrix
+
+    Returns
+    -------
+    P_ex_new : array
+        excess pore pressure at the new timestep (Pa)
+    A : array
+        system matrix, can be reused for the next timestep if the grid
+        and hydraulic parameters do not change
+    """
+
+    if A is None:
+        A = construct_heat_flow_matrix_variable_z(
+            P_ex, z, dt, K_hydraulic, storage, np.ones_like(storage),
+            fixed_upper_pressure,
+            fixed_lower_pressure)
+
+    nz = len(P_ex)
+
+    dz_top = z[1] - z[0]
+    dz_bottom = z[-1] - z[-2]
+
+    b = create_heat_flow_vector_variable_z(
+        nz, P_ex, Q, dt, storage, np.ones_like(storage), dz_top, dz_bottom,
+        upper_bnd_flux,
+        lower_bnd_flux,
+        fixed_upper_pressure,
+        fixed_lower_pressure)
+
+    try:
+        P_ex_new = np.linalg.solve(A, b)
+    except:
+        msg = 'error, solving matrix for pore pressure diffusion eq. failed'
+        raise ValueError(msg)
+
+    # pressures here are in Pa (typically up to ~1e8 Pa), so the default
+    # np.allclose tolerance (atol=1e-8) is far stricter than meaningful
+    # at this magnitude and fails spuriously at near-zero entries (eg.
+    # the fixed hydrostatic boundary or newly deposited nodes). 1 Pa
+    # absolute is already negligible compared to real overpressures
+    check = np.allclose(np.dot(A, P_ex_new), b, atol=1.0, rtol=1e-6)
+
+    if verbose is True:
+        logger.info(f"solution is correct =  {check}")
+
+    if check is False:
+        msg = 'error, the pore pressure solver failed. The solution is %s' % str(check)
+        raise ValueError(msg)
+
+    return P_ex_new, A
+
+
+def cumulative_buoyant_stress(z, rho_bulk, water_density):
+    """
+    cumulative buoyant (hydrostatic-effective) overburden stress from
+    the surface (0 Pa) down to each depth in z, ie. the lithostatic
+    stress in excess of the hydrostatic pore pressure at that depth,
+    sigma_total - P_hydrostatic.
+
+    used as the loading source for the excess pore pressure equation
+    solved by solve_1D_pore_pressure: using the buoyant density here,
+    rather than the bulk density, is what keeps the excess pressure an
+    excess above hydrostatic. in the undrained (zero permeability)
+    limit, the excess pressure should approach the buoyant weight of
+    the sediment column, (1 - porosity) * (grain_density -
+    water_density) * g * z, not the full lithostatic stress
+
+    Parameters
+    ----------
+    z : array
+        depth of each node (m), increasing from the surface (z[0] = 0)
+        down
+    rho_bulk : array
+        bulk density of each node (kg m^-3)
+    water_density : float
+        density of pore water (kg m^-3)
+
+    Returns
+    -------
+    sigma_buoyant : array
+        cumulative buoyant overburden stress at each node (Pa)
+    """
+    rho_buoyant = rho_bulk - water_density
+    sigma_buoyant = np.zeros_like(z)
+    sigma_buoyant[1:] = np.cumsum(
+        0.5 * (rho_buoyant[:-1] + rho_buoyant[1:])
+        * G_ACCEL * np.diff(z))
+
+    return sigma_buoyant
+
+
+def compaction_storage(porosity, sigma_eff, sigma_eff_max_prev,
+                       compressibility_stress, alpha_skeleton, beta_water):
+    """
+    specific storage (Pa^-1) for the excess pore pressure equation,
+    combining a standard hydrogeological (elastic) storage term that
+    is always active with an irreversible compaction term that is
+    only active while effective stress is at or above its historical
+    maximum (ie. virgin, first time loading).
+
+    fluid compressibility (beta_water) and elastic skeleton
+    compressibility (alpha_skeleton) act reversibly and are always
+    included, following the standard hydrogeological specific storage
+    Ss = rho_f * g * (alpha + porosity * beta), here expressed in
+    pressure rather than head units, ie. Ss / (rho_f * g). the
+    compaction coefficient (compressibility_stress, ie. the same
+    coefficient used for the effective stress-based porosity law
+    elsewhere in this module) is included only while a node is
+    actively compacting for the first time. once excess pressure
+    pushes effective stress below its historical maximum, further
+    loading is accommodated elastically only, and porosity does not
+    rebound: this is what makes the inelastic compaction component
+    irreversible.
+
+    sigma_eff should be estimated using the modeled excess pressure
+    from the previous timestep (sigma_buoyant - P_ex), not an assumed
+    hydrostatic pressure, so that the virgin/elastic decision responds
+    to modeled overpressure. this necessarily lagged estimate is only
+    used for the virgin/elastic decision here, not for updating the
+    historical maximum effective stress itself: that update should use
+    the newly solved excess pressure once available (see
+    run_burial_hist_model()), since a freshly deposited node's first,
+    pre-solve estimate (with excess pressure still at its previous,
+    unrelated value) would otherwise overstate its true effective
+    stress and lock in a ceiling that was never actually reached
+
+    the virgin/elastic decision includes a small (1%) relative
+    tolerance below the historical maximum, so that transient lag
+    between sigma_eff and the true (post-solve) effective stress, eg.
+    right after a new stratigraphic unit is deposited in one step,
+    does not spuriously switch a node to the elastic branch. genuine,
+    overpressure-driven unloading is expected to exceed this by a wide
+    margin
+
+    Parameters
+    ----------
+    porosity : array
+        current porosity of each node (dimensionless)
+    sigma_eff : array
+        current (lagged) estimate of effective stress at each node (Pa)
+    sigma_eff_max_prev : array
+        maximum effective stress reached by each node up to and
+        including the previous timestep (Pa)
+    compressibility_stress : array
+        compaction coefficient with respect to effective stress (Pa^-1)
+    alpha_skeleton : float
+        elastic (reversible) compressibility of the sediment skeleton
+        (Pa^-1)
+    beta_water : float
+        compressibility of pore water (Pa^-1)
+
+    Returns
+    -------
+    storage : array
+        specific storage to use for this timestep (Pa^-1)
+    is_virgin : array of bool
+        True for nodes currently compacting for the first time
+    """
+    virgin_tolerance = 0.01
+    is_virgin = sigma_eff >= sigma_eff_max_prev * (1.0 - virgin_tolerance)
+    storage = porosity * (beta_water + alpha_skeleton
+                          + np.where(is_virgin, compressibility_stress, 0.0))
+
+    return storage, is_virgin
 
 
 def calculate_present_day_compaction_effective_stress(
@@ -2597,6 +3002,46 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     k_last = k_df[k_df.columns[-1]].dropna().values
     logger.info('final thermal conductivity, mean=%0.2f, range=%0.2f-%0.2f' % (k_last.mean(), k_last.min(), k_last.max()))
 
+    # for the optional compaction-driven fluid flow model: bulk
+    # permeability of each stratigraphic unit at each age, following
+    # Kozeny-Carman (granular lithologies) or an exponential void ratio
+    # relation (clay), mixed by a fraction-weighted geometric mean,
+    # following Luijendijk and Gleeson (2014). also carry the
+    # compressibility_stress (compaction coefficient with respect to
+    # effective stress) of each unit through to each node, for use in
+    # compaction_storage() inside the main timestep loop below; this
+    # coefficient does not vary with age, so it is simply broadcast
+    # across all age columns here
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+
+        if compaction_method != 'effective_stress':
+            msg = ('error, simulate_fluid_flow requires compaction_method '
+                   "to be set to 'effective_stress' in pybasin_params.py, "
+                   'so that a compressibility_stress value is available '
+                   'for each stratigraphic unit')
+            raise ValueError(msg)
+
+        required_cols = ['specific_surface', 'clay_mineral', 'permeability']
+        missing_cols = [col for col in required_cols
+                        if col not in litho_props.columns]
+        if len(missing_cols) > 0:
+            msg = ('error, simulate_fluid_flow requires the columns %s in '
+                   'lithology_properties.csv' % missing_cols)
+            raise ValueError(msg)
+
+        permeability_df = calculate_bulk_permeability_df(
+            porosity_df, geohist_df, litho_props)
+
+        compressibility_stress_df = pd.DataFrame(
+            np.tile(geohist_df['compressibility_stress']
+                   .reindex(porosity_df.index).values[:, None],
+                   (1, len(porosity_df.columns))),
+            index=porosity_df.index, columns=porosity_df.columns)
+
+        perm_last = permeability_df[permeability_df.columns[-1]].dropna().values
+        logger.info('final permeability, mean=%0.2e, range=%0.2e-%0.2e'
+                   % (perm_last.mean(), perm_last.min(), perm_last.max()))
+
     ############################################################
     # set up arrays for forward model of heat flow and salinity
     ############################################################
@@ -2639,6 +3084,10 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     rho_nodes = np.zeros((nt_total, n_nodes))
     hp_nodes = np.zeros((nt_total, n_nodes))
     porosity_nodes = np.zeros((nt_total, n_nodes))
+
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+        permeability_cells = np.zeros((nt_total, n_cells))
+        c_sigma_nodes = np.zeros((nt_total, n_nodes))
 
     start_ages = ages_ind[:-1]
     end_ages = ages_ind[1:]
@@ -2783,6 +3232,15 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         k_nodes[timestep:(timestep + nt_heatflow), :-1:2] = ks
         k_nodes[timestep:(timestep + nt_heatflow), 1::2] = ks
 
+        if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+            perm = interpolate_param(
+                permeability_df[start_age].values.astype(float),
+                permeability_df[end_age].values.astype(float),
+                nt_heatflow)
+
+            permeability_cells[timestep:(timestep + nt_heatflow), :-1:2] = perm
+            permeability_cells[timestep:(timestep + nt_heatflow), 1::2] = perm
+
         timestep += nt_heatflow
 
     # populate thermal parameter arrays:
@@ -2823,6 +3281,14 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             nt_heatflow)
 
         porosity_nodes[timestep:end_step, active_nodes[timestep]] = phi_active
+
+        if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+            c_sigma_active = interpolate_node_variables(
+                compressibility_stress_df[start_age].values.astype(float)[active_fm_i],
+                compressibility_stress_df[end_age].values.astype(float)[active_fm_i],
+                nt_heatflow)
+
+            c_sigma_nodes[timestep:end_step, active_nodes[timestep]] = c_sigma_active
 
         timestep += nt_heatflow
 
@@ -2973,6 +3439,53 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         q_solute_top = np.zeros(nt_total)
         q_solute_bottom = np.zeros(nt_total)
 
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+        # excess pore pressure (ie. pressure above hydrostatic), starts
+        # at 0 everywhere, including nodes not yet deposited, so that
+        # newly deposited nodes start out at hydrostatic pressure
+        P_ex_nodes = np.zeros((nt_total, n_nodes))
+
+        # fluid viscosity depends on the modeled temperature and (if
+        # available) salinity at each timestep (see the Batzle and
+        # Wang, 1992 correlation in calculate_viscosity_np()), so
+        # hydraulic conductivity is calculated inside the timestep
+        # loop below rather than once here. pore_water_salinity is a
+        # constant fallback salinity (kg/kg) used for the viscosity
+        # calculation if simulate_salinity is not enabled
+        pore_water_salinity = getattr(pybasin_params, 'pore_water_salinity', 0.0)
+
+        # elastic (reversible) compressibility of the sediment skeleton
+        # and of pore water, used together with porosity for the
+        # standard hydrogeological specific storage term in
+        # compaction_storage(). defaults are representative of a
+        # moderately consolidated sediment (alpha) and fresh water at
+        # room temperature and pressure (beta); real values can vary
+        # by an order of magnitude or more between lithologies (eg.
+        # clay can approach or exceed typical compressibility_stress
+        # values), so override these in pybasin_params.py if a
+        # calibrated value is available
+        alpha_skeleton = getattr(pybasin_params,
+                                 'elastic_skeleton_compressibility', 1.0e-9)
+        beta_water = getattr(pybasin_params, 'water_compressibility', 4.4e-10)
+
+        # cumulative buoyant (hydrostatic-effective) overburden stress
+        # at the previous timestep, used to calculate the loading rate
+        # that drives compaction-generated excess pore pressure. starts
+        # at 0 everywhere, consistent with P_ex_nodes
+        sigma_buoyant_prev = np.zeros(n_nodes)
+
+        # maximum buoyant effective stress reached by each node so
+        # far, used by compaction_storage() to make inelastic
+        # compaction irreversible: once excess pressure pushes
+        # effective stress below this historical maximum, further
+        # compaction is elastic only and porosity does not rebound.
+        # starts at 0 everywhere, consistent with a freshly deposited
+        # node having 0 effective stress
+        sigma_eff_max_prev = np.zeros(n_nodes)
+
+        q_fluid_top = np.zeros(nt_total)
+        q_fluid_bottom = np.zeros(nt_total)
+
     # go through all geological timesteps and model heat flow:
     logger.info('-' * 10)
     if pybasin_params.simulate_salinity is True:
@@ -3095,6 +3608,118 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             q_solute_bottom[timestep] = density[-1] * Ks_cells[-1] \
                                         * dC_bottom / dx_bottom
 
+        if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+
+            if timestep == 0:
+                P_ex_init = P_ex_nodes[timestep, active_nodes_i]
+            else:
+                P_ex_init = P_ex_nodes[timestep - 1, active_nodes_i]
+
+            # bulk density at the active nodes, already calculated for
+            # the heat flow model
+            rho_active_fluid = rho_nodes[timestep, active_nodes_i]
+            z_active_fluid = z_nodes[timestep, active_nodes_i]
+
+            # fluid viscosity from the Batzle and Wang (1992) brine
+            # viscosity correlation, using the modeled temperature and
+            # (if available) salinity at this timestep. the
+            # correlation is only valid for T >= 0 degrees C and
+            # salinity >= 0 kg/kg
+            T_active_fluid = np.clip(T_nodes[timestep, active_nodes_i], 0.0, None)
+            if pybasin_params.simulate_salinity is True:
+                C_active_fluid = np.clip(C_nodes[timestep, active_nodes_i], 0.0, None)
+            else:
+                C_active_fluid = np.full_like(T_active_fluid, pore_water_salinity)
+
+            viscosity_nodes_fluid = calculate_viscosity_np(
+                C_active_fluid, T_active_fluid) * 1.0e-3
+
+            viscosity_cells_fluid = 0.5 * (viscosity_nodes_fluid[:-1]
+                                          + viscosity_nodes_fluid[1:])
+
+            K_hydraulic_active = (permeability_cells[timestep, active_cells_i]
+                                  / viscosity_cells_fluid)
+
+            # cumulative buoyant overburden stress at the active nodes,
+            # used below as the loading source for the excess pore
+            # pressure equation
+            sigma_buoyant_active = cumulative_buoyant_stress(
+                z_active_fluid, rho_active_fluid, water_density)
+
+            # loading rate: rate of increase of buoyant overburden
+            # stress since the previous timestep, at the same (active)
+            # nodes. newly deposited nodes are treated as having had 0
+            # buoyant overburden stress at the previous timestep,
+            # consistent with P_ex_nodes starting at 0 for these nodes
+            sigma_buoyant_prev_active = sigma_buoyant_prev[active_nodes_i]
+            loading_rate = ((sigma_buoyant_active - sigma_buoyant_prev_active)
+                           / (dt_hf * year))
+
+            # effective stress estimate for this timestep, using the
+            # excess pressure from the previous timestep (P_ex_init):
+            # this is what lets modeled overpressure feed back into
+            # the storage term below, rather than assuming hydrostatic
+            # pressure as the rest of the compaction pipeline still
+            # does (see compaction_storage()). this pre-solve estimate
+            # is used only to decide the virgin/elastic storage regime
+            # below; the historical maximum effective stress itself is
+            # updated below using the newly solved excess pressure
+            # instead, once available
+            phi_active = porosity_nodes[timestep, active_nodes_i]
+            c_sigma_active = c_sigma_nodes[timestep, active_nodes_i]
+            sigma_eff_active = np.clip(
+                sigma_buoyant_active - P_ex_init, 0.0, None)
+            sigma_eff_max_prev_active = sigma_eff_max_prev[active_nodes_i]
+
+            storage_active, _ = compaction_storage(
+                phi_active, sigma_eff_active, sigma_eff_max_prev_active,
+                c_sigma_active, alpha_skeleton, beta_water)
+
+            Q_loading = storage_active * loading_rate
+
+            P_ex_nodes[timestep, active_nodes_i], A_p = \
+                solve_1D_pore_pressure(
+                    P_ex_init,
+                    z_active_fluid,
+                    dt_hf * year,
+                    K_hydraulic_active,
+                    storage_active,
+                    Q_loading,
+                    None,
+                    0.0,
+                    0.0,
+                    None)
+
+            sigma_buoyant_prev[active_nodes_i] = sigma_buoyant_active
+
+            # update the historical maximum effective stress using the
+            # excess pressure just solved for, not the pre-solve
+            # estimate used for the virgin/elastic decision above: a
+            # freshly deposited node's pre-solve estimate always
+            # assumes 0 excess pressure, which would otherwise
+            # overstate its true effective stress and lock in a
+            # ceiling it never actually reached
+            sigma_eff_post = np.clip(
+                sigma_buoyant_active
+                - P_ex_nodes[timestep, active_nodes_i], 0.0, None)
+            sigma_eff_max_prev[active_nodes_i] = np.maximum(
+                sigma_eff_post, sigma_eff_max_prev_active)
+
+            if np.any(np.isnan(P_ex_nodes[timestep, active_nodes_i])):
+                raise ValueError('error, nan values in pore pressure array')
+
+            # calculate Darcy flux (excess pressure-driven) at top and
+            # bottom nodes
+            dP_top = (P_ex_nodes[timestep, active_nodes_i][1]
+                     - P_ex_nodes[timestep, active_nodes_i][0])
+            dx_top = z_active_fluid[1] - z_active_fluid[0]
+            q_fluid_top[timestep] = -K_hydraulic_active[0] * dP_top / dx_top
+
+            dP_bottom = (P_ex_nodes[timestep, active_nodes_i][-1]
+                        - P_ex_nodes[timestep, active_nodes_i][-2])
+            dx_bottom = z_active_fluid[-1] - z_active_fluid[-2]
+            q_fluid_bottom[timestep] = -K_hydraulic_active[-1] * dP_bottom / dx_bottom
+
         if np.any(np.isnan(T_nodes[timestep, active_nodes_i])):
 
             for cs, ac, rho in zip(cell_strat, active_cells[timestep],
@@ -3110,17 +3735,42 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             if pybasin_params.simulate_salinity is True:
                 logger.info('min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(), C_nodes[timestep, active_nodes_i].max()))
 
+    if (getattr(pybasin_params, 'simulate_fluid_flow', False) is True
+            and save_csv_files is True):
+        present_day_active = active_nodes[-1]
+        z_present_day = z_nodes[-1, present_day_active]
+        P_ex_present_day = P_ex_nodes[-1, present_day_active]
+        P_hydrostatic_present_day = water_density * G_ACCEL * z_present_day
+
+        pressure_df = pd.DataFrame({
+            'depth': z_present_day,
+            'strat_unit': np.array(node_strat)[present_day_active],
+            'hydrostatic_pressure': P_hydrostatic_present_day,
+            'excess_pressure': P_ex_present_day,
+            'total_pressure': P_hydrostatic_present_day + P_ex_present_day,
+        })
+        pressure_df.to_csv(
+            os.path.join(output_dir,
+                         'present_day_pressure_well_%s_ms%i.csv'
+                         % (well, model_scenario_number)),
+            index=False)
+
     return_params = [geohist_df, time_array, time_array_bp,
                      surface_temp_array, basal_hf_array,
                      z_nodes, T_nodes, active_nodes,
                      n_nodes, n_cells,
                      node_strat, node_age,
-                     prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes]
+                     prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes,
+                     rho_nodes]
 
     if pybasin_params.simulate_salinity is True:
         return_params += [C_nodes,
                           surface_salinity_array,
                           pybasin_params.fixed_lower_bnd_salinity,
                           Dw, q_solute_top, q_solute_bottom]
+
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+        return_params += [P_ex_nodes, permeability_cells,
+                          q_fluid_top, q_fluid_bottom]
 
     return return_params

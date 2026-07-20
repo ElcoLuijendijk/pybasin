@@ -77,8 +77,27 @@ if 'y' in input_func():
 else:
     show_provenance_hist = False
 
+print('which variable to show in the burial history panel: '
+     'temperature (t), salinity (s) or pressure (p)? [t]')
+contour_choice = input_func().strip().lower()
+contour_variable = {'s': 'salinity', 'p': 'pressure'}.get(contour_choice, 'temperature')
+
+print('add a panel with modeled (and observed, if available) porosity? '
+     '(y/n, default: shown if this model run used simulate_fluid_flow)')
+porosity_choice = input_func().strip().lower()
+show_porosity_panel = {'y': True, 'n': False}.get(porosity_choice, None)
+
+print('add a panel with modeled (and observed, if available) pressure? '
+     '(y/n, default: shown if this model run used simulate_fluid_flow)')
+pressure_choice = input_func().strip().lower()
+show_pressure_panel = {'y': True, 'n': False}.get(pressure_choice, None)
+
 print('making a figure of the model results:')
-fig = pf.model_vs_data_figure(model_run_data_fig, show_provenance_hist=show_provenance_hist)
+fig = pf.model_vs_data_figure(model_run_data_fig,
+                              show_provenance_hist=show_provenance_hist,
+                              contour_variable=contour_variable,
+                              show_porosity_panel=show_porosity_panel,
+                              show_pressure_panel=show_pressure_panel)
 
 fn_out = model_file[:-4] + '_figure.%s' % args.fig_type
 

@@ -172,6 +172,8 @@ def model_vs_data_figure(model_run_data,
                          max_age_burial_panel=None,
                          max_age_thermochron_panel=None,
                          show_temp_panel=True,
+                         show_porosity_panel=None,
+                         show_pressure_panel=None,
                          show_age_scatter=True,
                          debug=False):
 
@@ -197,6 +199,20 @@ def model_vs_data_figure(model_run_data,
     :param add_panel_titles: add a label to each figure panel
     :param panel_title_level: if 1 label panels a, b, c. If 2, label panels as a1, a2, a3 etc...
     :param panel_label_fs: fontsize of panel label
+    :param contour_variable: 'temperature' (default), 'salinity' or
+        'pressure'. selects which variable is shown in the main burial
+        history panel; 'pressure' shows modeled excess (above
+        hydrostatic) pore pressure, only available for model runs with
+        simulate_fluid_flow enabled
+    :param show_porosity_panel: add a panel with modeled (and, if
+        available, observed) present-day porosity vs depth. defaults
+        (None) to True if this model run has excess pressure data
+        (simulate_fluid_flow was used), False otherwise
+    :param show_pressure_panel: add a panel with modeled (and, if
+        available, observed) present-day pressure vs depth. only shown
+        if the model run has excess pressure data (simulate_fluid_flow).
+        defaults (None) to True if this model run has excess pressure
+        data, False otherwise
     :param debug:
     :return:
     """
@@ -215,6 +231,37 @@ def model_vs_data_figure(model_run_data,
     T_nodes = grid['T'].values
     node_strat = grid['node_strat'].values.tolist()
     node_age = grid['node_age'].values
+
+    # porosity is always calculated, but older saved model runs may not
+    # have it; excess pore pressure is only calculated for model runs
+    # with simulate_fluid_flow enabled
+    porosity_nodes = grid['porosity'].values if 'porosity' in grid else None
+    rho_nodes = grid['rho'].values if 'rho' in grid else None
+    P_ex_nodes = grid['P_ex'].values if 'P_ex' in grid else None
+
+    pressure_data = normalized.get('pressure_data')
+    porosity_data = normalized.get('porosity_data')
+
+    # by default, show the porosity and pressure panels once
+    # compaction-driven pore pressure modeling (simulate_fluid_flow)
+    # was used for this model run, since the excess pressure and
+    # present-day pressure comparison are then directly relevant
+    if show_porosity_panel is None:
+        show_porosity_panel = P_ex_nodes is not None
+    if show_pressure_panel is None:
+        show_pressure_panel = P_ex_nodes is not None
+
+    if show_pressure_panel and P_ex_nodes is None:
+        logger.info('show_pressure_panel is True, but this model run has no '
+                   'excess pressure data (simulate_fluid_flow was not used); '
+                   'not showing the pressure panel')
+        show_pressure_panel = False
+
+    if contour_variable == 'pressure' and P_ex_nodes is None:
+        logger.info('contour_variable is "pressure", but this model run has '
+                   'no excess pressure data (simulate_fluid_flow was not '
+                   'used); showing temperature instead')
+        contour_variable = 'temperature'
 
     T_data = normalized['T_data']
     if T_data is not None:
@@ -434,6 +481,18 @@ def model_vs_data_figure(model_run_data,
         ncols += 1
         width_ratios.append(3)
 
+    porosity_panel_ind = None
+    if show_porosity_panel:
+        porosity_panel_ind = ncols
+        ncols += 1
+        width_ratios.append(3)
+
+    pressure_panel_ind = None
+    if show_pressure_panel:
+        pressure_panel_ind = ncols
+        ncols += 1
+        width_ratios.append(3)
+
     if C_data is not None:
         C_panel_ind = ncols
         ncols += 1
@@ -520,6 +579,14 @@ def model_vs_data_figure(model_run_data,
         ax_temp = fig.add_subplot(gs[row_mid, temp_panel_ind])
         all_panels.append(ax_temp)
 
+    if show_porosity_panel:
+        ax_porosity = fig.add_subplot(gs[row_mid, porosity_panel_ind])
+        all_panels.append(ax_porosity)
+
+    if show_pressure_panel:
+        ax_pressure = fig.add_subplot(gs[row_mid, pressure_panel_ind])
+        all_panels.append(ax_pressure)
+
     if C_data is not None:
         ax_c = fig.add_subplot(gs[row_mid, C_panel_ind])
         all_panels.append(ax_c)
@@ -590,6 +657,10 @@ def model_vs_data_figure(model_run_data,
         cnt_var = C_nodes
         cnt_step = 0.005
         cb_label = 'salinity (kg/kg)'
+    elif contour_variable == 'pressure':
+        cnt_var = P_ex_nodes / 1.0e6
+        cnt_step = max(cnt_var[active_nodes].max() / 15.0, 0.1)
+        cb_label = 'excess pressure (MPa)'
     else:
         cnt_var = T_nodes
         if T_nodes.max() < 50:
@@ -600,11 +671,12 @@ def model_vs_data_figure(model_run_data,
             cnt_step = 10.0
         cb_label = 'T (%s C)' % degree_symbol
 
-    # plot surface temperature
+    # plot surface temperature. no equivalent surface line for
+    # pressure: excess pressure is 0 at the surface by construction
     if contour_variable == 'salinity':
         axst.plot(time_array_bp / 1e6, surface_salinity_array,
                   **line_props)
-    else:
+    elif contour_variable != 'pressure':
         axst.plot(time_array_bp / 1e6, surface_temp_array,
                   **line_props)
 
@@ -801,10 +873,11 @@ def model_vs_data_figure(model_run_data,
         leg_items += [leg_prov_simple]
         leg_labels += ['provenance ages']
 
-    # plot basal heat flow
+    # plot basal heat flow. no equivalent lower boundary line for
+    # pressure (a no-flow boundary), so nothing is plotted here
     if contour_variable == 'salinity':
         axhf.axhline(y=salinity_lwr_bnd, **line_props)
-    else:
+    elif contour_variable != 'pressure':
         axhf.plot(time_array_bp / 1e6, basal_hf_array * 1000.0,
                   **line_props)
         axhf.set_ylim(basal_hf_array.min() * 1000.0 * 0.95,
@@ -815,6 +888,52 @@ def model_vs_data_figure(model_run_data,
                                   z_nodes[-1, active_nodes[-1]],
                                   **line_props)
         model_label.append('temperature')
+
+    if show_porosity_panel:
+        ax_porosity.plot(porosity_nodes[-1, active_nodes[-1]],
+                         z_nodes[-1, active_nodes[-1]],
+                         **line_props)
+        model_label.append('porosity')
+
+        if porosity_data is not None:
+            obs = porosity_data['data']
+            ax_porosity.scatter(obs['porosity'], obs['depth'], **scatter_props)
+
+    if show_pressure_panel:
+        # hydrostatic pore water pressure (1025 kg/m3, 9.81 m/s2),
+        # matching the assumption used throughout the compaction and
+        # fluid flow model
+        z_active = z_nodes[-1, active_nodes[-1]]
+        hydrostatic_pressure = 1025.0 * 9.81 * z_active / 1.0e6
+        total_pressure = hydrostatic_pressure \
+            + P_ex_nodes[-1, active_nodes[-1]] / 1.0e6
+
+        ax_pressure.plot(hydrostatic_pressure, z_active,
+                         color='gray', lw=1.0, ls='--',
+                         label='hydrostatic')
+
+        # lithostatic (total overburden) pressure, from the bulk
+        # density already calculated for the heat flow model. only
+        # available for model runs that saved bulk density (rho);
+        # older saved model runs may not have it
+        lithostatic_pressure = None
+        if rho_nodes is not None:
+            rho_active = rho_nodes[-1, active_nodes[-1]]
+            lithostatic_pressure = np.zeros_like(z_active)
+            lithostatic_pressure[1:] = np.cumsum(
+                0.5 * (rho_active[:-1] + rho_active[1:]) * 9.81
+                * np.diff(z_active)) / 1.0e6
+            ax_pressure.plot(lithostatic_pressure, z_active,
+                             color='gray', lw=1.0, ls=':',
+                             label='lithostatic')
+
+        ax_pressure.plot(total_pressure, z_active, **line_props)
+        model_label.append('pressure')
+
+        if pressure_data is not None:
+            obs = pressure_data['data']
+            obs_depth = (obs['depth_top'] + obs['depth_bottom']) / 2.0
+            ax_pressure.scatter(obs['FSIP_MPa'], obs_depth, **scatter_props)
 
     if show_strat_column is True:
 
@@ -1139,6 +1258,10 @@ def model_vs_data_figure(model_run_data,
     if contour_variable == 'salinity':
         axst.set_ylabel('Salinity\ntop bnd\n(kg/kg)')
         axhf.set_ylabel('Salinity\nlower bnd\n(kg/kg)')
+    elif contour_variable == 'pressure':
+        # no top or lower boundary line is plotted for pressure (see
+        # above), so these panels are left without a y-axis label
+        pass
     else:
         axst.set_ylabel('Surface\nT (%sC)' % degree_symbol)
         axhf.set_ylabel(r'HF (mW m$^{-2}$)', labelpad=12)
@@ -1146,6 +1269,12 @@ def model_vs_data_figure(model_run_data,
     axhf.set_xlabel('Time (Ma)')
     if show_temp_panel:
         ax_temp.set_xlabel('T (%sC)' % degree_symbol)
+
+    if show_porosity_panel:
+        ax_porosity.set_xlabel('Porosity (-)')
+
+    if show_pressure_panel:
+        ax_pressure.set_xlabel('Pressure (MPa)')
 
     if C_data is not None:
         ax_c.set_xlabel('Salinity (kg/kg)')
@@ -1214,6 +1343,20 @@ def model_vs_data_figure(model_run_data,
         
     if show_temp_panel:
         ax_temp.set_xlim(0, max_T * 1.2)
+
+    if show_porosity_panel:
+        max_porosity = porosity_nodes[-1][active_nodes[-1]].max()
+        if porosity_data is not None and len(porosity_data['data']) > 0:
+            max_porosity = max(max_porosity, porosity_data['data']['porosity'].max())
+        ax_porosity.set_xlim(0, max_porosity * 1.2)
+
+    if show_pressure_panel:
+        max_pressure = total_pressure.max()
+        if lithostatic_pressure is not None:
+            max_pressure = max(max_pressure, lithostatic_pressure.max())
+        if pressure_data is not None and len(pressure_data['data']) > 0:
+            max_pressure = max(max_pressure, pressure_data['data']['FSIP_MPa'].max())
+        ax_pressure.set_xlim(0, max_pressure * 1.1)
 
     if contour_variable == 'salinity':
         max_C = C_nodes[-1].max()

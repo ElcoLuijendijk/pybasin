@@ -982,13 +982,21 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           model_scenario_number,
                                           save_csv_files=save_csv_files)
 
+    simulate_fluid_flow = getattr(pybasin_params, 'simulate_fluid_flow', False)
+
+    if simulate_fluid_flow is True:
+        [P_ex_nodes, permeability_cells, q_fluid_top, q_fluid_bottom] = \
+            model_result_vars[-4:]
+        model_result_vars = model_result_vars[:-4]
+
     if pybasin_params.simulate_salinity is False:
         [geohist_df, time_array, time_array_bp,
          surface_temp_array, basal_hf_array,
          z_nodes, T_nodes, active_nodes,
          n_nodes, n_cells,
          node_strat, node_age,
-         prov_start_nodes, prov_end_nodes,porosity_nodes, k_nodes] = \
+         prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes,
+         rho_nodes] = \
             model_result_vars
     else:
         [geohist_df, time_array, time_array_bp,
@@ -997,6 +1005,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
          n_nodes, n_cells,
          node_strat, node_age,
          prov_start_nodes, prov_end_nodes, porosity_nodes, k_nodes,
+         rho_nodes,
          C_nodes, surface_salinity_array,
          salinity_lwr_bnd, Dw, q_solute_top, q_solute_bottom] = \
             model_result_vars
@@ -1540,7 +1549,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     model_run_data = [time_array_bp,
                       surface_temp_array, basal_hf_array,
                       z_nodes, active_nodes, T_nodes,
-                      node_strat, node_age]
+                      node_strat, node_age, porosity_nodes, rho_nodes,
+                      P_ex_nodes if simulate_fluid_flow is True else None]
 
     return (model_run_data,
             T_model_data, T_gof, T_r2,
@@ -1966,6 +1976,25 @@ def read_model_input_data(input_dir, pybasin_params):
     else:
         salinity_data = None
 
+    # optional observed present-day pressure data (eg. from drill stem
+    # tests), used only to overlay on the pressure panel of the burial
+    # history figure. not used for calibration or goodness-of-fit
+    pressure_data_file = os.path.join(input_dir, 'dst_pressure_data.csv')
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True \
+            and os.path.isfile(pressure_data_file):
+        pressure_data = pd.read_csv(pressure_data_file, skip_blank_lines=True)
+    else:
+        pressure_data = None
+
+    # optional observed porosity data, used only to overlay on the
+    # porosity panel of the burial history figure. not used for
+    # calibration or goodness-of-fit
+    porosity_data_file = os.path.join(input_dir, 'porosity_data.csv')
+    if os.path.isfile(porosity_data_file):
+        porosity_data = pd.read_csv(porosity_data_file, skip_blank_lines=True)
+    else:
+        porosity_data = None
+
     # T_data, vr_data, aft_samples, aft_ages, he_samples, he_data, salinity_data
 
     ########
@@ -2007,12 +2036,22 @@ def read_model_input_data(input_dir, pybasin_params):
     # create new copy of dataframe to store results
     strat_info_mod = strat_info.copy()
 
+    # lithology properties that are not fraction-weighted blended into
+    # strat_info_mod, either because they are non-numeric (eg. a
+    # mineral name) or because the model reads them directly from
+    # litho_props per pure lithology instead (eg. permeability
+    # end-member inputs used by calculate_bulk_permeability_df())
+    non_blended_litho_props = ['clay_mineral']
+
+    numeric_litho_props = [col for col in litho_props.columns
+                           if col not in non_blended_litho_props]
+
     # add new lithology properties columns to stratigraphy dataframe
-    for litho_prop_name in litho_props.columns:
+    for litho_prop_name in numeric_litho_props:
         strat_info_mod[litho_prop_name] = 0
 
     # go through all litho properties
-    for litho_prop_name in litho_props.columns:
+    for litho_prop_name in numeric_litho_props:
 
         # go through all lithology types present in strat unit
         for col in litho_cols:
@@ -2026,7 +2065,8 @@ def read_model_input_data(input_dir, pybasin_params):
             T_data_df, vr_data_df,
             aft_samples, aft_ages,
             he_samples, he_data,
-            salinity_data, surface_temp, litho_props)
+            salinity_data, surface_temp, litho_props,
+            pressure_data, porosity_data)
 
 
 def select_well_strat(well, well_strats):
@@ -2233,7 +2273,8 @@ def main():
      T_data_df, vr_data_df,
      aft_samples, aft_ages,
      he_samples, he_data,
-     salinity_data, surface_temp, litho_props) \
+     salinity_data, surface_temp, litho_props,
+     pressure_data, porosity_data) \
         = read_model_input_data(input_dir, Parameters)
 
     # model_scenario_param_list, params_to_change = setup_model_scenarios(model_scenarios,
@@ -2501,12 +2542,16 @@ def main():
                     (time_array_bp,
                      surface_temp_array, basal_hf_array,
                      z_nodes, active_nodes, T_nodes,
-                     node_strat, node_age) = model_run_data
+                     node_strat, node_age,
+                     porosity_nodes, rho_nodes, P_ex_nodes) = model_run_data
 
                     model_run_data_fig = pybasin_io.build_model_run_data(
                         time_array_bp, surface_temp_array, basal_hf_array,
                         z_nodes, active_nodes, T_nodes, node_strat, node_age,
-                        T_model_data, C_data, VR_model_data, AFT_data, He_model_data)
+                        T_model_data, C_data, VR_model_data, AFT_data, He_model_data,
+                        porosity_nodes=porosity_nodes, rho_nodes=rho_nodes,
+                        P_ex_nodes=P_ex_nodes,
+                        pressure_data=pressure_data, porosity_data=porosity_data)
 
                     # l = len(z_nodes[-1, active_nodes[-1]]) - 1
                     # dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \

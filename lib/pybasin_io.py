@@ -13,27 +13,45 @@ import pickle
 import numpy as np
 import xarray as xr
 
-OUTPUT_FORMAT_VERSION = 2
+OUTPUT_FORMAT_VERSION = 3
 
 
 def build_grid_dataset(time_array_bp, surface_temp_array, basal_hf_array,
-                       z_nodes, active_nodes, T_nodes, node_strat, node_age):
+                       z_nodes, active_nodes, T_nodes, node_strat, node_age,
+                       porosity_nodes=None, rho_nodes=None, P_ex_nodes=None):
 
     """
     package the burial and thermal history grid into a labelled xarray Dataset
 
     dimensions are time (model timesteps) and node (model nodes, ie.
     discretized layers of the stratigraphic column)
+
+    porosity_nodes and rho_nodes (bulk density) are included whenever
+    available (they are always calculated, regardless of the
+    compaction method). P_ex_nodes (the excess, ie. above hydrostatic,
+    pore pressure in Pa) is only available if the compaction-driven
+    fluid flow option (simulate_fluid_flow) was used for this model run
     """
 
+    data_vars = {
+        'z': (['time', 'node'], z_nodes),
+        'T': (['time', 'node'], T_nodes),
+        'active': (['time', 'node'], active_nodes),
+        'surface_temperature': (['time'], surface_temp_array),
+        'basal_heat_flow': (['time'], basal_hf_array),
+    }
+
+    if porosity_nodes is not None:
+        data_vars['porosity'] = (['time', 'node'], porosity_nodes)
+
+    if rho_nodes is not None:
+        data_vars['rho'] = (['time', 'node'], rho_nodes)
+
+    if P_ex_nodes is not None:
+        data_vars['P_ex'] = (['time', 'node'], P_ex_nodes)
+
     ds = xr.Dataset(
-        data_vars={
-            'z': (['time', 'node'], z_nodes),
-            'T': (['time', 'node'], T_nodes),
-            'active': (['time', 'node'], active_nodes),
-            'surface_temperature': (['time'], surface_temp_array),
-            'basal_heat_flow': (['time'], basal_hf_array),
-        },
+        data_vars=data_vars,
         coords={
             'time': time_array_bp,
             'node_strat': ('node', np.asarray(node_strat)),
@@ -44,6 +62,8 @@ def build_grid_dataset(time_array_bp, surface_temp_array, basal_hf_array,
             'depth_units': 'm',
             'temperature_units': 'degrees C',
             'heat_flow_units': 'W m-2',
+            'pressure_units': 'Pa',
+            'density_units': 'kg m-3',
         },
     )
 
@@ -215,9 +235,26 @@ def _pack_AHe_data(AHe_data):
     }
 
 
+def _pack_observed_data(observed_df):
+
+    """
+    pack an optional observed-data DataFrame (eg. pressure or porosity
+    measurements) for overlay on a figure panel. these are not used
+    for calibration or goodness-of-fit, only for plotting, so the raw
+    DataFrame is kept as-is
+    """
+
+    if observed_df is None:
+        return None
+
+    return {'data': observed_df}
+
+
 def build_model_run_data(time_array_bp, surface_temp_array, basal_hf_array,
                          z_nodes, active_nodes, T_nodes, node_strat, node_age,
-                         T_data, C_data, VR_model_data, AFT_data, AHe_data):
+                         T_data, C_data, VR_model_data, AFT_data, AHe_data,
+                         porosity_nodes=None, rho_nodes=None, P_ex_nodes=None,
+                         pressure_data=None, porosity_data=None):
 
     """
     package a single model run's output data into the current, named
@@ -226,18 +263,29 @@ def build_model_run_data(time_array_bp, surface_temp_array, basal_hf_array,
     this replaces the old plain, positional list based format that
     pybasin used to save .pck files with. use load_model_run_data() or
     normalize_model_run_data() to read data saved in either format.
+
+    porosity_nodes, rho_nodes (bulk density) and P_ex_nodes (excess
+    pore pressure) are the modeled grids (see build_grid_dataset()).
+    pressure_data and porosity_data are optional observed-data
+    DataFrames (eg. drill stem test pressures, or measured porosity),
+    used only as an overlay on the corresponding figure panel
     """
 
     return {
         'format_version': OUTPUT_FORMAT_VERSION,
         'grid': build_grid_dataset(time_array_bp, surface_temp_array,
                                    basal_hf_array, z_nodes, active_nodes,
-                                   T_nodes, node_strat, node_age),
+                                   T_nodes, node_strat, node_age,
+                                   porosity_nodes=porosity_nodes,
+                                   rho_nodes=rho_nodes,
+                                   P_ex_nodes=P_ex_nodes),
         'T_data': _pack_T_data(T_data),
         'C_data': _pack_C_data(C_data),
         'VR_model_data': _pack_VR_data(VR_model_data),
         'AFT_data': _pack_AFT_data(AFT_data),
         'AHe_data': _pack_AHe_data(AHe_data),
+        'pressure_data': _pack_observed_data(pressure_data),
+        'porosity_data': _pack_observed_data(porosity_data),
     }
 
 

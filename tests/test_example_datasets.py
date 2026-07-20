@@ -77,7 +77,8 @@ def _run_single_scenario(dataset_name):
      T_data_df, vr_data_df,
      aft_samples, aft_ages,
      he_samples, he_data,
-     salinity_data, surface_temp, litho_props) = pybasin.read_model_input_data(
+     salinity_data, surface_temp, litho_props,
+     pressure_data, porosity_data) = pybasin.read_model_input_data(
         input_dir, params
     )
 
