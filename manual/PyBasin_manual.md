@@ -96,7 +96,7 @@ The main model parameters are located in a file called ``pybasin_params.py``. Se
 
 * ``well_stratigraphy.csv``. Contains the depth and name of stratigraphic units for one or more wells or surface outcrops.
 * ``stratigraphy_info.csv``. Contains the age and lithology for each stratigraphic unit. Optionally one can include a series of provenance age histories here, with one or more values for provenance_age start and provenance_age_end, that denote the age (Ma) at which the sediments that make up each unit were at 120 degrees C (=roughly 4 km depth at normal geothermal gradients) and the surface, respectively.
-* ``lithology_properties.csv``. Contains data on the density, porosity at the surface, compressibility, thermal conductivity, heat capacity and heat production values for each lithological unit. This also should include one row with the properties of pore water.
+* ``lithology_properties.csv``. Contains data on the density, porosity at the surface, compaction coefficient (labeled ``compressibility`` in this file, see below), thermal conductivity, heat capacity and heat production values for each lithological unit. This also should include one row with the properties of pore water.
 * ``surface_temperature.csv``. Contains data on the temperature at the land surface over time. 
 
 
@@ -216,11 +216,11 @@ Contains the depth and name of stratigraphic units for one or more wells or surf
 	* ``lithology``: Name of each lithological unit
 	* ``density``: Density of the rock matrix (kg  m^-3^).
 	* ``surface_porosity``: Porosity at the surface (dimensionless).
-	* ``compressibility`` Compressibility. Porosity is calculated following an exponential decay equation with depth: $\phi = \phi_0 e^{-c z}$ where z is depth (m), $\phi_0$ is surface porosity and c is compressibility (m^-1^).
+	* ``compressibility``: Compaction coefficient. Porosity is calculated following Athy's law, an exponential decay equation with depth: $\phi = \phi_0 e^{-c z}$ where z is depth (m), $\phi_0$ is surface porosity and c is the compaction coefficient (m^-1^). Despite the column name, this is a compaction coefficient rather than a compressibility in the strict sense; the column is kept as ``compressibility`` for backwards compatibility with existing input files.
 	* ``thermal_conductivity``: Thermal conductivity of the rock matrix (excluding pore space) (W m^-1^ K^-1^).
 	* ``heat_capacity``: Heat capacity of the rock matrix (J kg^-1^ K^-1^).
 	* ``heat_production``: Heat production of the rock matrix (W m^-3^).
-	* ``compressibility_stress`` (optional): Compressibility with respect to effective stress instead of depth, used instead of ``compressibility`` if ``compaction_method`` is set to ``'effective_stress'`` in ``pybasin_params.py``: $\phi = \phi_0 e^{-c_\sigma \sigma'}$, where $\sigma'$ is vertical effective stress (Pa) and $c_\sigma$ is compressibility (Pa^-1^). If this column is absent, or empty for a given lithology, PyBasin derives an approximate value from that lithology's ``compressibility`` and ``density`` values. This is only an approximation (it assumes a single reference bulk density for the whole lithology) and can be overridden by supplying an explicit value.
+	* ``compressibility_stress`` (optional): Compaction coefficient with respect to effective stress instead of depth, used instead of ``compressibility`` if ``compaction_method`` is set to ``'effective_stress'`` in ``pybasin_params.py``: $\phi = \phi_0 e^{-c_\sigma \sigma'}$, where $\sigma'$ is vertical effective stress (Pa) and $c_\sigma$ is the compaction coefficient, ie. compressibility (Pa^-1^). If this column is absent, or empty for a given lithology, PyBasin derives an approximate value from that lithology's ``compressibility`` and ``density`` values. This is only an approximation (it assumes a single reference bulk density for the whole lithology) and can be overridden by supplying an explicit value.
 
 
 **File: ``surface_temperature.csv``**

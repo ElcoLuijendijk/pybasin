@@ -40,12 +40,12 @@ def integrate_porosity(n0, c, z1, z2):
     n0 : float
         porosity at the surface
     c : float
-        compressibility (units ...)
+        compaction coefficient, Athy's law (m^-1)
     z1 : float
         depth top of unit (m)
     z2 : float
         depth base of unit (m)
-    
+
     Returns
     -------
     n_int : float
@@ -66,12 +66,12 @@ def calculate_matrix_thickness(n0, c, z1, z2):
     n0 : float
         porosity at the surface
     c : float
-        compressibility (units ...)
+        compaction coefficient, Athy's law (m^-1)
     z1 : float
         depth top of unit (m)
     z2 : float
         depth base of unit (m)
-    
+
     Returns
     -------
     b_m : float
@@ -98,15 +98,15 @@ def decompact(bm, n0, c, b0_guess):
     n0 : float
         porosity at the surface
     c : float
-        compressibility (units ...)
+        compaction coefficient, Athy's law (m^-1)
     b0_guess : float
         initial guess for decompacted thickness
-    
+
     Returns
     -------
     b0 : float
         new iterative value of decomapcted thickness
-    
+
     """
 
     b0 = bm + (n0 / c) * (1.0 - np.exp(-c * b0_guess))
@@ -153,11 +153,12 @@ def local_compaction_params_effective_stress(n0, c_sigma, grain_density,
                                               water_density,
                                               cum_stress_total, cum_depth):
     """
-    convert surface porosity and a stress-based compressibility into a
-    locally equivalent surface porosity and depth-based compressibility,
-    so that the existing depth-based compact()/decompact()/
-    calculate_matrix_thickness() functions can be reused unchanged for a
-    single stratigraphic unit (or subdivided piece of a unit).
+    convert surface porosity and a stress-based compaction coefficient
+    (compressibility) into a locally equivalent surface porosity and
+    depth-based compaction coefficient, so that the existing depth-based
+    compact()/decompact()/calculate_matrix_thickness() functions can be
+    reused unchanged for a single stratigraphic unit (or subdivided
+    piece of a unit).
 
     assumes a hydrostatic pore pressure and a bulk density that is
     constant over the (thin) unit and equal to the density at the top of
@@ -170,7 +171,8 @@ def local_compaction_params_effective_stress(n0, c_sigma, grain_density,
     n0 : float
         surface porosity of the unit (dimensionless)
     c_sigma : float
-        compressibility with respect to effective stress (Pa^-1)
+        compaction coefficient with respect to effective stress, ie.
+        compressibility (Pa^-1)
     grain_density : float
         density of the solid grains of the unit (kg m^-3)
     water_density : float
@@ -188,9 +190,9 @@ def local_compaction_params_effective_stress(n0, c_sigma, grain_density,
         porosity at the top of the unit, to be used as the surface
         porosity for a local, depth-from-0 compaction calculation
     local_c : float
-        locally equivalent depth-based compressibility (m^-1), to be
-        used together with local_n0 and a local depth measured from 0 at
-        the top of the unit
+        locally equivalent depth-based compaction coefficient (m^-1),
+        to be used together with local_n0 and a local depth measured
+        from 0 at the top of the unit
     """
 
     pore_pressure_top = water_density * G_ACCEL * cum_depth
@@ -825,7 +827,7 @@ def find_maximum_depth(input_df, exhumation_phases,
     'present-day_thickness'
     'matrix_thickness'
     'surface_porosity'
-    'compressibility'
+    'compressibility' (the depth-based compaction coefficient, m^-1)
     (and, if compaction_method is 'effective_stress': 'compressibility_stress'
     and 'density')
 
@@ -1373,10 +1375,13 @@ def get_geo_history(well_strat, strat_info_mod,
 
     :param well_strat:
     :param compaction_method: 'depth' (default) for the standard Athy's
-        law porosity-depth relation, or 'effective_stress' to use a
-        porosity-effective stress relation instead. 'effective_stress'
-        requires a 'compressibility_stress' column in the stratigraphy
-        input data (see calculate_present_day_compaction_effective_stress()
+        law porosity-depth relation, using the depth-based compaction
+        coefficient in the 'compressibility' column, or
+        'effective_stress' to use a porosity-effective stress relation
+        instead. 'effective_stress' requires a 'compressibility_stress'
+        column (the effective stress-based compaction coefficient,
+        Pa^-1) in the stratigraphy input data (see
+        calculate_present_day_compaction_effective_stress()
         and reconstruct_strat_thickness()).
     :param water_density: density of pore water (kg m^-3), only used if
         compaction_method is 'effective_stress'

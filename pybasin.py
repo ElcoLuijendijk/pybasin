@@ -1884,11 +1884,12 @@ def read_model_input_data(input_dir, pybasin_params):
 
     # for the optional effective stress-based compaction method: make
     # sure a compressibility_stress column (Pa^-1) is present, and
-    # auto-derive it from the existing depth-based compressibility
-    # (m^-1) for any lithology that does not have an explicit value.
-    # this means existing lithology_properties.csv files keep working
-    # unchanged, since this column and the auto-derivation are only
-    # used if compaction_method is set to 'effective_stress'
+    # auto-derive it from the existing depth-based compaction
+    # coefficient (m^-1, stored in the 'compressibility' column) for
+    # any lithology that does not have an explicit value. this means
+    # existing lithology_properties.csv files keep working unchanged,
+    # since this column and the auto-derivation are only used if
+    # compaction_method is set to 'effective_stress'
     compaction_method = getattr(pybasin_params, 'compaction_method', 'depth')
     if compaction_method == 'effective_stress':
         if 'compressibility_stress' not in litho_props.columns:
