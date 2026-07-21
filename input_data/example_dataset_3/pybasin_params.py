@@ -234,8 +234,7 @@ class ModelParameters:
     # below) instead of a temperature and concentration dependent value
     constant_diffusivity = False
 
-    # constant molecular diffusion coefficient (m^2 s^-1), only used if
-    # constant_diffusivity is True
+    # molecular diffusion coefficient (m^2 s^-1)
     Dw = 20.3e-10
 
     # fixed salinity at the lower boundary of the model domain (kg/kg)
