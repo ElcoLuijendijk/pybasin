@@ -103,6 +103,9 @@ The main model parameters are located in a file called ``pybasin_params.py``. Se
 **optional input files**
 
 * ``vitrinite_reflectance.csv``. Contains columns for depth, vitrinite reflectance and the 1 sigma uncertainty of vitrinite reflectance for samples from one or more wells or surface outcrops.
+* Solute (pore-water salinity) diffusion data, only used if ``simulate_salinity`` is ``True``:
+	* ``surface_salinity.csv``: Well-specific surface salinity boundary condition history (marine, terrestrial or brackish per time period), only used if ``well_specific_surface_salinity_bnd`` is ``True``.
+	* ``salinity_data.csv``: Measured pore-water salinity and its 1 sigma uncertainty for samples from one or more wells.
 * Apatite fission track (AFT) data:
 	* ``aft_samples.csv``: Contains data on sample names, depth, age, length for one or more AFT samples. Each sample takes one row.
 	* ``aft_data.csv``: Contains data on the sample name, single grain AFT age, plus/minus one standard error for each single grain age, and Dpar values. This file contains one row for each single grain age.
@@ -202,6 +205,7 @@ Contains the depth and name of stratigraphic units for one or more wells or surf
 	* ``strat_unit``: Name of stratigraphic unit.
 	* ``age_bottom``: Starting age of the straitgraphic unit (Ma).
 	* ``age_top``: Age of the youngest sediments in each unit (Ma).
+	* ``marine`` (required if ``simulate_salinity`` is ``True`` and ``well_specific_surface_salinity_bnd`` is ``False``): Boolean flag (``TRUE`` or ``FALSE``) for whether a unit was deposited in a marine or non-marine environment, used as the default surface salinity boundary condition for the solute diffusion model (see the Solute diffusion parameters section). Ignored, but the column can still be present, if ``well_specific_surface_salinity_bnd`` is ``True``, in which case the surface salinity history is instead read per well from ``surface_salinity.csv``.
 	* ``provenance_age_start_x``: Series of at least two columns with two or more end-member values for the age at which an apatite grain was at 120 degrees C in its source area (ie. before being deposited in the basin) (Ma).
 	* ``provenance_age_end_x``: Series of at least two columns with two or more end-member values for the age at which an apatite grain reached the surface in its source area (Ma).
 	* series of user-defined lithology units: Series of columns with the fraction of each lithological unit (ie sand, clay, carbonate, etc...) in each stratigraphic unit. Each litholigical unit can have any name you choose. However the names should match the names you define in the ``lithology_properties.csv`` file below. 
@@ -221,6 +225,7 @@ Contains the depth and name of stratigraphic units for one or more wells or surf
 	* ``heat_capacity``: Heat capacity of the rock matrix (J kg^-1^ K^-1^).
 	* ``heat_production``: Heat production of the rock matrix (W m^-3^).
 	* ``compressibility_stress`` (optional): Compaction coefficient with respect to effective stress instead of depth, used instead of ``compressibility`` if ``compaction_method`` is set to ``'effective_stress'`` in ``pybasin_params.py``: $\phi = \phi_0 e^{-c_\sigma \sigma'}$, where $\sigma'$ is vertical effective stress (Pa) and $c_\sigma$ is the compaction coefficient, ie. compressibility (Pa^-1^). If this column is absent, or empty for a given lithology, PyBasin derives an approximate value from that lithology's ``compressibility`` and ``density`` values. This is only an approximation (it assumes a single reference bulk density for the whole lithology) and can be overridden by supplying an explicit value.
+	* ``specific_surface``, ``clay_mineral``, ``permeability`` (all optional, required together only if ``simulate_fluid_flow`` is ``True``): three alternative ways to specify how the permeability of a lithology is calculated, one of which should be filled in per lithology and the other two left empty. If ``specific_surface`` (specific surface area of the solid grains, m^2^ kg^-1^) is given, permeability is calculated with the Kozeny-Carman equation for a granular (sand, silt, gravel) lithology. Otherwise, if ``clay_mineral`` is given (one of ``kaolinite``, ``illite`` or ``smectite``), permeability is calculated with an empirical exponential void ratio-permeability relation calibrated for that clay mineral. Otherwise, if ``permeability`` (m^2^) is given, that constant value is used regardless of porosity. Both relations, and the constants used for each clay mineral, follow Luijendijk and Gleeson (2014). For a stratigraphic unit made up of a mixture of lithologies, the end-member permeabilities are combined using a fraction-weighted geometric mean. See ``simulate_fluid_flow`` in the Burial history model parameters section for the excess pore pressure model that uses this permeability.
 
 
 **File: ``surface_temperature.csv``**
@@ -244,6 +249,28 @@ Contains the depth and name of stratigraphic units for one or more wells or surf
 	* ``temperature``: Temperature value (degr. C).
 	* ``temperature_unc_1sigma``: 1 sigma uncertainty of the temperature data value (degr. C).
 	* ``data_type``: Type of temperature data. Not used unless you specify ``BHT`` here, which signifies an "uncorrected" bottom hole temperature. If you specify ``BHT`` the model error is zero if the modeled temperature is warmer than the uncorrected BHT, and conversely the model error is calculated normally if the modeled temperature is lower than the temperature value. This is based on the fact that uncorrected BHT values are always colder than the actual formation temperature due to the cooling effect of drilling fluid. See for instance Luijendijk et al. (2011) Thermal state of the Roer Valley Graben, part of the European Cenozoic Rift System. Basin Research 23(1).
+
+
+### Surface salinity history (solute diffusion)
+
+Only used if ``simulate_salinity`` is ``True`` and ``well_specific_surface_salinity_bnd`` is ``True``, as an alternative to using the ``marine`` column of ``stratigraphy_info.csv`` for every well.
+
+**File: ``surface_salinity.csv``**
+
+* Rows: the first column is ``well``, and rows are either ``age_start`` (the start age, in Ma, of a time period), ``age_end`` (the end age, in Ma, of the same time period), or the name of a well or surface outcrop (giving the surface water type during that time period for that well).
+* Columns: one column named ``well`` (containing the row labels described above) plus one column for each named time period (these names are user-defined, for instance geological stage names such as ``LAT_PALEO`` or ``EAR_EOC``, and do not need to match the stratigraphic unit names in ``stratigraphy_info.csv``). For each well row, the value in each time period column should be ``marine``, ``terrestrial`` or ``brackish``, which set the surface salinity boundary condition to ``salinity_seawater``, ``salinity_freshwater`` or their average, respectively (see the Solute diffusion parameters section).
+
+
+### Pore-water salinity data
+
+**File: ``salinity_data.csv``**
+
+* Rows: One row per pore-water salinity data value.
+* Columns:
+	* ``well``: Name of well.
+	* ``depth``: Depth of salinity data value (m).
+	* ``salinity``: Measured pore-water salinity (kg/kg).
+	* ``salinity_unc_1sigma``: 1 sigma uncertainty of the salinity data value (kg/kg).
 
 
 ### Vitrinite reflectance data
@@ -351,7 +378,7 @@ The parameters can be several python data types:
 ## Figure options
 
 * ``make_model_data_fig`` = *boolean*. Option to automatically generate a figure for each single model runs.
-* ``contour_variable`` = *string*. Variable to show color contours for in burial history panel. choose either 'temperature' or 'salinity' to show evolution of temperature or salinity over time.
+* ``contour_variable`` = *string*. Variable to show color contours for in burial history panel. Choose 'temperature' (default), 'salinity' or 'pressure' to show the evolution of temperature, salinity or excess pore pressure over time. 'salinity' requires ``simulate_salinity`` to be ``True``, and 'pressure' requires ``simulate_fluid_flow`` to be ``True``. If 'pressure' is chosen but no excess pressure data is available, PyBasin falls back to 'temperature'; 'salinity' does not currently have the same fallback, so it will raise an error if chosen without ``simulate_salinity`` enabled.
 * ``show_strat_column`` = *boolean*. Add a stratigraphic column to the figure.
 * ``show_thermochron_data`` = *boolean*. Option to show or hide thermochron results.
 * ``fig_adj`` = *list of strings*. File format for figures, for instance pdf, svg, png or jpg.
@@ -388,6 +415,22 @@ The parameters can be several python data types:
 * ``heatflow_ages`` = *numpy array*. Time (Ma) at which heat flow is given.
 * ``heatflow_history`` = *numpy array*. Heat flow at the base of the sediment sequence (W m^-2^).
 * ``max_hf_timestep`` = *float*. Size of heatflow timestep (years).
+
+
+## Solute diffusion parameters
+
+These parameters are only used if ``simulate_salinity`` is ``True`` (see the General parameters section). PyBasin then solves a 1D transient diffusion equation for pore-water salinity, using the same implicit finite-difference solver as the heat flow equation, with a fixed salinity imposed at the top (the surface salinity history) and a fixed salinity imposed at the base (``fixed_lower_bnd_salinity``). The effective diffusion coefficient at each node is the molecular diffusion coefficient divided by tortuosity and multiplied by porosity, using a porosity-tortuosity relation after Boudreau (1996); there is currently no internal source or sink term (eg. from clay membrane effects or diagenetic reactions).
+
+* ``Dw`` = *float*. Reference molecular diffusion coefficient for salt in water (m^2^ s^-1^), used directly if ``constant_diffusivity`` is ``True``, or as the reference value at 25 degr. C for the temperature- and salinity-dependent diffusion coefficient otherwise.
+* ``constant_diffusivity`` = *boolean*. If ``True``, use a single, constant value (``Dw``) for the molecular diffusion coefficient. If ``False``, the molecular diffusion coefficient is instead recalculated at every timestep and node from the modeled temperature and salinity, following the temperature and viscosity dependence of Simpson and Carr (1958), using ``Dw`` as the reference value.
+* ``tortuosity_factor`` = *float*. Not currently used: tortuosity is instead always calculated with the modified Weinberg relation of Boudreau (1996), $\tau = 1 - b \, \ln(\phi)$ with $b = 2.02$. This parameter is kept for backwards compatibility with existing parameter files and has no effect on the model result.
+* ``fixed_lower_bnd_salinity`` = *float*. Fixed salinity (kg/kg) imposed as the lower boundary condition of the solute diffusion model.
+* ``salinity_seawater`` = *float*. Salinity of seawater (kg/kg), used as the surface salinity boundary condition for stratigraphic units or time periods marked as marine.
+* ``salinity_freshwater`` = *float*. Salinity of fresh or meteoric water (kg/kg), used as the surface salinity boundary condition for stratigraphic units or time periods marked as terrestrial.
+* ``well_specific_surface_salinity_bnd`` = *boolean*. If ``True``, read a well-specific surface salinity boundary condition history from ``surface_salinity.csv`` (see the Optional input files section), instead of using the ``marine`` column of ``stratigraphy_info.csv`` for every well. Time periods or units marked as brackish use the average of ``salinity_seawater`` and ``salinity_freshwater``.
+* ``simulate_flushing`` = *boolean*. Option to simulate freshening of the shallow subsurface by topography-driven groundwater flow, implemented as a simple proxy: whenever the surface salinity boundary condition is fresh water, the salinity of all nodes shallower than a cutoff depth is reset to the surface value at every timestep.
+* ``flushing_clay_fraction`` = *float*. Clay fraction above which a stratigraphic unit is considered an aquitard that stops the topography-driven flushing described above; the cutoff depth is set to the depth of the shallowest unit that meets or exceeds this clay fraction.
+* ``flushing_max_depth`` = *float*. Maximum depth (m) of topography-driven flushing, used as the cutoff depth if no clay-rich unit (see ``flushing_clay_fraction``) is present above this depth.
 
 
 ## Model-data comparison
@@ -439,12 +482,15 @@ For each set of model run PyBasin saves a single csv file for each well or sampl
 The model results contains a number of columns with statistics on the fit of the modeled to the measured temperature, VR, AFT and/or AHe data. GOF=1 means that all modeled values are exactly the same as the measured values, GOF=0 means that all modeled values are outside the uncertainty range of the measured values. The model error is a more simple metric that calculates the mean difference of the modeled and measured AFT or AHe ages.
 
 * ``T_gof``: Goodness of fit of the modeled and measured subsurface temperature data.
-* ``vr_gof``: Goodness of fit of the modeled and measured subsurface temperature data.
-* ``aft_age_gof``: Goodness of fit of the modeled and measured subsurface temperature data.
-* ``ahe_gof``: Goodness of fit of the modeled and measured subsurface temperature data.
+* ``vr_gof``: Goodness of fit of the modeled and measured vitrinite reflectance data.
+* ``aft_age_gof``: Goodness of fit of the modeled and measured apatite fission track age data.
+* ``he_gof``: Goodness of fit of the modeled and measured apatite (U-Th)/He age data.
 * ``mean_gof``: Mean goodness of fit of the modeled and measured subsurface temperature, VR, AFT and/or AHe data.
 * ``aft_age_error``: Model error of the modeled and measured AFT ages (My).
-* ``ahe_error``: Model error of the modeled and measured AHe ages (My).
+* ``he_error``: Model error of the modeled and measured AHe ages (My).
+* ``salinity_gof`` (only if ``simulate_salinity`` is ``True``): Goodness of fit of the modeled and measured pore-water salinity data.
+* ``salinity_rmse`` (only if ``simulate_salinity`` is ``True``): Root mean square error of the modeled and measured pore-water salinity data (kg/kg).
+* ``salinity_r2`` (only if ``simulate_salinity`` is ``True``): Coefficient of determination ($R^2$) of the modeled and measured pore-water salinity data.
 
 
 **Data on exhumation and resulting cooling:**
