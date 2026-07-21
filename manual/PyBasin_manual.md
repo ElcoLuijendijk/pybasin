@@ -273,6 +273,21 @@ Only used if ``simulate_salinity`` is ``True`` and ``well_specific_surface_salin
 	* ``salinity_unc_1sigma``: 1 sigma uncertainty of the salinity data value (kg/kg).
 
 
+### Fluid pressure data
+
+Only used if ``simulate_fluid_flow`` is ``True``. Used both as an overlay on the pressure figure panel and to calculate the goodness of fit of modeled (hydrostatic + excess) vs measured fluid pressure.
+
+**File: ``dst_pressure_data.csv``**
+
+* Rows: One row per pressure measurement (eg. a drill stem test).
+* Columns:
+	* ``well``: Name of well.
+	* ``depth_top``, ``depth_bottom``: Top and bottom depth of the tested interval (m). The model is compared to data at the midpoint of this interval.
+	* ``FSIP_MPa``: Measured formation shut-in pressure (MPa).
+	* ``pressure_unc_1sigma`` (optional): 1 sigma uncertainty of the pressure data value (MPa). If not present, the default value of the ``pressure_unc_sigma`` parameter is used instead (see the Fluid pressure parameters section).
+	* any other columns (eg. ``FFP_psi``, ``hydrostatic_MPa_approx``, ``source``) are ignored by PyBasin and can be used to keep track of additional metadata.
+
+
 ### Vitrinite reflectance data
 **File: ``vitrinite_reflectance.csv``** 
 
@@ -381,6 +396,7 @@ The parameters can be several python data types:
 * ``contour_variable`` = *string*. Variable to show color contours for in burial history panel. Choose 'temperature' (default), 'salinity' or 'pressure' to show the evolution of temperature, salinity or excess pore pressure over time. 'salinity' requires ``simulate_salinity`` to be ``True``, and 'pressure' requires ``simulate_fluid_flow`` to be ``True``. If 'pressure' is chosen but no excess pressure data is available, PyBasin falls back to 'temperature'; 'salinity' does not currently have the same fallback, so it will raise an error if chosen without ``simulate_salinity`` enabled.
 * ``show_strat_column`` = *boolean*. Add a stratigraphic column to the figure.
 * ``show_thermochron_data`` = *boolean*. Option to show or hide thermochron results.
+* ``show_gof_stats`` = *boolean or list of strings*, optional, default ``True``. Choose which model fit statistics (GOF, RMSE and/or error) are added to the figure panels. ``True`` shows the fit statistics for every data panel that is present, ``False`` hides all of them. Pass a list of panel names instead to show statistics for only a subset of panels, choosing from ``'temperature'``, ``'VR'``, ``'AFT'`` and ``'AHe'``, for instance ``show_gof_stats = ['temperature', 'AFT']``. If this parameter is not set, PyBasin defaults to ``True``, so existing input datasets do not need any changes.
 * ``fig_adj`` = *list of strings*. File format for figures, for instance pdf, svg, png or jpg.
 
 
@@ -448,6 +464,11 @@ These parameters are only used if ``simulate_salinity`` is ``True`` (see the Gen
 * ``vr_unc_sigma`` = *float*. Default 1 sigma of uncertainty range for VR data, if not specified in input file (Ro).
 
 
+## Fluid pressure parameters
+
+* ``pressure_unc_sigma`` = *float*, optional, default ``1.0``. Default 1 sigma uncertainty (MPa) for the measured fluid pressure data in ``dst_pressure_data.csv``, used to calculate the goodness of fit of modeled vs measured pressure, unless a ``pressure_unc_1sigma`` column is provided in that file instead. Only used if ``simulate_fluid_flow`` is ``True``.
+
+
 ## Apatite fission track parameters
 
 * ``use_caxis_correction``= *boolean*. Use C-axis correction for apatite fission track lengths. This only affects the way lengths are shown in the figure and how the model fit is calculated for AFT lengths. AFT ages are calculated always calculated using modelled c-axis projected fission track lengths, following Ketcham (2005, 2007).
@@ -491,6 +512,9 @@ The model results contains a number of columns with statistics on the fit of the
 * ``salinity_gof`` (only if ``simulate_salinity`` is ``True``): Goodness of fit of the modeled and measured pore-water salinity data.
 * ``salinity_rmse`` (only if ``simulate_salinity`` is ``True``): Root mean square error of the modeled and measured pore-water salinity data (kg/kg).
 * ``salinity_r2`` (only if ``simulate_salinity`` is ``True``): Coefficient of determination ($R^2$) of the modeled and measured pore-water salinity data.
+* ``pressure_gof`` (only if ``simulate_fluid_flow`` is ``True``): Goodness of fit of the modeled (hydrostatic + excess) and measured fluid pressure data.
+* ``pressure_rmse`` (only if ``simulate_fluid_flow`` is ``True``): Root mean square error of the modeled and measured fluid pressure data (MPa).
+* ``pressure_r2`` (only if ``simulate_fluid_flow`` is ``True``): Coefficient of determination ($R^2$) of the modeled and measured fluid pressure data.
 
 
 **Data on exhumation and resulting cooling:**
