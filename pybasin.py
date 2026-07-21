@@ -1767,7 +1767,8 @@ def update_model_params_and_run_model_new(model_scenario_number,
             (time_array_bp,
              surface_temp_array, basal_hf_array,
              z_nodes, active_nodes, T_nodes,
-             node_strat, node_age) = model_run_data
+             node_strat, node_age, porosity_nodes, rho_nodes,
+             P_ex_nodes) = model_run_data
 
             duration = -np.diff(time_array_bp)
             duration = np.append(duration, time_array_bp[-1])
