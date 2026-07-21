@@ -280,6 +280,15 @@ class ModelParameters:
     # if not specified in input file
     vr_unc_sigma = 0.05
 
+    #############
+    # pressure
+    #############
+    # default 1 sigma uncertainty (MPa) for the measured drill stem
+    # test pressures in dst_pressure_data.csv, used to calculate the
+    # goodness of fit of modeled vs measured fluid pressure, unless a
+    # pressure_unc_1sigma column is provided in that file instead
+    pressure_unc_sigma = 1.0
+
 
 class ParameterRanges:
 
