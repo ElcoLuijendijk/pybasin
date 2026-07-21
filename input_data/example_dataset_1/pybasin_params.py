@@ -66,6 +66,12 @@ class ModelParameters:
     # option to hide thermochron results
     show_thermochron_data = True
 
+    # choose which model fit statistics (GOF, RMSE and/or error) are
+    # added to the figure panels. True shows fit stats for every data
+    # panel that is present, False hides all of them, or pass a list of
+    # panel names to show only some, e.g. ['temperature', 'AFT']
+    show_gof_stats = True
+
     # type of figure file to save (pdf, png or jpg):
     fig_adj = ['png']
 
