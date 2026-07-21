@@ -163,6 +163,7 @@ def _run_single_scenario(dataset_name):
      aft_age_gof, _aft_age_error, _aft_age_r2, _AFT_data,
      he_age_gof, _he_age_error, _he_age_r2,
      _He_model_data,
+     _pressure_gof, _pressure_r2, _Pressure_model_data,
      _model_results_series_updated) = result
 
     return T_gof, vr_gof, aft_age_gof, he_age_gof
