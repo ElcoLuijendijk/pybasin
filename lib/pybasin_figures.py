@@ -175,6 +175,7 @@ def model_vs_data_figure(model_run_data,
                          show_porosity_panel=None,
                          show_pressure_panel=None,
                          show_age_scatter=True,
+                         show_gof_stats=True,
                          debug=False):
 
     """
@@ -213,6 +214,12 @@ def model_vs_data_figure(model_run_data,
         if the model run has excess pressure data (simulate_fluid_flow).
         defaults (None) to True if this model run has excess pressure
         data, False otherwise
+    :param show_gof_stats: choose which model fit statistics (GOF, RMSE
+        and/or error) are added to the figure panels. ``True`` (default)
+        shows the fit statistics for every data panel that is present,
+        ``False`` hides all of them. Pass a list or tuple of panel names
+        instead to select individual panels, choosing from 'temperature',
+        'VR', 'AFT', 'AHe' and 'pressure'.
     :param debug:
     :return:
     """
@@ -240,6 +247,11 @@ def model_vs_data_figure(model_run_data,
     P_ex_nodes = grid['P_ex'].values if 'P_ex' in grid else None
 
     pressure_data = normalized.get('pressure_data')
+    if pressure_data is not None:
+        # older saved model runs only carried the raw observed-data
+        # DataFrame for overlay, with no goodness-of-fit statistics
+        pressure_gof = pressure_data.get('gof', np.nan)
+        pressure_rmse = pressure_data.get('rmse', np.nan)
     porosity_data = normalized.get('porosity_data')
 
     # by default, show the porosity and pressure panels once
@@ -262,6 +274,17 @@ def model_vs_data_figure(model_run_data,
                    'no excess pressure data (simulate_fluid_flow was not '
                    'used); showing temperature instead')
         contour_variable = 'temperature'
+
+    # normalize show_gof_stats to a set of panel names for which fit
+    # statistics should be shown: True/False select all/none, a list or
+    # tuple selects individual panels ('temperature', 'VR', 'AFT',
+    # 'AHe', 'pressure')
+    if show_gof_stats is True:
+        show_gof_stats = {'temperature', 'VR', 'AFT', 'AHe', 'pressure'}
+    elif show_gof_stats is False:
+        show_gof_stats = set()
+    else:
+        show_gof_stats = set(show_gof_stats)
 
     T_data = normalized['T_data']
     if T_data is not None:
@@ -750,7 +773,7 @@ def model_vs_data_figure(model_run_data,
                          s=10,
                          cmap=cmap)
         
-    logger.info(f"node strat: {node_strat}")
+    logger.debug(f"node strat: {node_strat}")
 
     major_strat = [n.split('_s_')[0].split('_a_')[0] for n in node_strat]
 
@@ -775,10 +798,8 @@ def model_vs_data_figure(model_run_data,
         strat_transition[ind[::sint]] = True
         strat_transition[ind[-1]] = True
 
-    logger.info('strat units shown in fig:')
-    for i, s in enumerate(strat_transition):
-        if s == True:
-            logger.info(major_strat[i])
+    units_shown = [major_strat[i] for i, s in enumerate(strat_transition) if s == True]
+    logger.debug('strat units shown in fig: %s' % units_shown)
 
     # plot provenance and burial histories
     #if (AFT_data is not None or AHe_data is not None) \
@@ -1450,7 +1471,6 @@ def model_vs_data_figure(model_run_data,
 
     for ax in all_panels[3:]:
         # reduce number of tick labels
-        logger.info(ax.get_xticks())
         ax.set_xticks(ax.get_xticks()[::2])
 
     if contour_variable == 'salinity':
@@ -1469,31 +1489,43 @@ def model_vs_data_figure(model_run_data,
         st_ticks = np.arange(st_min, st_max + 5.0, 5.0)
         axst.set_yticks(st_ticks)
 
-    if show_temp_panel and T_data is not None and np.isnan(T_gof) == False:
+    if (show_temp_panel and T_data is not None and np.isnan(T_gof) == False
+            and 'temperature' in show_gof_stats):
         ax_temp.text(0.5, 1.03,
                      'GOF=%0.2f\nRMSE=%0.1f' % (T_gof, T_rmse),
                      transform=ax_temp.transAxes,
                      **textprops)
 
-    if VR_model_data is not None and np.isnan(vr_GOF) == False:
+    if (VR_model_data is not None and np.isnan(vr_GOF) == False
+            and 'VR' in show_gof_stats):
         ax_vr.text(0.5, 1.03,
                    'GOF=%0.2f\nRMSE=%0.2f' % (vr_GOF, vr_rmse),
                    transform=ax_vr.transAxes,
                    **textprops)
 
-    if AFT_data is not None and np.isnan(aft_age_GOF) == False:
+    if (AFT_data is not None and np.isnan(aft_age_GOF) == False
+            and 'AFT' in show_gof_stats):
         ax_afta.text(0.5, 1.03,
                      'GOF=%0.2f\nerror=%0.2f My'
                      % (aft_age_GOF, aft_age_error),
                      transform=ax_afta.transAxes,
                      **textprops)
 
-    if AHe_data is not None and np.isnan(ahe_age_gof) == False:
+    if (AHe_data is not None and np.isnan(ahe_age_gof) == False
+            and 'AHe' in show_gof_stats):
         ax_ahe.text(0.5, 1.03,
                     'GOF=%0.2f\nerror=%0.2f My'
                     % (ahe_age_gof, ahe_age_error),
                     transform=ax_ahe.transAxes,
                     **textprops)
+
+    if (show_pressure_panel and pressure_data is not None
+            and np.isnan(pressure_gof) == False
+            and 'pressure' in show_gof_stats):
+        ax_pressure.text(0.5, 1.03,
+                         'GOF=%0.2f\nRMSE=%0.1f' % (pressure_gof, pressure_rmse),
+                         transform=ax_pressure.transAxes,
+                         **textprops)
 
     #gs.tight_layout(fig, h_pad=0.02, w_pad=0.02)
     # add colorbar

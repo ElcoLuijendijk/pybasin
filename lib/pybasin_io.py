@@ -238,7 +238,7 @@ def _pack_AHe_data(AHe_data):
 def _pack_observed_data(observed_df):
 
     """
-    pack an optional observed-data DataFrame (eg. pressure or porosity
+    pack an optional observed-data DataFrame (eg. porosity
     measurements) for overlay on a figure panel. these are not used
     for calibration or goodness-of-fit, only for plotting, so the raw
     DataFrame is kept as-is
@@ -248,6 +248,31 @@ def _pack_observed_data(observed_df):
         return None
 
     return {'data': observed_df}
+
+
+def _pack_pressure_data(Pressure_model_data):
+
+    """
+    pack the fluid pressure model-data comparison (drill stem test
+    pressure vs modeled hydrostatic + excess pressure) for overlay and
+    goodness-of-fit reporting on the pressure figure panel
+    """
+
+    if Pressure_model_data is None:
+        return None
+
+    (pressure_depth, pressure_obs, pressure_simulated,
+     pressure_gof, pressure_rmse, pressure_r2, pressure_data_well) = Pressure_model_data
+
+    return {
+        'depth': pressure_depth,
+        'observed': pressure_obs,
+        'simulated': pressure_simulated,
+        'gof': pressure_gof,
+        'rmse': pressure_rmse,
+        'r2': pressure_r2,
+        'data': pressure_data_well,
+    }
 
 
 def build_model_run_data(time_array_bp, surface_temp_array, basal_hf_array,
@@ -266,9 +291,12 @@ def build_model_run_data(time_array_bp, surface_temp_array, basal_hf_array,
 
     porosity_nodes, rho_nodes (bulk density) and P_ex_nodes (excess
     pore pressure) are the modeled grids (see build_grid_dataset()).
-    pressure_data and porosity_data are optional observed-data
-    DataFrames (eg. drill stem test pressures, or measured porosity),
-    used only as an overlay on the corresponding figure panel
+    porosity_data is an optional observed-data DataFrame (eg. measured
+    porosity), used only as an overlay on the porosity figure panel,
+    not for goodness-of-fit. pressure_data is the optional fluid
+    pressure model-data comparison (see
+    pybasin.model_data_comparison_pressure()), used both as an overlay
+    and for goodness-of-fit reporting on the pressure figure panel
     """
 
     return {
@@ -284,7 +312,7 @@ def build_model_run_data(time_array_bp, surface_temp_array, basal_hf_array,
         'VR_model_data': _pack_VR_data(VR_model_data),
         'AFT_data': _pack_AFT_data(AFT_data),
         'AHe_data': _pack_AHe_data(AHe_data),
-        'pressure_data': _pack_observed_data(pressure_data),
+        'pressure_data': _pack_pressure_data(pressure_data),
         'porosity_data': _pack_observed_data(porosity_data),
     }
 

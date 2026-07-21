@@ -161,18 +161,18 @@ def model_data_comparison_T(T_data_well, z_nodes, T_nodes, active_nodes):
                      & (T_data_well['data_type'] == 'BHT'))
     ind_bht_ok = ((T_data_well['residual'] <= 0)
                   & (T_data_well['data_type'] == 'BHT'))
-    T_data_well['P_fit'][ind_bht_nofit] = 0
-    T_data_well['residual'][ind_bht_nofit] = 15.0
-    T_data_well['P_fit'][ind_bht_ok] = 1.00
-    T_data_well['residual'][ind_bht_ok] = 0.0
+    T_data_well.loc[ind_bht_nofit, 'P_fit'] = 0
+    T_data_well.loc[ind_bht_nofit, 'residual'] = 15.0
+    T_data_well.loc[ind_bht_ok, 'P_fit'] = 1.00
+    T_data_well.loc[ind_bht_ok, 'residual'] = 0.0
 
     T_rmse = np.sqrt(np.mean(T_data_well['residual']**2))
     T_gof = np.mean(T_data_well['P_fit'])
     T_r2 = calculate_r_squared(T_data_well['temperature'],
                                T_data_well['simulated_T'])
 
-    logger.info('Temperature data:')
-    logger.info(T_data_well)
+    logger.debug('Temperature data:')
+    logger.debug(T_data_well)
 
     return T_gof, T_rmse, T_r2
 
@@ -418,7 +418,7 @@ def model_data_comparison_AFT_age(aft_data_well, aft_ages,
 
     if verbose is True:
 
-        logger.error(aft_data_well[['sample', 'depth', 'aft_age', 'aft_age_stderr_plus', 'simulated_AFT_min', 'simulated_AFT_max', 'GOF_aft_ages', 'age_error']])
+        logger.debug(aft_data_well[['sample', 'depth', 'aft_age', 'aft_age_stderr_plus', 'simulated_AFT_min', 'simulated_AFT_max', 'GOF_aft_ages', 'age_error']])
 
     return (aft_age_mean_gof, aft_age_mean_error, aft_age_r2,
             single_grain_aft_ages, single_grain_aft_ages_se_min,
@@ -611,6 +611,58 @@ def model_data_comparison_salinity(salinity_data_well,
     return salinity_gof, salinity_rmse, salinity_r2
 
 
+def model_data_comparison_pressure(pressure_data_well, z_nodes, P_ex_nodes,
+                                   active_nodes, pressure_unc_sigma=1.0):
+
+    """
+    Compare modeled and measured fluid (pore) pressure
+
+    modeled pressure is the sum of hydrostatic pressure (1025 kg m-3,
+    9.81 m s-2, matching the assumption used throughout the compaction
+    and fluid flow model) and modeled excess pressure. measured
+    pressure is the formation shut-in pressure (FSIP_MPa column) of a
+    drill stem test, compared at the midpoint depth of the tested
+    interval (depth_top, depth_bottom columns)
+
+    pressure_unc_sigma is the assumed 1 sigma uncertainty (MPa) of the
+    pressure measurements, used unless the input data provides a
+    pressure_unc_1sigma column instead
+    """
+
+    z_active = z_nodes[-1, active_nodes[-1]]
+    hydrostatic_pressure = 1025.0 * 9.81 * z_active / 1.0e6
+    total_pressure = hydrostatic_pressure + P_ex_nodes[-1, active_nodes[-1]] / 1.0e6
+
+    pressure_data_well['obs_depth'] = \
+        (pressure_data_well['depth_top']
+         + pressure_data_well['depth_bottom']) / 2.0
+
+    pressure_data_well['simulated_pressure'] = \
+        np.interp(pressure_data_well['obs_depth'], z_active, total_pressure)
+
+    pressure_data_well['residual'] = \
+        (pressure_data_well['FSIP_MPa']
+         - pressure_data_well['simulated_pressure'])
+
+    if 'pressure_unc_1sigma' in pressure_data_well.columns:
+        pressure_sigma = pressure_data_well['pressure_unc_1sigma']
+    else:
+        pressure_sigma = pressure_unc_sigma
+
+    pressure_data_well['residual_norm'] = \
+        pressure_data_well['residual'] / pressure_sigma
+    pressure_data_well['P_fit'] = \
+        (1.0 - scipy.stats.norm.cdf(
+            np.abs(pressure_data_well['residual_norm']))) * 2
+
+    pressure_rmse = np.sqrt(np.mean(pressure_data_well['residual']**2))
+    pressure_gof = np.mean(pressure_data_well['P_fit'])
+    pressure_r2 = calculate_r_squared(pressure_data_well['FSIP_MPa'],
+                                      pressure_data_well['simulated_pressure'])
+
+    return pressure_gof, pressure_rmse, pressure_r2, pressure_data_well
+
+
 def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    n_nodes, time_array_bp,
                                    z_nodes, T_nodes, active_nodes,
@@ -774,7 +826,6 @@ def assemble_data_and_simulate_he(he_samples_well,
 
     if calculate_thermochron_for_all_nodes is True:
 
-        logger.info('-' * 10)
         logger.info('calculating U-Th/He ages for all nodes')
 
         minerals_nodes = [[default_he_mineral, default_he_mineral]] * n_nodes
@@ -964,6 +1015,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   T_data, vr_data_df,
                                   aft_samples, aft_ages,
                                   he_samples, he_data, salinity_data,
+                                  pressure_data=None,
                                   vr_method='easyRo',
                                   save_csv_files=True):
     """
@@ -1089,7 +1141,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # find if there are VR samples for this well
         ind = ((vr_data_df['well'] == well)
                & (vr_data_df['depth'] < z_nodes[-1].max()))
-        vr_data_well = vr_data_df[ind]
+        vr_data_well = vr_data_df[ind].copy()
 
         # interpolate vitrinite reflectance data
         if True in ind.values \
@@ -1154,7 +1206,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         # find if there is any aft data for this well:
         ind = ((aft_samples['well'] == well) & (aft_samples['depth'] <= z_nodes[-1].max() + 1.0))
-        aft_data_well = aft_samples[ind]
+        aft_data_well = aft_samples[ind].copy()
 
         if True in ind.values:
             location_has_AFT = True
@@ -1368,7 +1420,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
     ##################################
     # calculate model error temperature data
     ind = (T_data['well'] == well) & (T_data['depth'] < z_nodes[-1].max())
-    T_data_well = T_data[ind]
+    T_data_well = T_data[ind].copy()
 
     if True in ind.values:
 
@@ -1396,7 +1448,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         # calculate model error vitrinite reflectance data
         ind = ((vr_data_df['well'] == well)
                & (vr_data_df['depth'] < z_nodes[-1].max()))
-        vr_data_well = vr_data_df[ind]
+        vr_data_well = vr_data_df[ind].copy()
 
         # interpolate vitrinite reflectance data
         if True in ind.values:
@@ -1415,7 +1467,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
 
         # calculate model error fission track data
         ind = ((aft_samples['well'] == well) & (aft_samples['depth'] <= z_nodes[-1].max() + 1.0))
-        aft_data_well = aft_samples[ind]
+        aft_data_well = aft_samples[ind].copy()
 
         if True in ind.values:
 
@@ -1475,6 +1527,32 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         if True in ind.values:
             salinity_gof, salinity_rmse, salinity_r2 = model_data_comparison_salinity(
                 salinity_data_well, z_nodes, C_nodes, active_nodes)
+
+    # calculate model error pressure data
+    pressure_rmse = np.nan
+    pressure_gof = np.nan
+    pressure_r2 = np.nan
+    Pressure_model_data = None
+    if simulate_fluid_flow is True and pressure_data is not None:
+
+        ind = ((pressure_data['well'] == well)
+               & (pressure_data['depth_bottom'] < z_nodes[-1].max()))
+        pressure_data_well = pressure_data[ind].copy()
+
+        if True in ind.values:
+            pressure_unc_sigma = getattr(pybasin_params, 'pressure_unc_sigma', 1.0)
+            pressure_gof, pressure_rmse, pressure_r2, pressure_data_well = \
+                model_data_comparison_pressure(
+                    pressure_data_well, z_nodes, P_ex_nodes, active_nodes,
+                    pressure_unc_sigma=pressure_unc_sigma)
+
+            Pressure_model_data = [pressure_data_well['obs_depth'].values,
+                                   pressure_data_well['FSIP_MPa'].values,
+                                   pressure_data_well['simulated_pressure'].values,
+                                   pressure_gof, pressure_rmse, pressure_r2,
+                                   pressure_data_well]
+        else:
+            logger.info('no pressure data found for this location')
 
     # assemble output data
     if pybasin_params.simulate_AFT is True and location_has_AFT is True:
@@ -1559,6 +1637,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
             he_age_gof, he_age_error, he_age_r2,
             He_model_data,
+            pressure_gof, pressure_rmse, pressure_r2, Pressure_model_data,
             model_results_series)
 
 
@@ -1579,6 +1658,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                           csv_output_dir,
                                           output_dir,
                                           log_screen_output,
+                                          pressure_data=None,
                                           record_data=True,
                                           save_burial_csv_files=True):
 
@@ -1717,7 +1797,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
      vr_gof, vr_rmse, vr_r2, VR_model_data,
      aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
      he_age_gof, he_age_error, he_age_r2,
-     He_model_data, model_results_series) = \
+     He_model_data,
+     pressure_gof, pressure_rmse, pressure_r2, Pressure_model_data,
+     model_results_series) = \
         run_model_and_compare_to_data(well_number, well, well_strat,
                                       strat_info_mod, pybasin_params,
                                       surface_temp, surface_salinity_well,
@@ -1730,6 +1812,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                       aft_samples, aft_ages,
                                       he_samples, he_data,
                                       salinity_data,
+                                      pressure_data=pressure_data,
                                       vr_method=pybasin_params.vr_method,
                                       save_csv_files=save_burial_csv_files)
 
@@ -1754,6 +1837,10 @@ def update_model_params_and_run_model_new(model_scenario_number,
             model_results_series['salinity_gof'] = salinity_gof
             model_results_series['salinity_rmse'] = salinity_rmse
             model_results_series['salinity_r2'] = salinity_r2
+        if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+            model_results_series['pressure_gof'] = pressure_gof
+            model_results_series['pressure_rmse'] = pressure_rmse
+            model_results_series['pressure_r2'] = pressure_r2
 
         # calculate cumulative salt loss due to diffusion
         if pybasin_params.simulate_salinity is True:
@@ -1796,6 +1883,9 @@ def update_model_params_and_run_model_new(model_scenario_number,
     if pybasin_params.simulate_salinity is True:
         logger.info('salinity GOF = %0.2f, R2 = %0.2f' % (salinity_gof, salinity_r2))
         logger.info('salinity RMSE = %0.4f' % salinity_rmse)
+    if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
+        logger.info('pressure GOF = %0.2f, R2 = %0.2f' % (pressure_gof, pressure_r2))
+        logger.info('pressure RMSE = %0.4f' % pressure_rmse)
     logger.info('')
 
     return (well_number, well, model_scenario_number,
@@ -1806,6 +1896,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
             aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
             he_age_gof, he_age_error, he_age_r2,
             He_model_data,
+            pressure_gof, pressure_r2, Pressure_model_data,
             model_results_series)
 
 
@@ -1978,8 +2069,9 @@ def read_model_input_data(input_dir, pybasin_params):
         salinity_data = None
 
     # optional observed present-day pressure data (eg. from drill stem
-    # tests), used only to overlay on the pressure panel of the burial
-    # history figure. not used for calibration or goodness-of-fit
+    # tests), used both to overlay on the pressure panel of the burial
+    # history figure and to calculate the goodness of fit of modeled
+    # vs measured fluid pressure
     pressure_data_file = os.path.join(input_dir, 'dst_pressure_data.csv')
     if getattr(pybasin_params, 'simulate_fluid_flow', False) is True \
             and os.path.isfile(pressure_data_file):
@@ -2191,7 +2283,13 @@ def main():
     parser.add_argument('-w', dest='wells',
                         help='specify wells to include, separated by a comma for multiple wells')
 
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='show detailed per-timestep and per-unit debug output on screen')
+
     args = parser.parse_args()
+
+    if args.verbose is True:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # check if script dir in python path
     scriptdir = os.path.realpath(sys.path[0])
@@ -2336,8 +2434,7 @@ def main():
     #######################
     for well_number, well in enumerate(wells):
 
-        logger.info('x' * 20)
-        logger.info('well %s, %i/%i' % (well, well_number + 1, len(wells)))
+        logger.info('=== well %s (%i/%i) ===' % (well, well_number + 1, len(wells)))
 
         if np.any(well_strats['well'] == well) == False:
             raise IOError('error, could not find well %s in well strat file in directory %s' % (well, input_dir))
@@ -2379,9 +2476,7 @@ def main():
         for well_scenario_no, model_scenario_params \
                 in enumerate(model_scenario_param_list):
 
-            logger.info('-' * 20)
-            logger.info('setting up model scenario %i / %i' % (model_scenario_number + 1, len(model_scenario_param_list)))
-            logger.info('-' * 20)
+            logger.info('--- model scenario %i / %i ---' % (model_scenario_number + 1, len(model_scenario_param_list)))
 
             # restore original parameter values
             Parameters = Parameters_original()
@@ -2430,7 +2525,9 @@ def main():
                  vr_gof, vr_r2, VR_model_data,
                  aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
                  he_age_gof, he_age_error, he_age_r2,
-                 He_model_data, model_results_series_updated) = update_model_params_and_run_model_new(
+                 He_model_data,
+                 pressure_gof, pressure_r2, Pressure_model_data,
+                 model_results_series_updated) = update_model_params_and_run_model_new(
                     model_scenario_number,
                     Parameters,
                     model_scenario_param_names, model_scenario_params,
@@ -2447,7 +2544,8 @@ def main():
                     salinity_data,
                     csv_output_dir,
                     output_dir,
-                    log_screen_output)
+                    log_screen_output,
+                    pressure_data=pressure_data)
 
                 well_number_store, well_store, model_scenario_number_store = well_number, well, model_scenario_number
 
@@ -2481,7 +2579,8 @@ def main():
                                       salinity_data,
                                       csv_output_dir,
                                       output_dir,
-                                      log_screen_output))
+                                      log_screen_output),
+                                     {'pressure_data': pressure_data})
 
                 processes.append(p)
 
@@ -2506,9 +2605,7 @@ def main():
                         #  loop instead and wrap output in a seperate function
                         if model_result_ready is False and p.ready() is True and done_processing[ip] is False:
 
-                            logger.info('-' * 20)
                             logger.info('process %i is done' % ip)
-                            logger.info('-' * 20)
 
                             p_result = p.get()
 
@@ -2519,7 +2616,9 @@ def main():
                              vr_gof, vr_r2, VR_model_data,
                              aft_age_gof, aft_age_error, aft_age_r2, AFT_data,
                              he_age_gof, he_age_error, he_age_r2,
-                             He_model_data, model_results_series_updated) = p_result
+                             He_model_data,
+                             pressure_gof, pressure_r2, Pressure_model_data,
+                             model_results_series_updated) = p_result
 
                             for col in model_results_series_updated.index:
                                 if col not in model_results_df.columns:
@@ -2552,7 +2651,7 @@ def main():
                         T_model_data, C_data, VR_model_data, AFT_data, He_model_data,
                         porosity_nodes=porosity_nodes, rho_nodes=rho_nodes,
                         P_ex_nodes=P_ex_nodes,
-                        pressure_data=pressure_data, porosity_data=porosity_data)
+                        pressure_data=Pressure_model_data, porosity_data=porosity_data)
 
                     # l = len(z_nodes[-1, active_nodes[-1]]) - 1
                     # dfc.loc[:l, 'depth_s%i' % model_scenario_number] = \
@@ -2828,7 +2927,8 @@ def main():
                             model_run_data_fig,
                             contour_variable=Parameters.contour_variable,
                             show_strat_column=Parameters.show_strat_column,
-                            show_thermochron_data=Parameters.show_thermochron_data)
+                            show_thermochron_data=Parameters.show_thermochron_data,
+                            show_gof_stats=getattr(Parameters, 'show_gof_stats', True))
                     #    vr_data['depth'], vr_data['VR'], vr_data['unc_range_sigma'])
 
                         # fn = os.path.join(fig_output_dir,

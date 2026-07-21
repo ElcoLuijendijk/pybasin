@@ -486,8 +486,7 @@ def subdivide_strat_units(input_df, max_thickness):
 
         # add subdivided units to dataframe
         subdiv_df = pd.DataFrame(index=subdiv_units,
-                                 columns=input_df.columns,
-                                 dtype='float64')
+                                 columns=input_df.columns)
 
         # copy all values from well strat df
         for i, unit in enumerate(subdiv_units):
@@ -515,7 +514,13 @@ def subdivide_strat_units(input_df, max_thickness):
     # sort geohistory to time
     output_df = output_df.sort_values(['age_bottom'])
 
-    output_df = output_df.apply(pd.to_numeric, errors="ignore")
+    def _to_numeric_if_possible(series):
+        try:
+            return pd.to_numeric(series)
+        except (ValueError, TypeError):
+            return series
+
+    output_df = output_df.apply(_to_numeric_if_possible)
 
     return output_df
 
@@ -614,8 +619,8 @@ def add_exhumation_phases(well_strat,
 
             # calculate eroded thicknesses
             df_ex.loc[eroded_units, 'eroded_thickness'] = \
-                df_ex.loc[eroded_units, 'normal_thickness'] - \
-                df_ex.loc[eroded_units, 'preserved_thickness']
+                df_ex.loc[eroded_units, 'normal_thickness'].astype(float) - \
+                df_ex.loc[eroded_units, 'preserved_thickness'].astype(float)
 
             # correct < 0 eroded thicknesses
             df_ex.loc[df_ex['eroded_thickness'] < 0, 'eroded_thickness'] = 0.0
@@ -900,7 +905,7 @@ def find_hiatus(strat_units, age_start, age_end):
                 age_end[:-1], age_start[1:]):
 
         if age_end_bottom > age_start_top + 1e-4:
-            logger.info('found hiatus between units %s (-%0.2f) and %s (%0.2f-)' % (strat_unit_bottom, age_end_bottom, strat_unit_top, age_start_top))
+            logger.debug('found hiatus between units %s (-%0.2f) and %s (%0.2f-)' % (strat_unit_bottom, age_end_bottom, strat_unit_top, age_start_top))
 
             hiatus_list.append('~%s-%s' % (strat_unit_bottom, strat_unit_top))
             hiatus_start_list.append(age_end_bottom)
@@ -916,12 +921,12 @@ def find_hiatus(strat_units, age_start, age_end):
             pass
 
     # if last unit deposited before present: add hiatus
-    if age_end[-1] > 1e-5:
+    if age_end.iloc[-1] > 1e-5:
         hiatus_list.append('~%s-present' % strat_units[-1])
-        hiatus_start_list.append(age_end[-1])
+        hiatus_start_list.append(age_end.iloc[-1])
         hiatus_end_list.append(0.0)
 
-        logger.info('added hiatus following deposition of youngest unit %s (%0.2f-) ' % (strat_units[-1], age_end[-1]))
+        logger.info('added hiatus following deposition of youngest unit %s (%0.2f-) ' % (strat_units[-1], age_end.iloc[-1]))
 
     return hiatus_list, hiatus_start_list, hiatus_end_list
 
@@ -950,7 +955,7 @@ def calculate_initial_thickness(max_decompaction_error,
         initial_thickness_diff_max = \
             np.max(np.abs(initial_thickness_new - initial_thickness))
         initial_thickness = initial_thickness_new
-        logger.info('max change in thickness over 1 decompaction iteration %0.2f' % initial_thickness_diff_max)
+        logger.debug('max change in thickness over 1 decompaction iteration %0.2f' % initial_thickness_diff_max)
         n_decompaction_iterations += 1
 
     return initial_thickness
@@ -989,7 +994,7 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
             logger.info('adding row info for subdivided unit %s' % row)
             row_name = row.split('_s_')[0]
         elif '_a_' in row and row.split('_a_')[0][1:] in data_df.index:
-            logger.info('adding row info for eroded unit %s' % row)
+            logger.debug('adding row info for eroded unit %s' % row)
             row_name = row.split('_a_')[0][1:]
         else:
             msg = 'cannot find row item %s in data .csv file. ' \
@@ -1822,8 +1827,9 @@ def get_geo_history(well_strat, strat_info_mod,
         if np.any(ind.values == True):
             logger.info('found unit with thickness < %0.1f m, adding %0.1f m' % (min_thickness, min_thickness))
             ind_start = well_strat.loc[ind, 'present-day_thickness'].index
+            ind_rest = well_strat.loc[ind_start[0]:].index[1:]
             well_strat.loc[ind_start[0]:, 'depth_bottom'] += min_thickness
-            well_strat.loc[ind_start[0]:, 'depth_top'][1:] += min_thickness
+            well_strat.loc[ind_rest, 'depth_top'] += min_thickness
 
             well_strat['present-day_thickness'] = \
                 well_strat['depth_bottom'] - well_strat['depth_top']
@@ -1958,7 +1964,7 @@ def get_geo_history(well_strat, strat_info_mod,
 
     # store hiatusses in dataframe:
     hiatus_df = pd.DataFrame(index=hiatus_list,
-                             columns=geohist_df.columns)
+                             columns=geohist_df.columns).astype(geohist_df.dtypes)
     hiatus_df['deposition_code'] = 0
     hiatus_df['age_bottom'] = hiatus_start_list
     hiatus_df['age_top'] = hiatus_end_list
@@ -2381,10 +2387,6 @@ def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo',
     vr_nodes = np.zeros(T_nodes.shape)
     for nn in range(n_nodes):
 
-        if verbose is True:
-            sys.stdout.write('.')
-            sys.stdout.flush()
-
         if vectorize_thermochron is True:
             vr_nodes[active_nodes[:, nn], nn] = \
                 easyRo.easyRo_vectorized(time_array[active_nodes[:, nn]] / 1e6,
@@ -2393,9 +2395,6 @@ def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo',
             vr_nodes[active_nodes[:, nn], nn] = \
                 easyRo.easyRo(time_array[active_nodes[:, nn]] / 1e6,
                               T_nodes[active_nodes[:, nn], nn], vr_method=vr_method)
-
-    if verbose is True:
-        logger.info(':-)')
 
     return vr_nodes
 
@@ -2460,10 +2459,6 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                                  n_kinetic_scenarios))
 
     for nn in range(n_nodes):
-        if verbose is True:
-            sys.stdout.write('.')
-            sys.stdout.flush()
-
         for n_prov in range(n_prov_scenarios):
             for n_kin in range(n_kinetic_scenarios):
                 if vectorize_thermochron is True:
@@ -2489,9 +2484,6 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                 aft_age_nodes[nn, n_prov, n_kin] = AFTage
                 aft_ln_mean_nodes[nn, n_prov, n_kin] = l_mean
                 aft_ln_std_nodes[nn, n_prov, n_kin] = l_mean_std
-
-    if verbose is True:
-        logger.info(':-)')
 
     aft_age_nodes_min = np.min(aft_age_nodes, axis=(1, 2))
     aft_age_nodes_max = np.max(aft_age_nodes, axis=(1, 2))
@@ -2572,14 +2564,9 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     if log_tT_paths is True and os.path.exists(tT_path_filename) is False:
         os.mkdir(tT_path_filename)
 
-    logger.info('all samples/nodes:')
-    logger.info('.' * n_nodes)
-    logger.info('progress:')
+    logger.debug('calculating He ages for %i nodes' % n_nodes)
 
     for nn in range(n_nodes):
-
-        sys.stdout.write('.')
-        sys.stdout.flush()
 
         n_grains = len(grain_radius_nodes[nn])
 
@@ -2739,8 +2726,6 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
         ahe_age_nodes_all.append(ahe_age_nodes)
         ahe_age_nodes_min_all.append(ahe_age_nodes_min)
         ahe_age_nodes_max_all.append(ahe_age_nodes_max)
-
-    logger.info(':-)')
 
     return (ahe_age_nodes_all, ahe_age_nodes_min_all, ahe_age_nodes_max_all,
             ahe_node_times_burial, ahe_node_zs)
@@ -3180,7 +3165,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     age_nodes_end_raw = geohist_df['age_top'][ind]
 
     node_age[:-1:2] = age_nodes_end_raw
-    node_age[-1] = age_nodes_start_raw[-1]
+    node_age[-1] = age_nodes_start_raw.iloc[-1]
     node_age[1::2] = (age_nodes_end_raw + age_nodes_start_raw) / 2.0
 
     # copy provnenacne ages for nodes
@@ -3487,7 +3472,6 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         q_fluid_bottom = np.zeros(nt_total)
 
     # go through all geological timesteps and model heat flow:
-    logger.info('-' * 10)
     if pybasin_params.simulate_salinity is True:
         logger.info('modeling heatflow and solute diffusion')
     else:
@@ -3731,9 +3715,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         # timestep in xrange(nt_total
         if timestep in cumulative_steps or timestep == nt_total - 1:
 
-            logger.info('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' % (timestep, time_array_bp[timestep] / 1000000.0, len(z_nodes[timestep, active_nodes_i]), z_nodes[timestep, active_nodes_i].max(), T_nodes[timestep, active_nodes_i].min(), T_nodes[timestep, active_nodes_i].max()))
+            logger.debug('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' % (timestep, time_array_bp[timestep] / 1000000.0, len(z_nodes[timestep, active_nodes_i]), z_nodes[timestep, active_nodes_i].max(), T_nodes[timestep, active_nodes_i].min(), T_nodes[timestep, active_nodes_i].max()))
             if pybasin_params.simulate_salinity is True:
-                logger.info('min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(), C_nodes[timestep, active_nodes_i].max()))
+                logger.debug('min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(), C_nodes[timestep, active_nodes_i].max()))
 
     if (getattr(pybasin_params, 'simulate_fluid_flow', False) is True
             and save_csv_files is True):

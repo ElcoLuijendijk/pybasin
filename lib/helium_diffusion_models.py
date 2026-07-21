@@ -14,12 +14,9 @@ logger = logging.getLogger(__name__)
 try:
     from . import calculate_reduced_AFT_lengths
 except ImportError:
-    logger.info('-' * 30)
-    logger.warning('warning: failed to import fortran annealing module')
-    logger.info('use slower python implementation of AFT annealing module instead')
-    logger.info('compile the fortran module by running the following command in the source directory of this module:')
-    logger.info('f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths')
-    logger.info('-' * 30)
+    logger.info('fortran annealing module not found, using slower pure-python '
+                'implementation (run "f2py -c calculate_reduced_AFT_lengths.f90 '
+                '-m calculate_reduced_AFT_lengths" to speed this up)')
 
 
 @jit(nopython=True)

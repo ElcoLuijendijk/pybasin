@@ -31,13 +31,10 @@ except:
         import lib.calculate_reduced_AFT_lengths as calculate_reduced_AFT_lengths
         logger.info('import fortran annealing module ok')
     except ImportError as e:
-        logger.info('-' * 20)
-        logger.info(e)
-        logger.info('failed to import fortran annealing module')
-        logger.info('use slower python implementation of AFT annealing module instead')
-        logger.info('compile the fortran module by running the following command in the source directory of this module:')
-        logger.info('f2py -c calculate_reduced_AFT_lengths.f90 -m calculate_reduced_AFT_lengths')
-        logger.info('-' * 20)
+        logger.debug(e)
+        logger.info('fortran annealing module not found, using slower pure-python '
+                    'implementation (run "f2py -c calculate_reduced_AFT_lengths.f90 '
+                    '-m calculate_reduced_AFT_lengths" to speed this up)')
 
 @jit(nopython=True)
 def Cl_wt_fraction_to_APFU(Cl_wtfract):
