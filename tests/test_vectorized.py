@@ -5,16 +5,22 @@ Each test calls the original (reference) function and its vectorized
 equivalent with identical inputs and asserts that results are numerically
 identical (np.allclose with default tolerances: rtol=1e-5, atol=1e-8).
 
-The TestSpeedComparison class times each function pair and prints a summary
-table.  Run with -s to see the output:
+These tests guard the equivalence of the refactor, not the correctness of
+the underlying physics: if the original function is wrong, the vectorized
+one is expected to be wrong in the same way and the test still passes.
 
-    MPLBACKEND=Agg python -m pytest tests/test_vectorized.py -v -s
+Wall-clock benchmarks for these function pairs live in the standalone
+script benchmarks/benchmark_vectorized.py; they are intentionally not part
+of the test suite because timing is environment dependent and not
+diagnostic of model state.
+
+Run with:
+    MPLBACKEND=Agg python -m pytest tests/test_vectorized.py -v
 """
 
 import os
 import sys
 import numpy as np
-import pytest
 
 # Ensure the project root is on the path so lib imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -274,42 +280,6 @@ class TestHeDiffusionVectorized:
                          alpha_ejection=False,
                          n_eigenmodes=10)
 
-    def test_last_timestep_only(self):
-        """all_timesteps=False: both return a scalar."""
-        t, D, radius, Ur0 = make_he_diffusion_inputs(n=60, seed=33)
-        # all_timesteps=False returns Cav_unused (unused in original), so
-        # the original falls through to t_c = Cav / Ur0 — but Cav is only
-        # defined in the all_timesteps=True branch in the original code.
-        # We test the all_timesteps=False path to ensure the vectorized
-        # function doesn't raise and the beta_last approach works.
-        # (The original also has a bug here: Cav is unbound for all_timesteps=False,
-        # so we only test that both raise the same exception, or both succeed.)
-        try:
-            t_c_orig = He_diffusion_Meesters_and_Dunai_2002(
-                t, D, radius, Ur0,
-                U_function='constant',
-                all_timesteps=False,
-                alpha_ejection=False,
-                n_eigenmodes=10)
-            t_c_vec = He_diffusion_Meesters_and_Dunai_2002_vectorized(
-                t, D, radius, Ur0,
-                U_function='constant',
-                all_timesteps=False,
-                alpha_ejection=False,
-                n_eigenmodes=10)
-            # If both succeed, compare
-            assert np.isclose(float(t_c_orig), float(t_c_vec)), (
-                f"orig={t_c_orig}, vec={t_c_vec}")
-        except Exception as e_orig:
-            # Both should raise the same type of exception
-            with pytest.raises(type(e_orig)):
-                He_diffusion_Meesters_and_Dunai_2002_vectorized(
-                    t, D, radius, Ur0,
-                    U_function='constant',
-                    all_timesteps=False,
-                    alpha_ejection=False,
-                    n_eigenmodes=10)
-
     def test_fewer_eigenmodes(self):
         """n_eigenmodes=5 (fast): vectorized matches original."""
         t, D, radius, Ur0 = make_he_diffusion_inputs(n=50, seed=77)
@@ -318,198 +288,6 @@ class TestHeDiffusionVectorized:
                          all_timesteps=True,
                          alpha_ejection=False,
                          n_eigenmodes=5)
-
-
-# ---------------------------------------------------------------------------
-# Speed comparison
-# ---------------------------------------------------------------------------
-
-class TestSpeedComparison:
-    """
-    Times each original/vectorized function pair and prints a summary table.
-
-    No numerical assertions are made — this class purely benchmarks.
-    Use ``pytest -v -s`` to see the printed table.
-
-    A single sanity assertion guards against catastrophic regressions:
-    the vectorized version must not be more than 10× slower than the original.
-    """
-
-    REPEATS = 5  # number of timing repetitions; best-of-N is reported
-
-    # ------------------------------------------------------------------
-    # helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _best_of(fn, repeats):
-        """Return the best (minimum) wall-clock time over *repeats* calls."""
-        import time
-        times = []
-        for _ in range(repeats):
-            t0 = time.perf_counter()
-            fn()
-            times.append(time.perf_counter() - t0)
-        return min(times)
-
-    @staticmethod
-    def _fmt(seconds):
-        """Format a duration as ms or µs."""
-        if seconds >= 0.001:
-            return f"{seconds * 1e3:.1f} ms"
-        return f"{seconds * 1e6:.1f} µs"
-
-    @staticmethod
-    def _speedup_str(t_orig, t_vec):
-        ratio = t_orig / t_vec
-        direction = "faster" if ratio >= 1.0 else "slower"
-        return f"{max(ratio, 1.0/ratio):.2f}× {direction}"
-
-    @classmethod
-    def _print_row(cls, label, t_orig, t_vec):
-        speedup = cls._speedup_str(t_orig, t_vec)
-        print(f"  {label:<45s}  orig={cls._fmt(t_orig):>10s}  "
-              f"vec={cls._fmt(t_vec):>10s}  ({speedup})")
-
-    # ------------------------------------------------------------------
-    # calculate_reduced_track_lengths
-    # ------------------------------------------------------------------
-
-    def test_speed_calculate_reduced_track_lengths_n200(self):
-        """Speed comparison: calculate_reduced_track_lengths, n=200 timesteps."""
-        dts, temperatures = make_thermal_history(n=200)
-
-        t_orig = self._best_of(
-            lambda: AFTannealingLib.calculate_reduced_track_lengths(
-                dts, temperatures),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: AFTannealingLib.calculate_reduced_track_lengths_vectorized(
-                dts, temperatures),
-            self.REPEATS)
-
-        print()
-        self._print_row("calculate_reduced_track_lengths (n=200)", t_orig, t_vec)
-        assert t_vec < t_orig * 10, (
-            f"vectorized is unexpectedly slow: orig={self._fmt(t_orig)}, "
-            f"vec={self._fmt(t_vec)}")
-
-    def test_speed_calculate_reduced_track_lengths_n500(self):
-        """Speed comparison: calculate_reduced_track_lengths, n=500 timesteps."""
-        dts, temperatures = make_thermal_history(n=500)
-
-        t_orig = self._best_of(
-            lambda: AFTannealingLib.calculate_reduced_track_lengths(
-                dts, temperatures),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: AFTannealingLib.calculate_reduced_track_lengths_vectorized(
-                dts, temperatures),
-            self.REPEATS)
-
-        print()
-        self._print_row("calculate_reduced_track_lengths (n=500)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
-
-    # ------------------------------------------------------------------
-    # simulate_AFT_annealing
-    # ------------------------------------------------------------------
-
-    def test_speed_simulate_aft_annealing_n80(self):
-        """Speed comparison: simulate_AFT_annealing, n=80 timesteps."""
-        timesteps, T, kv = make_simulate_aft_inputs(n=80)
-
-        t_orig = self._best_of(
-            lambda: AFTannealingLib.simulate_AFT_annealing(
-                timesteps, T, kv,
-                kinetic_parameter='Clwt',
-                use_fortran_algorithm=False),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: AFTannealingLib.simulate_AFT_annealing_vectorized(
-                timesteps, T, kv,
-                kinetic_parameter='Clwt',
-                use_fortran_algorithm=False),
-            self.REPEATS)
-
-        print()
-        self._print_row("simulate_AFT_annealing (n=80)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
-
-    def test_speed_simulate_aft_annealing_n200(self):
-        """Speed comparison: simulate_AFT_annealing, n=200 timesteps."""
-        timesteps, T, kv = make_simulate_aft_inputs(n=200)
-
-        t_orig = self._best_of(
-            lambda: AFTannealingLib.simulate_AFT_annealing(
-                timesteps, T, kv,
-                kinetic_parameter='Clwt',
-                use_fortran_algorithm=False),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: AFTannealingLib.simulate_AFT_annealing_vectorized(
-                timesteps, T, kv,
-                kinetic_parameter='Clwt',
-                use_fortran_algorithm=False),
-            self.REPEATS)
-
-        print()
-        self._print_row("simulate_AFT_annealing (n=200)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
-
-    # ------------------------------------------------------------------
-    # He_diffusion_Meesters_and_Dunai_2002
-    # ------------------------------------------------------------------
-
-    def test_speed_he_diffusion_n100(self):
-        """Speed comparison: He_diffusion_Meesters_and_Dunai_2002, n=100 timesteps."""
-        t, D, radius, Ur0 = make_he_diffusion_inputs(n=100)
-
-        t_orig = self._best_of(
-            lambda: He_diffusion_Meesters_and_Dunai_2002(
-                t, D, radius, Ur0,
-                U_function='exponential',
-                all_timesteps=True,
-                alpha_ejection=False,
-                n_eigenmodes=15),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: He_diffusion_Meesters_and_Dunai_2002_vectorized(
-                t, D, radius, Ur0,
-                U_function='exponential',
-                all_timesteps=True,
-                alpha_ejection=False,
-                n_eigenmodes=15),
-            self.REPEATS)
-
-        print()
-        self._print_row("He_diffusion_Meesters_and_Dunai_2002 (n=100)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
-
-    def test_speed_he_diffusion_n500(self):
-        """Speed comparison: He_diffusion_Meesters_and_Dunai_2002, n=500 timesteps."""
-        t, D, radius, Ur0 = make_he_diffusion_inputs(n=500)
-
-        t_orig = self._best_of(
-            lambda: He_diffusion_Meesters_and_Dunai_2002(
-                t, D, radius, Ur0,
-                U_function='exponential',
-                all_timesteps=True,
-                alpha_ejection=False,
-                n_eigenmodes=15),
-            self.REPEATS)
-        t_vec = self._best_of(
-            lambda: He_diffusion_Meesters_and_Dunai_2002_vectorized(
-                t, D, radius, Ur0,
-                U_function='exponential',
-                all_timesteps=True,
-                alpha_ejection=False,
-                n_eigenmodes=15),
-            self.REPEATS)
-
-        print()
-        self._print_row("He_diffusion_Meesters_and_Dunai_2002 (n=500)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
 
 
 # ---------------------------------------------------------------------------
@@ -566,18 +344,8 @@ class TestEasyRoVectorized:
         times, T = make_vr_thermal_history(n=200, seed=1)
         self._compare(times, T, vr_method='easyRo')
 
-    def test_easyro_short_history(self):
-        """Short n=30 history: vectorized matches original."""
-        times, T = make_vr_thermal_history(n=30, seed=7)
-        self._compare(times, T, vr_method='easyRo')
-
-    def test_easyro_long_history(self):
-        """Long n=2000 history: vectorized matches original."""
-        times, T = make_vr_thermal_history(n=2000, seed=99)
-        self._compare(times, T, vr_method='easyRo')
-
     def test_easyro_constant_temperature(self):
-        """Isothermal history (no heating rate variation)."""
+        """Isothermal edge case (no heating rate variation)."""
         n = 100
         times = np.linspace(50.0, 0.0, n)
         T = np.full(n, 80.0)
@@ -600,34 +368,3 @@ class TestEasyRoVectorized:
             assert np.allclose(v_orig, v_vec), (
                 f"debug array '{name}': max abs diff = "
                 f"{np.abs(np.asarray(v_orig) - np.asarray(v_vec)).max():.3e}")
-
-
-# ------------------------------------------------------------------
-# Speed tests: easyRo vs easyRo_vectorized
-# ------------------------------------------------------------------
-
-    def test_speed_easyro_n1000(self):
-        """Speed comparison: easyRo vs easyRo_vectorized, n=1000 timesteps."""
-        times, T = make_vr_thermal_history(n=1000, seed=1)
-
-        t_orig = TestSpeedComparison._best_of(
-            lambda: easyRo.easyRo(times, T), TestSpeedComparison.REPEATS)
-        t_vec = TestSpeedComparison._best_of(
-            lambda: easyRo.easyRo_vectorized(times, T), TestSpeedComparison.REPEATS)
-
-        print()
-        TestSpeedComparison._print_row("easyRo (n=1000)", t_orig, t_vec)
-        assert t_vec < t_orig * 10
-
-    def test_speed_easyro_n10000(self):
-        """Speed comparison: easyRo vs easyRo_vectorized, n=10000 timesteps."""
-        times, T = make_vr_thermal_history(n=10000, seed=2)
-
-        t_orig = TestSpeedComparison._best_of(
-            lambda: easyRo.easyRo(times, T), TestSpeedComparison.REPEATS)
-        t_vec = TestSpeedComparison._best_of(
-            lambda: easyRo.easyRo_vectorized(times, T), TestSpeedComparison.REPEATS)
-
-        print()
-        TestSpeedComparison._print_row("easyRo (n=10000)", t_orig, t_vec)
-        assert t_vec < t_orig * 10

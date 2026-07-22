@@ -2,7 +2,15 @@
 Integration tests for PyBasin using the two bundled example datasets.
 
 These tests run a full single-scenario model for each example dataset and
-verify that the key goodness-of-fit metrics are finite values in [0, 1].
+pin the key goodness-of-fit metrics to recorded reference values. Because
+every goodness-of-fit metric is a mean of probabilities and is therefore
+bounded to [0, 1] by construction, a range check alone would only confirm
+that the pipeline ran; pinning the values instead turns these into
+regression tests that catch a silently changed model result.
+
+The reference values were recorded from the base-case scenario of each
+bundled dataset. If an intentional change to the physics shifts them, run
+the model once and update REFERENCE_GOF below.
 
 Run with:
     pytest tests/test_example_datasets.py
@@ -170,6 +178,50 @@ def _run_single_scenario(dataset_name):
 
 
 # ---------------------------------------------------------------------------
+# Reference goodness-of-fit values recorded from the base-case scenario of
+# each bundled dataset. np.nan marks a metric that the dataset does not
+# simulate. Update these if an intentional physics change shifts the result.
+# ---------------------------------------------------------------------------
+
+REFERENCE_GOF = {
+    "example_dataset_1": {
+        "T_gof": 1.0,
+        "vr_gof": 0.3297855833641515,
+        "aft_age_gof": 0.3201543883837627,
+        "he_age_gof": np.nan,
+    },
+    "example_dataset_2": {
+        "T_gof": np.nan,
+        "vr_gof": np.nan,
+        "aft_age_gof": np.nan,
+        "he_age_gof": 9.314020929217298e-74,
+    },
+}
+
+
+def _assert_gof_matches_reference(dataset_name, T_gof, vr_gof,
+                                  aft_age_gof, he_age_gof):
+    """Assert each metric matches its recorded reference (nan matches nan)."""
+    reference = REFERENCE_GOF[dataset_name]
+    actual = {
+        "T_gof": T_gof,
+        "vr_gof": vr_gof,
+        "aft_age_gof": aft_age_gof,
+        "he_age_gof": he_age_gof,
+    }
+    for name, expected in reference.items():
+        got = actual[name]
+        if np.isnan(expected):
+            assert np.isnan(got), (
+                f"{dataset_name} {name}: expected nan, got {got!r}"
+            )
+        else:
+            assert got == pytest.approx(expected, rel=1e-6), (
+                f"{dataset_name} {name}: expected {expected!r}, got {got!r}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
@@ -179,21 +231,15 @@ def test_example_dataset_1():
     End-to-end test using example_dataset_1 (Roer Valley Graben, NDW-01).
 
     This dataset simulates temperature, vitrinite reflectance, and apatite
-    fission track ages. All three goodness-of-fit values must be finite
-    numbers in [0, 1].
+    fission track ages. The three goodness-of-fit values must match their
+    recorded reference values.
     """
     T_gof, vr_gof, aft_age_gof, he_age_gof = _run_single_scenario(
         "example_dataset_1"
     )
-
-    assert np.isfinite(T_gof), f"T_gof is not finite: {T_gof}"
-    assert 0.0 <= T_gof <= 1.0, f"T_gof out of range [0, 1]: {T_gof}"
-
-    assert np.isfinite(vr_gof), f"vr_gof is not finite: {vr_gof}"
-    assert 0.0 <= vr_gof <= 1.0, f"vr_gof out of range [0, 1]: {vr_gof}"
-
-    assert np.isfinite(aft_age_gof), f"aft_age_gof is not finite: {aft_age_gof}"
-    assert 0.0 <= aft_age_gof <= 1.0, f"aft_age_gof out of range [0, 1]: {aft_age_gof}"
+    _assert_gof_matches_reference(
+        "example_dataset_1", T_gof, vr_gof, aft_age_gof, he_age_gof
+    )
 
 
 @pytest.mark.slow
@@ -202,17 +248,12 @@ def test_example_dataset_2():
     End-to-end test using example_dataset_2 (Molasse Basin, E40).
 
     This dataset simulates apatite (U-Th)/He ages; there is no temperature
-    data for the E40 outcrop, so T_gof is expected to be nan.  The He
-    goodness-of-fit value must be a finite number in [0, 1].
+    data for the E40 outcrop, so T_gof is nan. The He goodness-of-fit value
+    must match its recorded reference value.
     """
     T_gof, vr_gof, aft_age_gof, he_age_gof = _run_single_scenario(
         "example_dataset_2"
     )
-
-    # No temperature measurements exist for the E40 outcrop, so T_gof is nan.
-    assert np.isnan(T_gof) or (
-        np.isfinite(T_gof) and 0.0 <= T_gof <= 1.0
-    ), f"T_gof is neither nan nor in [0, 1]: {T_gof}"
-
-    assert np.isfinite(he_age_gof), f"he_age_gof is not finite: {he_age_gof}"
-    assert 0.0 <= he_age_gof <= 1.0, f"he_age_gof out of range [0, 1]: {he_age_gof}"
+    _assert_gof_matches_reference(
+        "example_dataset_2", T_gof, vr_gof, aft_age_gof, he_age_gof
+    )

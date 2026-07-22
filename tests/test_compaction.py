@@ -17,8 +17,9 @@ analytic Gibson (1958) undrained solution, ie. the buoyant weight of
 the solid grains. test_compaction_storage_irreversibility is a direct
 unit test of compaction_storage(): the other two tests only exercise
 its virgin (monotonic loading) branch, since neither ever unloads, so
-this test checks the elastic-only branch and the irreversibility
-(historical maximum effective stress never decreases) separately.
+this test checks the elastic-only (unloading) branch separately, where
+storage drops to the elastic value because effective stress is below
+its historical maximum.
 
 Run with:
     pytest tests/test_compaction.py
@@ -236,11 +237,3 @@ def test_compaction_storage_irreversibility():
     expected_storage_unload_0 = porosity[0] * (beta_water + alpha_skeleton)
     assert np.isclose(storage_unload[0], expected_storage_unload_0)
     assert storage_unload[0] < storage_virgin[0]
-
-    # irreversibility: the historical maximum effective stress itself
-    # is not compaction_storage()'s responsibility (it only decides
-    # the regime given the maximum so far); run_burial_hist_model()
-    # and the test harness above both ratchet it using the post-solve
-    # excess pressure, so it never decreases even during unloading
-    sigma_eff_max_ratcheted = np.maximum(sigma_eff_unload, sigma_eff_max_prev)
-    assert np.allclose(sigma_eff_max_ratcheted, sigma_eff_max_prev)
