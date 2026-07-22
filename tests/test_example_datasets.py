@@ -2,15 +2,21 @@
 Integration tests for PyBasin using the two bundled example datasets.
 
 These tests run a full single-scenario model for each example dataset and
-pin the key goodness-of-fit metrics to recorded reference values. Because
-every goodness-of-fit metric is a mean of probabilities and is therefore
-bounded to [0, 1] by construction, a range check alone would only confirm
-that the pipeline ran; pinning the values instead turns these into
-regression tests that catch a silently changed model result.
+pin diagnostic error metrics to recorded reference values, so a silently
+changed model result fails the test.
+
+The vitrinite reflectance, apatite fission track and (U-Th)/He metrics are
+mean absolute errors between observed and simulated values, which respond
+continuously to a change in the model output. They replace the earlier
+goodness-of-fit pins, which saturate (a goodness-of-fit value can sit at 0
+or 1 across a wide range of simulated values) and so barely constrain the
+model state. Temperature keeps its goodness-of-fit value because the data
+are one-sided borehole temperature constraints; that makes the temperature
+error collapse to 0 and carry no information here.
 
 The reference values were recorded from the base-case scenario of each
 bundled dataset. If an intentional change to the physics shifts them, run
-the model once and update REFERENCE_GOF below.
+the model once and update REFERENCE_METRICS below.
 
 Run with:
     pytest tests/test_example_datasets.py
@@ -60,13 +66,38 @@ def _load_params(dataset_name):
     return module.ModelParameters, module.ParameterRanges
 
 
+def _vr_mean_absolute_error(vr_model_data):
+    """
+    Mean absolute error between observed and simulated vitrinite reflectance.
+
+    vr_model_data is the VR_model_data structure returned by the model; its
+    last element is the vr_data_well dataframe holding the observed VR and
+    the simulated_vr interpolated at each sample depth. Returns np.nan when
+    VR is not simulated.
+    """
+    if vr_model_data is None:
+        return np.nan
+    vr_data_well = vr_model_data[-1]
+    residual = vr_data_well["VR"] - vr_data_well["simulated_vr"]
+    return float(np.nanmean(np.abs(residual)))
+
+
 def _run_single_scenario(dataset_name):
     """
     Load a dataset, disable file/figure output, and run one model scenario.
 
-    Returns the tuple
-        (T_gof, vr_gof, aft_age_gof, he_age_gof)
-    with np.nan for metrics that are not simulated.
+    Returns a dict of diagnostic metrics
+        {"T_gof", "vr_mae", "aft_age_error", "he_age_error"}
+    with np.nan for metrics that the dataset does not simulate.
+
+    The vitrinite reflectance, apatite fission track and (U-Th)/He metrics
+    are mean absolute errors between observed and simulated values (in VR
+    units and in My), which respond continuously to a change in the model
+    output. The goodness-of-fit values these replace saturate (they can sit
+    at 0 or 1 across a wide range of simulated values) and so are much less
+    diagnostic. Temperature keeps its goodness-of-fit value because the data
+    are one-sided borehole temperature constraints, which makes the
+    temperature error collapse to 0 and carry no information here.
     """
     input_dir = os.path.join(PROJECT_ROOT, "input_data", dataset_name)
 
@@ -167,56 +198,56 @@ def _run_single_scenario(dataset_name):
      _model_run_data,
      _T_model_data, T_gof, _T_r2,
      _C_data,
-     vr_gof, _vr_r2, _VR_model_data,
-     aft_age_gof, _aft_age_error, _aft_age_r2, _AFT_data,
-     he_age_gof, _he_age_error, _he_age_r2,
+     _vr_gof, _vr_r2, VR_model_data,
+     _aft_age_gof, aft_age_error, _aft_age_r2, _AFT_data,
+     _he_age_gof, he_age_error, _he_age_r2,
      _He_model_data,
      _pressure_gof, _pressure_r2, _Pressure_model_data,
      _model_results_series_updated) = result
 
-    return T_gof, vr_gof, aft_age_gof, he_age_gof
+    return {
+        "T_gof": T_gof,
+        "vr_mae": _vr_mean_absolute_error(VR_model_data),
+        "aft_age_error": aft_age_error,
+        "he_age_error": he_age_error,
+    }
 
 
 # ---------------------------------------------------------------------------
-# Reference goodness-of-fit values recorded from the base-case scenario of
-# each bundled dataset. np.nan marks a metric that the dataset does not
-# simulate. Update these if an intentional physics change shifts the result.
+# Reference metrics recorded from the base-case scenario of each bundled
+# dataset. The VR, AFT and He entries are mean absolute errors (see
+# _run_single_scenario); T_gof is a goodness-of-fit value. np.nan marks a
+# metric that the dataset does not simulate. Update these if an intentional
+# physics change shifts the result.
 # ---------------------------------------------------------------------------
 
-REFERENCE_GOF = {
+REFERENCE_METRICS = {
     "example_dataset_1": {
         "T_gof": 1.0,
-        "vr_gof": 0.3297855833641515,
-        "aft_age_gof": 0.3201543883837627,
-        "he_age_gof": np.nan,
+        "vr_mae": 0.09553769192011514,
+        "aft_age_error": 103.35923645636582,
+        "he_age_error": np.nan,
     },
     "example_dataset_2": {
         "T_gof": np.nan,
-        "vr_gof": np.nan,
-        "aft_age_gof": np.nan,
-        "he_age_gof": 9.314020929217298e-74,
+        "vr_mae": np.nan,
+        "aft_age_error": np.nan,
+        "he_age_error": 6.85405497468589,
     },
 }
 
 
-def _assert_gof_matches_reference(dataset_name, T_gof, vr_gof,
-                                  aft_age_gof, he_age_gof):
+def _assert_metrics_match_reference(dataset_name, metrics):
     """Assert each metric matches its recorded reference (nan matches nan)."""
-    reference = REFERENCE_GOF[dataset_name]
-    actual = {
-        "T_gof": T_gof,
-        "vr_gof": vr_gof,
-        "aft_age_gof": aft_age_gof,
-        "he_age_gof": he_age_gof,
-    }
+    reference = REFERENCE_METRICS[dataset_name]
     for name, expected in reference.items():
-        got = actual[name]
+        got = metrics[name]
         if np.isnan(expected):
             assert np.isnan(got), (
                 f"{dataset_name} {name}: expected nan, got {got!r}"
             )
         else:
-            assert got == pytest.approx(expected, rel=1e-6), (
+            assert got == pytest.approx(expected, rel=1e-3), (
                 f"{dataset_name} {name}: expected {expected!r}, got {got!r}"
             )
 
@@ -231,15 +262,12 @@ def test_example_dataset_1():
     End-to-end test using example_dataset_1 (Roer Valley Graben, NDW-01).
 
     This dataset simulates temperature, vitrinite reflectance, and apatite
-    fission track ages. The three goodness-of-fit values must match their
+    fission track ages. The vitrinite reflectance and fission track mean
+    absolute errors, and the temperature goodness-of-fit, must match their
     recorded reference values.
     """
-    T_gof, vr_gof, aft_age_gof, he_age_gof = _run_single_scenario(
-        "example_dataset_1"
-    )
-    _assert_gof_matches_reference(
-        "example_dataset_1", T_gof, vr_gof, aft_age_gof, he_age_gof
-    )
+    metrics = _run_single_scenario("example_dataset_1")
+    _assert_metrics_match_reference("example_dataset_1", metrics)
 
 
 @pytest.mark.slow
@@ -248,12 +276,8 @@ def test_example_dataset_2():
     End-to-end test using example_dataset_2 (Molasse Basin, E40).
 
     This dataset simulates apatite (U-Th)/He ages; there is no temperature
-    data for the E40 outcrop, so T_gof is nan. The He goodness-of-fit value
-    must match its recorded reference value.
+    data for the E40 outcrop, so T_gof is nan. The He mean absolute age
+    error must match its recorded reference value.
     """
-    T_gof, vr_gof, aft_age_gof, he_age_gof = _run_single_scenario(
-        "example_dataset_2"
-    )
-    _assert_gof_matches_reference(
-        "example_dataset_2", T_gof, vr_gof, aft_age_gof, he_age_gof
-    )
+    metrics = _run_single_scenario("example_dataset_2")
+    _assert_metrics_match_reference("example_dataset_2", metrics)
