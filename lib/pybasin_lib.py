@@ -10,6 +10,7 @@ import logging
 import numpy as np
 import pandas as pd
 import scipy.stats
+from tqdm.auto import tqdm
 
 from . import easyRo
 from . import AFTlib
@@ -583,10 +584,11 @@ def add_exhumation_phases(well_strat,
 
             try:
                 df_ex['normal_thickness'] = original_thickness
-            except ValueError as msg:
-                logger.error('error, original thicknesses list is longer or shorter than list of strat units in param file')
-                logger.info('check param file')
-                raise ValueError(msg)
+            except ValueError as e:
+                msg = ('the original_thicknesses list in pybasin_params.py is longer or '
+                      'shorter than the list of stratigraphic units for this well: %s' % e)
+                logger.error(msg)
+                raise ValueError(msg) from e
 
             df_ex['eroded_thickness'] = 0.0
 
@@ -605,10 +607,10 @@ def add_exhumation_phases(well_strat,
                 if df_ex["preserved"].any():
                     youngest_unit = df_ex[df_ex['preserved']].index[-1]
                 else:
-                    logger.warning(f'warning, no preserved units found for exhumation phase starting at {exhumation_period_start:0.2f} Ma. Will assume a fully eroded exhumation phase. this is a case that has not been tested extensively, check results carefully.')
+                    logger.warning(f'no preserved units found for exhumation phase starting at {exhumation_period_start:0.2f} Ma. Will assume a fully eroded exhumation phase. this is a case that has not been tested extensively, check results carefully.')
                     youngest_unit = df_ex.index[-1]
             except IndexError as e:
-                msg = 'error, cannot implement exhumation. most likely the youngest preserved stratigraphic unit is ' \
+                msg = 'cannot implement exhumation. most likely the youngest preserved stratigraphic unit is ' \
                       'not inlcuded in the exhumed_strat_units parameter in the pybasin_params.py file, ' \
                       'or otherwise there could be an overlap between the timing of exhumation and the ' \
                       'depositional age, check parameters exhumation_period_starts and exhumation_period_end.'
@@ -771,13 +773,13 @@ def add_exhumation_phases(well_strat,
                     #
                     ind = ex_units_end < 0
                     if True in ind:
-                        logger.warning(f"warning, negative value in exhumation timing {ex_units_end[ind]}")
+                        logger.warning(f"negative value in exhumation timing {ex_units_end[ind]}")
                         logger.info('setting to zero')
                         ex_units_end[ind] = 0.0
 
                     ind = ex_units_start < ex_units_end
                     if True in ind:
-                        logger.warning(f"warning, negative duration of exhumation timestep {ex_units_start[ind]} {ex_units_end[ind]}")
+                        logger.warning(f"negative duration of exhumation timestep {ex_units_start[ind]} {ex_units_end[ind]}")
                         logger.info('setting duration to %0.2e' % min_exh_duration)
                         ex_units_end[ind] = ex_units_start[ind] - min_exh_duration
 
@@ -805,7 +807,7 @@ def add_exhumation_phases(well_strat,
 
     if two_stage_exh is True:
 
-        logger.warning('warning, using experimental two-stage exhumation option, check results carefully')
+        logger.warning('using experimental two-stage exhumation option (two_stage_exhumation=True), check results carefully')
         
         # experimental: go through exhumation duration list and
         # adjust duration to implement two-stage cooling
@@ -836,8 +838,9 @@ def add_exhumation_phases(well_strat,
         duration_exh_new[end_exhumation_segment1:] *= time_left / time_taken
 
         if np.abs(np.sum(duration_exh_new) - duration_exh_total) > 0.0001:
-            msg = 'error, distributing exhumation in 2 segments resulted ' \
-                  'in change of duration total exhumation'
+            msg = ('distributing exhumation in 2 segments (two_stage_exhumation=True) '
+                  'unexpectedly changed the total exhumation duration; this looks like a '
+                  'bug in the experimental two-stage exhumation option rather than an input error')
             raise ValueError(msg)
 
         # recalculate start and end of exhumation phases
@@ -856,7 +859,7 @@ def add_exhumation_phases(well_strat,
         logger.info(new_units_end_mod2)
 
         if len(new_units_end_mod2) > 0 and np.min(new_units_end_mod2) < 0:
-            msg = 'warning, negative value in exhumation time %0.2e' % np.min(new_units_end_mod2)
+            msg = 'negative value in exhumation time %0.2e' % np.min(new_units_end_mod2)
             logger.info(msg)
 
         new_units_start3 = np.array(new_units_start_list)
@@ -997,9 +1000,9 @@ def copy_df_columns(output_df, data_df, rows=None, ignore_age_columns=False):
             logger.debug('adding row info for eroded unit %s' % row)
             row_name = row.split('_a_')[0][1:]
         else:
-            msg = 'cannot find row item %s in data .csv file. ' \
-                  'most likely the names in the well strat file do not ' \
-                  'match the names in the stratigraphy data file' % row
+            msg = ("cannot find stratigraphic unit '%s' in the data .csv file. "
+                  "most likely the names in well_stratigraphy.csv do not "
+                  "match the names in stratigraphy_info.csv" % row)
 
             raise ValueError(msg)
             # row_name = None
@@ -1348,7 +1351,7 @@ def solve_1D_heat_flow_simple(T, dz, dt, K, rho, c, Q,
         logger.info(f"solution is correct =  {check}")
 
     if check is False:
-        logger.warning(f"warning, solution is correct =  {check}")
+        logger.warning("the simple heat flow solver produced an inconsistent solution")
 
     return T_new, A
 
@@ -1392,9 +1395,10 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
     # uses LU decomposition and iterative solver
     try:
         T_new = np.linalg.solve(A, b)
-    except:
-        logger.error('error, solving matrix for temperature diffusion eq. failed')
-        raise ValueError('error, solving matrix for temperature diffusion eq. failed')
+    except Exception as e:
+        msg = 'solving the matrix for the temperature diffusion equation failed'
+        logger.error(msg)
+        raise ValueError(msg) from e
 
     # TODO check other linear solvers, such as CG:
     # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
@@ -1409,8 +1413,8 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
         logger.info(f"solution is correct =  {check}")
 
     if check is False:
-        msg = 'error, the heat flow solver failed. The solution is %s' % str(check)
-        msg += '\nthis is usally an issue with stratigraphy unit thickness or timing'
+        msg = 'the heat flow solver failed to find a consistent solution'
+        msg += '\nthis is usually an issue with stratigraphy unit thickness or timing'
         raise ValueError(msg)
 
     return T_new, A
@@ -1458,9 +1462,9 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
     # uses LU decomposition and iterative solver
     try:
         C_new = np.linalg.solve(A, b)
-    except:
-        msg = 'error, solving matrix for salinity diffusion eq. failed'
-        raise ValueError(msg)
+    except Exception as e:
+        msg = 'solving the matrix for the salinity diffusion equation failed'
+        raise ValueError(msg) from e
 
     # TODO check other linear solvers, such as CG:
     # http://docs.scipy.org/doc/scipy-0.13.0/reference/generated/
@@ -1475,7 +1479,8 @@ def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
         logger.info(f"solution is correct =  {check}")
 
     if check is False:
-        msg = 'error, the salinity diffusion solver failed. The solution is %s' % str(check)
+        msg = 'the salinity diffusion solver failed to find a consistent solution'
+        msg += '\nthis is usually an issue with stratigraphy unit thickness or timing'
         raise ValueError(msg)
 
     return C_new, A
@@ -1557,9 +1562,9 @@ def solve_1D_pore_pressure(P_ex, z, dt, K_hydraulic, storage, Q,
 
     try:
         P_ex_new = np.linalg.solve(A, b)
-    except:
-        msg = 'error, solving matrix for pore pressure diffusion eq. failed'
-        raise ValueError(msg)
+    except Exception as e:
+        msg = 'solving the matrix for the pore pressure diffusion equation failed'
+        raise ValueError(msg) from e
 
     # pressures here are in Pa (typically up to ~1e8 Pa), so the default
     # np.allclose tolerance (atol=1e-8) is far stricter than meaningful
@@ -1572,7 +1577,8 @@ def solve_1D_pore_pressure(P_ex, z, dt, K_hydraulic, storage, Q,
         logger.info(f"solution is correct =  {check}")
 
     if check is False:
-        msg = 'error, the pore pressure solver failed. The solution is %s' % str(check)
+        msg = 'the pore pressure solver failed to find a consistent solution'
+        msg += '\nthis is usually an issue with stratigraphy unit thickness or timing'
         raise ValueError(msg)
 
     return P_ex_new, A
@@ -1800,7 +1806,7 @@ def get_geo_history(well_strat, strat_info_mod,
 
     # check for exhumation thickness, if less than 1 grid cell set to 0
     if np.min(exhumed_thicknesses) < min_exh_thickness:
-        logger.warning('warning, exhumed thicknesses of one or more phases does not exceed %0.2e m' % min_exh_thickness)
+        logger.warning('exhumed thicknesses of one or more phases does not exceed %0.2e m' % min_exh_thickness)
         logger.info(f"exhumed thicknesses:  {exhumed_thicknesses}")
         ind = exhumed_thicknesses < min_exh_thickness
         exhumed_thicknesses[ind] = 0
@@ -2205,7 +2211,7 @@ def generate_thermal_histories(resample_t, n_nodes,
                           prov_ages_end_n):
 
             if p1 <= burial_time[0]:
-                logger.warning('warning, start deposition in basin earlier than start provenance history')
+                logger.warning('start of deposition in basin earlier than start of provenance history')
                 logger.info(f'using a hard coded prov history of {provenance_start_temp} C to surface')
                 logger.info('from 2 my before deposition to deposition age')
                 p1 = burial_time[0] + 2.0
@@ -2243,7 +2249,9 @@ def generate_thermal_histories(resample_t, n_nodes,
 
             # check if combined time is ok
             if np.max(np.diff(combined_times)) >= 0:
-                msg = 'error, backwards time in provenance history!'
+                msg = ('backwards time in the combined provenance and burial history; '
+                      'check the provenance_age_start/provenance_age_end columns in '
+                      'stratigraphy_info.csv')
                 raise ValueError(msg)
 
             t_scenarios.append(combined_times.max() - combined_times)
@@ -2280,7 +2288,7 @@ def generate_burial_histories(resample_t,
                           prov_ages_end_n):
 
             if p1 <= burial_time[0]:
-                logger.warning('warning, start deposition in basin earlier than start provenance history')
+                logger.warning('start of deposition in basin earlier than start of provenance history')
                 logger.info(f'using a hard coded prov history start of 2 my before deposition to deposition age')
                 p1 = burial_time[0] + 2.0
                 p2 = burial_time[0]
@@ -2316,7 +2324,9 @@ def generate_burial_histories(resample_t,
 
             # check if combined time is ok
             if np.max(np.diff(combined_times)) >= 0:
-                msg = 'warning, backwards time in provenance history!'
+                msg = ('backwards time in the combined provenance and burial history; '
+                      'check the provenance_age_start/provenance_age_end columns in '
+                      'stratigraphy_info.csv')
                 raise ValueError(msg)
 
             t_scenarios.append(combined_times)
@@ -2383,9 +2393,10 @@ def calculate_aft_ages_pdf(aft_ages, aft_ages_min_std, aft_ages_plus_std,
 
 
 def calculate_vr(T_nodes, active_nodes, time_array, n_nodes, vr_method='easyRo', verbose=True,
-                 vectorize_thermochron=False):
+                 vectorize_thermochron=False, show_progress=True):
     vr_nodes = np.zeros(T_nodes.shape)
-    for nn in range(n_nodes):
+    for nn in tqdm(range(n_nodes), desc='vitrinite reflectance',
+                   disable=None if show_progress else True):
 
         if vectorize_thermochron is True:
             vr_nodes[active_nodes[:, nn], nn] = \
@@ -2405,10 +2416,11 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
                  annealing_kinetics_values, annealing_kinetic_param, Ts,
                  C0=0.39528, C1=0.01073,
                  C2=-65.12969, C3=-7.91715,
-                  alpha=0.04672, annealing_eq='FC', 
+                  alpha=0.04672, annealing_eq='FC',
                   provenance_start_temp=120.0,
                   verbose=True,
-                  vectorize_thermochron=False):
+                  vectorize_thermochron=False,
+                  show_progress=True):
     """
     simulate fission track ages using calculated burial thermal history
     and provenance thermal history scenarios
@@ -2458,7 +2470,8 @@ def simulate_aft(resample_t, nt_prov, n_nodes, time_array_bp,
     aft_ln_std_nodes = np.zeros((n_nodes, n_prov_scenarios,
                                  n_kinetic_scenarios))
 
-    for nn in range(n_nodes):
+    for nn in tqdm(range(n_nodes), desc='AFT ages',
+                   disable=None if show_progress else True):
         for n_prov in range(n_prov_scenarios):
             for n_kin in range(n_kinetic_scenarios):
                 if vectorize_thermochron is True:
@@ -2517,9 +2530,9 @@ def save_tT_path(t, T, fn, Kelvin=273.15, float_format="%.4f"):
 def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, active_nodes,
                  prov_ages_start, prov_ages_end, Ts, minerals, grain_radius_nodes, U, Th,
                   ahe_method='RDAAM',
-                  alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715, 
+                  alpha=0.04672, C0=0.39528, C1=0.01073, C2=-65.12969, C3=-7.91715,
                   provenance_start_temp=120.0, log_tT_paths=False, tT_path_filename="",
-                  vectorize_thermochron=False):
+                  vectorize_thermochron=False, show_progress=True):
     """
     simulate apatite U-Th/He ages using calculated burial thermal history and provenance thermal history scenarios
 
@@ -2566,7 +2579,8 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
 
     logger.debug('calculating He ages for %i nodes' % n_nodes)
 
-    for nn in range(n_nodes):
+    for nn in tqdm(range(n_nodes), desc='(U-Th)/He ages',
+                  disable=None if show_progress else True):
 
         n_grains = len(grain_radius_nodes[nn])
 
@@ -2678,16 +2692,12 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                         logger.info(f"start and end time (Ma) of interpolated tT path:  {zirc_tT[0, 0] / Ma} {zirc_tT[-1, 0] / Ma}")
                         logger.info(f"T at start and end:  {zirc_tT[0, 1]} {zirc_tT[-1, 1]}")
                     except Exception as e:
-                        msg = str(e) + '\n'
-                        msg += "\nerror in calculating zircon annealing "
-                        #msg += ", using Tt path:\n"
-                        #msg += str(t_Ma_young_to_old) + '\n' + str(T_degC_young_to_old)
                         df_error = pd.DataFrame(tT_in, columns=['time_Ma', 'T_degC'])
                         error_fn = os.path.join(tT_path_filename, f"error_tT_AHe_sample{nn}_grain{ng}_prov{n_prov}.csv")
                         df_error.to_csv(error_fn, index=False)
-                        msg += f"saved tT path that caused the error to {error_fn}\n"
-                        
-                        raise ValueError(msg)
+                        msg = (f"error in calculating zircon annealing: {e}\n"
+                              f"saved the tT path that caused the error to {error_fn}")
+                        raise ValueError(msg) from e
                     
                     #ap_anneal,ap_tT = tT.ketcham_anneal()
                     
@@ -2696,7 +2706,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     # check if zirc_tT and the input tT match
                     zirc_T_check = np.interp(tT_in[:, 0], zirc_tT[:, 0], zirc_tT[:, 1])
                     if np.any(np.abs(zirc_T_check - tT_in[:, 1])) > 5.0:
-                        msg = "error, zircon interpolated tT path does not match input tT path!"
+                        msg = "zircon interpolated tT path does not match the input tT path"
                         raise ValueError(msg)
 
                     zirc_grain = pyt.zircon(grain_radius_micron, log2_nodes, zirc_tT, zirc_anneal, U_ppm, Th_ppm, Sm_ppm)
@@ -2710,7 +2720,8 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
                     logger.info(f'simulated zircon age: {zirc_date}')
 
                 else:
-                    msg = f'error, {mineral} not implemented yet, only apatite implemented so far'
+                    msg = (f"mineral '{mineral}' is not implemented; only apatite and "
+                          f"zircon (U-Th)/He ages are currently supported")
                     raise ValueError(msg)
                     
                 # store AHe age in Myr bp
@@ -2807,7 +2818,7 @@ def calculate_diffusion_coeff(T_degC, C, D_ref = 2.03e-9):
     D_cal = ((D_ref * viscosity_ref) / T_ref) * (T_cal / viscosity_cal)
 
     if np.any(np.isnan(D_cal)) == True:
-        raise ValueError('error, nan value for diffusion coefficient')
+        raise ValueError('nan value for diffusion coefficient')
 
     return D_cal
 
@@ -2816,7 +2827,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                           pybasin_params,
                           Ts, surface_salinity_well, litho_props,
                           output_dir, model_scenario_number,
-                          save_csv_files=True):
+                          save_csv_files=True, show_progress=True):
     """
     run burial and thermal history model
 
@@ -2900,9 +2911,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         try:
             active_fm_backup = active_fm.copy()
             active_fm[start_age] = active_bool
-        except TypeError as msg:
-            logger.info(msg)
-            raise TypeError(msg)
+        except TypeError as e:
+            logger.info(e)
+            raise TypeError(e) from e
 
     active_fm[end_age] = active_fm[start_age]
 
@@ -2914,7 +2925,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     durations = -np.diff(ages)
 
     if np.min(durations) <= 0:
-        msg = 'error, negative duration for a geological time period, check well stratigraphy or strat info data.\n'
+        msg = 'negative duration for a geological time period, check well stratigraphy or strat info data.\n'
         msg += '\tage and duration of each timeslice (My):\n'
         for a1, a2, di in zip(ages[:-1], ages[1:], durations):
             if di < 0:
@@ -3000,7 +3011,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     if getattr(pybasin_params, 'simulate_fluid_flow', False) is True:
 
         if compaction_method != 'effective_stress':
-            msg = ('error, simulate_fluid_flow requires compaction_method '
+            msg = ('simulate_fluid_flow requires compaction_method '
                    "to be set to 'effective_stress' in pybasin_params.py, "
                    'so that a compressibility_stress value is available '
                    'for each stratigraphic unit')
@@ -3010,7 +3021,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         missing_cols = [col for col in required_cols
                         if col not in litho_props.columns]
         if len(missing_cols) > 0:
-            msg = ('error, simulate_fluid_flow requires the columns %s in '
+            msg = ('simulate_fluid_flow requires the columns %s in '
                    'lithology_properties.csv' % missing_cols)
             raise ValueError(msg)
 
@@ -3040,13 +3051,13 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                              for duration in durations])
 
     if np.sum(nt_heatflows) > 1e6:
-        msg = 'warning, more than 1e6 timesteps'
+        msg = 'more than 1e6 heat flow timesteps, check the well stratigraphy and dt parameters'
         raise ValueError(msg)
 
     if np.min(nt_heatflows) <= 0:
-        msg = 'error, 0 heatflow timesteps for stratigraphic timestep %i of %i' \
+        msg = '0 heat flow timesteps for stratigraphic timestep %i of %i' \
               % (np.argmin(nt_heatflows), len(nt_heatflows))
-        logger.error('error')
+        logger.error(msg)
         logger.info(f"durations:  {durations}")
         logger.info(f"n heatflow steps:  {nt_heatflows}")
         logger.info(f"well strat:  {well_strat}")
@@ -3173,7 +3184,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     n_prov = int(len(prov_cols) / 2)
 
     if n_prov == 0:
-        msg = 'error, no provenance age info found in stratigraphy_info.csv file\n'
+        msg = 'no provenance age info found in stratigraphy_info.csv\n'
         msg += 'add one or more columns with the header provenance_age_start_1,provenance_age_end_1'
         raise IOError(msg)
 
@@ -3399,8 +3410,9 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                         target_salinity = (pybasin_params.salinity_seawater
                                            + pybasin_params.salinity_seawater) / 2.0
                     else:
-                        msg = 'error, could not read surface salinity for well %s: ' % well
-                        msg += str(surface_salinity_well.loc[i, 'surface_salinity'])
+                        msg = ("could not read the surface_salinity value '%s' for well %s "
+                              "in surface_salinity.csv; expected 'terrestrial', 'marine' "
+                              "or 'brackish'" % (surface_salinity_well.loc[i, 'surface_salinity'], well))
                         raise ValueError(msg)
 
                     logger.info('updating surface salinity bnd, %0.2f Ma - %0.2f Ma to %0.5f kg/kg' % (surface_salinity_well.loc[i, 'age_start'], surface_salinity_well.loc[i, 'age_end'], target_salinity))
@@ -3472,14 +3484,22 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         q_fluid_bottom = np.zeros(nt_total)
 
     # go through all geological timesteps and model heat flow:
+    simulate_fluid_flow_loop = getattr(pybasin_params, 'simulate_fluid_flow', False)
+
+    progress_desc_parts = ['heat flow']
     if pybasin_params.simulate_salinity is True:
-        logger.info('modeling heatflow and solute diffusion')
-    else:
-        logger.info('modeling heatflow')
+        progress_desc_parts.append('solute diffusion')
+    if simulate_fluid_flow_loop is True:
+        progress_desc_parts.append('pore pressure/compaction')
+    progress_desc = ' + '.join(progress_desc_parts)
+    logger.info('modeling %s' % progress_desc)
 
     cumulative_steps = np.cumsum(nt_heatflows)
 
-    for timestep in range(nt_total):
+    timestep_pbar = tqdm(range(nt_total), desc=progress_desc,
+                         disable=None if show_progress else True)
+
+    for timestep in timestep_pbar:
 
         active_cells_i = active_cells[timestep]
         active_nodes_i = active_nodes[timestep]
@@ -3490,7 +3510,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             T_init = T_nodes[timestep - 1, active_nodes_i]
 
         if np.any(np.isnan(T_init)):
-            msg = 'error, nan value in T_init\n' + str(T_init)
+            msg = 'nan value in initial temperature array T_init\n' + str(T_init)
             logger.info(msg)
             raise ValueError(msg)
 
@@ -3690,7 +3710,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                 sigma_eff_post, sigma_eff_max_prev_active)
 
             if np.any(np.isnan(P_ex_nodes[timestep, active_nodes_i])):
-                raise ValueError('error, nan values in pore pressure array')
+                raise ValueError('nan values in pore pressure array')
 
             # calculate Darcy flux (excess pressure-driven) at top and
             # bottom nodes
@@ -3710,7 +3730,7 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                                    rho_nodes[timestep]):
                 logger.info(f"{cs} {ac} {rho}")
 
-            raise ValueError('error, nan values in T array')
+            raise ValueError('nan values in T array')
 
         # timestep in xrange(nt_total
         if timestep in cumulative_steps or timestep == nt_total - 1:
@@ -3718,6 +3738,28 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             logger.debug('step %i, %0.2f Ma, n nodes = %i, max z = %0.1f, T = %0.1f - %0.1f' % (timestep, time_array_bp[timestep] / 1000000.0, len(z_nodes[timestep, active_nodes_i]), z_nodes[timestep, active_nodes_i].max(), T_nodes[timestep, active_nodes_i].min(), T_nodes[timestep, active_nodes_i].max()))
             if pybasin_params.simulate_salinity is True:
                 logger.debug('min, max C = %0.4f - %0.4f' % (C_nodes[timestep, active_nodes_i].min(), C_nodes[timestep, active_nodes_i].max()))
+
+            # update progress bar postfix with a snapshot of current
+            # burial depth, temperature and (if simulated) solute
+            # concentration and excess pore pressure, so the bar shows
+            # more than just percent complete
+            z_active = z_nodes[timestep, active_nodes_i]
+            T_active = T_nodes[timestep, active_nodes_i]
+            postfix = {
+                'depth_avg_m': '%0.0f' % z_active.mean(),
+                'depth_max_m': '%0.0f' % z_active.max(),
+                'T_avg_C': '%0.1f' % T_active.mean(),
+                'T_max_C': '%0.1f' % T_active.max(),
+            }
+            if pybasin_params.simulate_salinity is True:
+                C_active = C_nodes[timestep, active_nodes_i]
+                postfix['C_avg'] = '%0.4f' % C_active.mean()
+                postfix['C_max'] = '%0.4f' % C_active.max()
+            if simulate_fluid_flow_loop is True:
+                P_ex_active = P_ex_nodes[timestep, active_nodes_i]
+                postfix['P_ex_avg_MPa'] = '%0.2f' % (P_ex_active.mean() / 1.0e6)
+                postfix['P_ex_max_MPa'] = '%0.2f' % (P_ex_active.max() / 1.0e6)
+            timestep_pbar.set_postfix(postfix)
 
     if (getattr(pybasin_params, 'simulate_fluid_flow', False) is True
             and save_csv_files is True):

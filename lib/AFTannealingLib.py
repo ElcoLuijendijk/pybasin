@@ -722,9 +722,11 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if (abs(delta_T)).max() > 3.5 and surpress_resampling == False:
         max_loc = np.argmax(abs(delta_T))
         
-        msg = 'warning %0.2f degr. change in T in timestep %s of %s My' % ((abs(delta_T)).max(),
-                                                                           max_loc,
-                                                                           timesteps[max_loc])
+        msg = ('temperature change of %0.2f degrees C in a single timestep (at %s My) '
+              'exceeds the 3.5 degree limit assumed by the fission track annealing model; '
+              'resampling of the time-temperature path (surpress_resampling=False) should '
+              'normally prevent this, check the input time-temperature history' % (
+                  (abs(delta_T)).max(), timesteps[max_loc]))
         raise ValueError(msg)
     
     #####################################
@@ -924,7 +926,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if verbose is True:
         logger.info('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f' % (l_mean, l_mean_std, l_median))
     if np.isnan(l_mean) is True:
-        logger.warning('warning, track length calculation failed')
+        logger.warning('track length calculation failed')
     
     ###################################################
     # calculate observation frequency:
@@ -1026,8 +1028,11 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     delta_T = temperature[1:] - temperature[:-1]
     if (abs(delta_T)).max() > 3.5 and surpress_resampling == False:
         max_loc = np.argmax(abs(delta_T))
-        msg = 'warning %0.2f degr. change in T in timestep %s of %s My' % (
-            (abs(delta_T)).max(), max_loc, timesteps[max_loc])
+        msg = ('temperature change of %0.2f degrees C in a single timestep (at %s My) '
+              'exceeds the 3.5 degree limit assumed by the fission track annealing model; '
+              'resampling of the time-temperature path (surpress_resampling=False) should '
+              'normally prevent this, check the input time-temperature history' % (
+                  (abs(delta_T)).max(), timesteps[max_loc]))
         raise ValueError(msg)
 
     #####################################
@@ -1206,7 +1211,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     if verbose is True:
         logger.info('mean track length  =  %0.2f,  std =  %0.2f,  median: %0.3f' % (l_mean, l_mean_std, l_median))
     if np.isnan(l_mean) is True:
-        logger.warning('warning, track length calculation failed')
+        logger.warning('track length calculation failed')
 
     ###################################################
     # calculate observation frequency:

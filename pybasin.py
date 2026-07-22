@@ -43,7 +43,7 @@ import lib.pybasin_io as pybasin_io
 try:
     import lib.helium_diffusion_models as he
 except ImportError:
-    logger.warning('warning, failed to import native  U-Th/He module')
+    logger.warning('failed to import native U-Th/He module')
 
 
 # make sure multi-threading for numpy is turned off (this slows down the heat
@@ -678,7 +678,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                                    alpha=0.04672,
                                    provenance_start_temp=120.0,
                                    location_has_AFT=True,
-                                   vectorize_thermochron=False):
+                                   vectorize_thermochron=False,
+                                   show_progress=True):
 
     """
     Use modeled temperature history and provneance history to model apatite fission track ages and length distributions
@@ -705,7 +706,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
                 annealing_eq=annealing_eq,
                 C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
                 provenance_start_temp=provenance_start_temp,
-                vectorize_thermochron=vectorize_thermochron)
+                vectorize_thermochron=vectorize_thermochron,
+                show_progress=show_progress)
 
         (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
          aft_ln_mean_nodes, aft_ln_std_nodes,
@@ -775,7 +777,8 @@ def assemble_data_and_simulate_aft(resample_t, nt_prov,
             annealing_eq=annealing_eq,
             C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
             provenance_start_temp=provenance_start_temp,
-            vectorize_thermochron=vectorize_thermochron)
+            vectorize_thermochron=vectorize_thermochron,
+            show_progress=show_progress)
 
     (modeled_aft_age_samples, modeled_aft_age_samples_min,
      modeled_aft_age_samples_max,
@@ -818,7 +821,8 @@ def assemble_data_and_simulate_he(he_samples_well,
                                    C2=-65.12969, C3=-7.91715,
                                    provenance_start_temp=120.0,
                                    default_he_mineral="apatite",
-                                   log_tT_paths=False, tT_path_filename=""):
+                                   log_tT_paths=False, tT_path_filename="",
+                                   show_progress=True):
 
     """
     Use modeled temperature history and provenance history to model apatite (U-Th)/He ages
@@ -897,7 +901,8 @@ def assemble_data_and_simulate_he(he_samples_well,
                 alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
                 provenance_start_temp=provenance_start_temp,
                 log_tT_paths=False, tT_path_filename=tT_path_filename,
-                vectorize_thermochron=vectorize_thermochron)
+                vectorize_thermochron=vectorize_thermochron,
+                show_progress=show_progress)
 
         (he_age_nodes, he_age_nodes_min, he_age_nodes_max,
          he_node_times_burial, he_node_zs) = simulated_He_data
@@ -990,7 +995,8 @@ def assemble_data_and_simulate_he(he_samples_well,
             alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
             provenance_start_temp=provenance_start_temp,
             log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename,
-            vectorize_thermochron=vectorize_thermochron)
+            vectorize_thermochron=vectorize_thermochron,
+            show_progress=show_progress)
 
     (modeled_he_age_samples, modeled_he_age_samples_min,
      modeled_he_age_samples_max, he_node_times_burial,
@@ -1017,7 +1023,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                   he_samples, he_data, salinity_data,
                                   pressure_data=None,
                                   vr_method='easyRo',
-                                  save_csv_files=True):
+                                  save_csv_files=True,
+                                  show_progress=True):
     """
     run basin & thermal history model and compare modeled  and observed temperature, salinity,
     vitrinite reflectance, fission track ages and/or (U-Th)/He ages
@@ -1032,7 +1039,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                           litho_props,
                                           csv_output_dir,
                                           model_scenario_number,
-                                          save_csv_files=save_csv_files)
+                                          save_csv_files=save_csv_files,
+                                          show_progress=show_progress)
 
     simulate_fluid_flow = getattr(pybasin_params, 'simulate_fluid_flow', False)
 
@@ -1128,7 +1136,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
         #                                 geohist_df, model_scenario_number,
         #                                 porosity_nodes)
 
-        msg = "error, the cebs.py module had been deprecated. please contact the developer of the code"
+        msg = "the cebs.py module has been deprecated, please contact the developer of the code"
         raise ValueError(msg)
 
     vr_nodes = None
@@ -1152,7 +1160,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                                                 active_nodes,
                                                 time_array,
                                                 n_nodes, vr_method=vr_method,
-                                                vectorize_thermochron=vectorize_thermochron)
+                                                vectorize_thermochron=vectorize_thermochron,
+                                                show_progress=show_progress)
 
             # store surface and bottom VR value
             model_results_series['vr_surface'] = vr_nodes[-1, active_nodes[-1]][0]
@@ -1166,7 +1175,7 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
                 # model_results_series = cebs.vr_middle(model_results_series, node_strat,
                 #     vr_nodes, geohist_df,
                 #     model_scenario_number, z_nodes)
-                msg = "error the strat_map_input option has been discontinued"
+                msg = "the strat_map_input option has been discontinued"
                 raise ValueError(msg)
 
     if pybasin_params.simulate_salinity is True:
@@ -1243,7 +1252,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             alpha=pybasin_params.alpha,
             location_has_AFT=location_has_AFT,
             provenance_start_temp=pybasin_params.provenance_start_temp,
-            vectorize_thermochron=vectorize_thermochron)
+            vectorize_thermochron=vectorize_thermochron,
+            show_progress=show_progress)
 
         # store surface and bottom VR value
         if simulated_AFT_data is not None:
@@ -1359,7 +1369,8 @@ def run_model_and_compare_to_data(well_number, well, well_strat,
             alpha=pybasin_params.alpha,
             ahe_method=pybasin_params.ahe_method,
             provenance_start_temp=pybasin_params.provenance_start_temp,
-            log_tT_paths=pybasin_params.log_tT_paths, tT_path_filename=pybasin_params.datafile_output_dir)
+            log_tT_paths=pybasin_params.log_tT_paths, tT_path_filename=pybasin_params.datafile_output_dir,
+            show_progress=show_progress)
 
         # store surface and bottom VR value
         if simulated_He_data is not None:
@@ -1660,7 +1671,8 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                           log_screen_output,
                                           pressure_data=None,
                                           record_data=True,
-                                          save_burial_csv_files=True):
+                                          save_burial_csv_files=True,
+                                          show_progress=True):
 
     """
     update the model parameters class and run the model one time
@@ -1698,7 +1710,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
             model_param_name = scenario_param_name[:-2]
 
             if hasattr(pybasin_params, model_param_name) is False:
-                msg = 'error, the parameter %s is not in the ModelParameters class in the pybasin_params.py file' \
+                msg = 'the parameter %s is not in the ModelParameters class in the pybasin_params.py file' \
                       % model_param_name
                 msg += ', even though it should be updated for model sensitivity or parameter exploration '
                 msg += 'according to the ParameterRanges class. Please check if the spelling of the parameter'
@@ -1814,7 +1826,8 @@ def update_model_params_and_run_model_new(model_scenario_number,
                                       salinity_data,
                                       pressure_data=pressure_data,
                                       vr_method=pybasin_params.vr_method,
-                                      save_csv_files=save_burial_csv_files)
+                                      save_csv_files=save_burial_csv_files,
+                                      show_progress=show_progress)
 
     if record_data is True:
         # store gof in model results dataframe
@@ -1926,7 +1939,7 @@ def check_input_data_files(input_dir, pybasin_params):
 
     for fn in fns:
         if os.path.exists(os.path.join(input_dir, fn)) is False:
-            msg = 'error, could not find input file %s in input directory %s' % (fn, input_dir)
+            msg = 'could not find input file %s in input directory %s' % (fn, input_dir)
             raise FileNotFoundError(msg)
 
     logger.info('found all necessary input files in %s' % input_dir)
@@ -2042,7 +2055,7 @@ def read_model_input_data(input_dir, pybasin_params):
             # read U-Th/He (He) data
             he_samples = pd.read_csv(he_sample_fn, skip_blank_lines=True)
         else:
-            logger.warning('warning, could not find input file %s ' % he_sample_fn)
+            logger.warning('could not find input file %s' % he_sample_fn)
             logger.info('continuing without U-Th/He sample data')
             he_samples = None
 
@@ -2050,7 +2063,7 @@ def read_model_input_data(input_dir, pybasin_params):
             # read apatite U-Th/He (He) data
             he_data = pd.read_csv(he_data_fn, skip_blank_lines=True)
         else:
-            logger.warning('warning, could not find input file %s ' % he_data_fn)
+            logger.warning('could not find input file %s' % he_data_fn)
             logger.info('continuing without  U-Th/He age data')
             he_data = None
 
@@ -2104,25 +2117,25 @@ def read_model_input_data(input_dir, pybasin_params):
     # check if lithology data is given for each lithology
     try:
         assert litho_props.index[:-1].tolist() == litho_cols
-    except AssertionError as msg:
-        logger.error('\nerror, something wrong with input data')
-        logger.info('not all lithology units found in strat info file are also in the lithology_properties file')
-        logger.info(msg)
-        raise AssertionError(msg)
+    except AssertionError as e:
+        msg = ('not all lithology units found in the stratigraphy info file '
+              'are also present in lithology_properties.csv: %s' % e)
+        logger.error(msg)
+        raise AssertionError(msg) from e
 
     # check if no provenance columns left empty
     for p in prov_cols:
         if np.all(strat_info[p].isnull()):
-            msg = 'error in parsing stratigraphy_info.csv file, ' \
-                  'one or more provenance age columns are empty'
+            msg = ("error in parsing stratigraphy_info.csv: the provenance age "
+                  "column '%s' is empty for every stratigraphic unit" % p)
             raise ValueError(msg)
 
     # check well stratigraphy file
     if well_strats['depth_top'].min() < 0 or well_strats['depth_bottom'].min() < 0:
 
-        msg = 'error, found a negative value for depth in the depth_top or ' \
-              'depth_bottom columns in the well stratigraphy file. Please make sure all values for ' \
-              'depth are zero or positive'
+        msg = ('found a negative value for depth in the depth_top or '
+              'depth_bottom columns of well_stratigraphy.csv. Please make sure all values for '
+              'depth are zero or positive')
 
         raise ValueError(msg)
 
@@ -2310,7 +2323,7 @@ def main():
     logger.info('running model input data from folder %s' % model_input_subfolder)
 
     if os.path.isdir(model_input_subfolder) is False:
-        msg = 'error, could not find the input directory %s' % model_input_subfolder
+        msg = 'could not find the input directory %s' % model_input_subfolder
         msg += '\ncheck that the directory name is spelled correctly and that you are running pybasin.py '
         msg += 'from the pybasin source code directory'
         raise FileNotFoundError(msg)
@@ -2318,9 +2331,9 @@ def main():
     mpath = os.path.join(model_input_subfolder, 'pybasin_params.py')
 
     if os.path.isfile(mpath) is False:
-        msg = 'error, could not find a pybasin_params.py file in the input directory %s' % model_input_subfolder
+        msg = 'could not find a pybasin_params.py file in the input directory %s' % model_input_subfolder
         msg += '\nevery pybasin input directory needs a pybasin_params.py file, see the example datasets '
-        msg += 'in input_data/example_dataset_1 or input_data/example_dataset_2 for examples'
+        msg += 'in input_data/example_dataset_1 to input_data/example_dataset_4 for examples'
         raise FileNotFoundError(msg)
 
     # add the input folder to sys.path so that 'pybasin_params' can be
@@ -2437,7 +2450,7 @@ def main():
         logger.info('=== well %s (%i/%i) ===' % (well, well_number + 1, len(wells)))
 
         if np.any(well_strats['well'] == well) == False:
-            raise IOError('error, could not find well %s in well strat file in directory %s' % (well, input_dir))
+            raise IOError("could not find well %s in well_stratigraphy.csv in directory %s" % (well, input_dir))
 
         well_strat, well_strat_orig = select_well_strat(well, well_strats)
 
@@ -2580,7 +2593,8 @@ def main():
                                       csv_output_dir,
                                       output_dir,
                                       log_screen_output),
-                                     {'pressure_data': pressure_data})
+                                     {'pressure_data': pressure_data,
+                                      'show_progress': False})
 
                 processes.append(p)
 

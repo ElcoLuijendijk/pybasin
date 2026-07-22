@@ -360,13 +360,13 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
     #print 'rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa)
 
     if np.isnan(rmr0) is True or rmr0 <= rmr0_min:
-        logger.warning('!! warning, rmr0 lower than minimum')
+        logger.warning('rmr0 lower than minimum, clipping to minimum value')
         logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
         logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
         kappa = 1.04 - rmr0
     elif rmr0 > rmr0_max:
-        logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
+        logger.warning('rmr0 value exceeds most resistant apatite in the Carlson (1999) dataset, clipping to maximum value')
         logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
         kappa = 1.04 - rmr0
@@ -577,7 +577,7 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
         D = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
     else:
-        msg = 'error, cannot determine method for calculating helium ' \
+        msg = 'cannot determine method for calculating helium ' \
               'diffusivity, choose "Wolf1996", "Farley2000", ' \
               'or "RDAAM", current method = %s' % method
         raise ValueError(msg)
@@ -648,7 +648,7 @@ def calculate_he_age_meesters_dunai_2002_vectorized(t, T, radius, U, Th,
         D = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
     else:
-        msg = 'error, cannot determine method for calculating helium ' \
+        msg = 'cannot determine method for calculating helium ' \
               'diffusivity, choose "Wolf1996", "Farley2000", ' \
               'or "RDAAM", current method = %s' % method
         raise ValueError(msg)
