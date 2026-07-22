@@ -1,0 +1,40 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: pybasin
+          miniforge-version: latest
+
+      - name: run test suite
+        shell: bash -l {0}
+        run: pytest tests/ -q
+
+      - name: run example dataset notebook
+        shell: bash -l {0}
+        run: |
+          jupyter nbconvert --to notebook --execute \
+            notebooks/run_example_and_visualize.ipynb \
+            --output /tmp/run_example_and_visualize.ipynb \
+            --ExecutePreprocessor.timeout=600
+
+      - name: run calibration notebook
+        shell: bash -l {0}
+        run: |
+          jupyter nbconvert --to notebook --execute \
+            notebooks/calibrate_exhumation.ipynb \
+            --output /tmp/calibrate_exhumation.ipynb \
+            --ExecutePreprocessor.timeout=600
