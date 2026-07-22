@@ -1503,12 +1503,13 @@ def solve_1D_pore_pressure(P_ex, z, dt, K_hydraulic, storage, Q,
     form as the heat conduction and solute diffusion equations, and
     reuses the same implicit finite difference machinery, with
     K_hydraulic (m^2 Pa^-1 s^-1, ie. permeability / fluid viscosity)
-    taking the role of thermal conductivity, storage (Pa^-1, see
-    compaction_storage()) taking the role of volumetric heat capacity,
-    and Q the loading source term, ie. storage times the rate of
-    increase of buoyant (hydrostatic-effective) overburden stress. a
-    fixed lower boundary flux of 0 corresponds to a no-flow lower
-    boundary.
+    taking the role of thermal conductivity, storage (Pa^-1) taking
+    the role of volumetric heat capacity, and Q the loading source
+    term, ie. the rate at which compacting sediment expels pore water
+    (see run_burial_hist_model(), where the elastic specific storage
+    from compaction_storage() and the compaction source term are
+    assembled). a fixed lower boundary flux of 0 corresponds to a
+    no-flow lower boundary.
 
     Parameters
     ----------
@@ -1624,26 +1625,27 @@ def cumulative_buoyant_stress(z, rho_bulk, water_density):
 
 
 def compaction_storage(porosity, sigma_eff, sigma_eff_max_prev,
-                       compressibility_stress, alpha_skeleton, beta_water):
+                       beta_matrix, beta_water):
     """
-    specific storage (Pa^-1) for the excess pore pressure equation,
-    combining a standard hydrogeological (elastic) storage term that
-    is always active with an irreversible compaction term that is
-    only active while effective stress is at or above its historical
-    maximum (ie. virgin, first time loading).
+    elastic specific storage (Pa^-1) for the excess pore pressure
+    equation, and a flag for the virgin (first time) loading regime.
 
-    fluid compressibility (beta_water) and elastic skeleton
-    compressibility (alpha_skeleton) act reversibly and are always
-    included, following the standard hydrogeological specific storage
-    Ss = rho_f * g * (alpha + porosity * beta), here expressed in
-    pressure rather than head units, ie. Ss / (rho_f * g). the
-    compaction coefficient (compressibility_stress, ie. the same
-    coefficient used for the effective stress-based porosity law
-    elsewhere in this module) is included only while a node is
-    actively compacting for the first time. once excess pressure
-    pushes effective stress below its historical maximum, further
-    loading is accommodated elastically only, and porosity does not
-    rebound: this is what makes the inelastic compaction component
+    the specific storage is the standard hydrogeological, reversible
+    form Ss = beta_matrix + porosity * beta_water, here expressed in
+    pressure rather than head units, ie. Ss / (rho_f * g). it accounts
+    for the elastic compressibility of the rock matrix (beta_matrix)
+    and of the pore water (beta_water), both of which act reversibly.
+
+    the inelastic compaction of the sediment (the irreversible loss of
+    porosity with effective stress) is not part of this storage term.
+    it is handled separately, as a source term driven by the porosity
+    change rate, in run_burial_hist_model(); see there for details.
+
+    the is_virgin flag marks nodes whose effective stress is at or
+    above its historical maximum, ie. that are compacting for the first
+    time. run_burial_hist_model() uses it to switch the compaction
+    source term on (virgin loading) or off (elastic unloading, where
+    porosity does not rebound), which is what makes compaction
     irreversible.
 
     sigma_eff should be estimated using the modeled excess pressure
@@ -1675,25 +1677,21 @@ def compaction_storage(porosity, sigma_eff, sigma_eff_max_prev,
     sigma_eff_max_prev : array
         maximum effective stress reached by each node up to and
         including the previous timestep (Pa)
-    compressibility_stress : array
-        compaction coefficient with respect to effective stress (Pa^-1)
-    alpha_skeleton : float
-        elastic (reversible) compressibility of the sediment skeleton
-        (Pa^-1)
+    beta_matrix : float
+        elastic (reversible) compressibility of the rock matrix (Pa^-1)
     beta_water : float
         compressibility of pore water (Pa^-1)
 
     Returns
     -------
     storage : array
-        specific storage to use for this timestep (Pa^-1)
+        elastic specific storage to use for this timestep (Pa^-1)
     is_virgin : array of bool
         True for nodes currently compacting for the first time
     """
     virgin_tolerance = 0.01
     is_virgin = sigma_eff >= sigma_eff_max_prev * (1.0 - virgin_tolerance)
-    storage = porosity * (beta_water + alpha_skeleton
-                          + np.where(is_virgin, compressibility_stress, 0.0))
+    storage = beta_matrix + porosity * beta_water
 
     return storage, is_virgin
 
@@ -3451,16 +3449,17 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         # calculation if simulate_salinity is not enabled
         pore_water_salinity = getattr(pybasin_params, 'pore_water_salinity', 0.0)
 
-        # elastic (reversible) compressibility of the sediment skeleton
-        # and of pore water, used together with porosity for the
-        # standard hydrogeological specific storage term in
-        # compaction_storage(). defaults are representative of a
-        # moderately consolidated sediment (alpha) and fresh water at
-        # room temperature and pressure (beta); real values can vary
-        # by an order of magnitude or more between lithologies (eg.
-        # clay can approach or exceed typical compressibility_stress
-        # values), so override these in pybasin_params.py if a
-        # calibrated value is available
+        # elastic (reversible) compressibility of the rock matrix and
+        # of pore water, combined into the standard hydrogeological
+        # specific storage Ss = beta_matrix + porosity * beta_water in
+        # compaction_storage(). these are the elastic terms only; the
+        # inelastic compaction is handled as a separate source term in
+        # the timestep loop below. defaults are representative of a
+        # moderately consolidated sediment (matrix) and fresh water at
+        # room temperature and pressure (water); real values can vary
+        # by an order of magnitude or more between lithologies, so
+        # override these in pybasin_params.py if a calibrated value is
+        # available
         alpha_skeleton = getattr(pybasin_params,
                                  'elastic_skeleton_compressibility', 1.0e-9)
         beta_water = getattr(pybasin_params, 'water_compressibility', 4.4e-10)
@@ -3662,24 +3661,45 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             # effective stress estimate for this timestep, using the
             # excess pressure from the previous timestep (P_ex_init):
             # this is what lets modeled overpressure feed back into
-            # the storage term below, rather than assuming hydrostatic
-            # pressure as the rest of the compaction pipeline still
-            # does (see compaction_storage()). this pre-solve estimate
-            # is used only to decide the virgin/elastic storage regime
-            # below; the historical maximum effective stress itself is
-            # updated below using the newly solved excess pressure
-            # instead, once available
+            # the virgin/elastic decision below, rather than assuming
+            # hydrostatic pressure as the rest of the compaction
+            # pipeline still does (see compaction_storage()). this
+            # pre-solve estimate is used only to decide the
+            # virgin/elastic regime; the historical maximum effective
+            # stress itself is updated below using the newly solved
+            # excess pressure instead, once available
             phi_active = porosity_nodes[timestep, active_nodes_i]
             c_sigma_active = c_sigma_nodes[timestep, active_nodes_i]
             sigma_eff_active = np.clip(
                 sigma_buoyant_active - P_ex_init, 0.0, None)
             sigma_eff_max_prev_active = sigma_eff_max_prev[active_nodes_i]
 
-            storage_active, _ = compaction_storage(
+            # elastic specific storage Ss = beta_matrix + porosity *
+            # beta_water (reversible matrix and pore water
+            # compressibility), plus the virgin/elastic regime flag
+            storage_elastic, is_virgin_active = compaction_storage(
                 phi_active, sigma_eff_active, sigma_eff_max_prev_active,
-                c_sigma_active, alpha_skeleton, beta_water)
+                alpha_skeleton, beta_water)
 
-            Q_loading = storage_active * loading_rate
+            # porosity loss per unit effective stress from the
+            # prescribed exponential relation phi = phi0 *
+            # exp(-c_sigma * sigma_eff), so dphi/dsigma_eff =
+            # -c_sigma * phi. only active during virgin (first time)
+            # loading; in the elastic/unloading regime porosity does
+            # not change, which makes the compaction irreversible
+            dphi_dsigma_eff = np.where(
+                is_virgin_active, -c_sigma_active * phi_active, 0.0)
+
+            # compacting sediment expels pore water at the rate its
+            # porosity decreases. the porosity change is driven by the
+            # effective stress rate, dsigma_eff/dt = loading_rate -
+            # dP_ex/dt. the loading_rate part is the source term Q; the
+            # -dP_ex/dt part is moved onto the storage coefficient
+            # (implicit treatment) as -dphi/dsigma_eff, which keeps the
+            # solve stable in the low permeability limit where an
+            # explicit, lagged source would oscillate
+            Q_loading = -dphi_dsigma_eff * loading_rate
+            storage_active = storage_elastic - dphi_dsigma_eff
 
             P_ex_nodes[timestep, active_nodes_i], A_p = \
                 solve_1D_pore_pressure(
