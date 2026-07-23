@@ -2523,7 +2523,7 @@ def main():
             # restore original well strat dataframe
             well_strat = well_strat_orig.copy()
 
-            model_results_series = model_results_df.loc[model_scenario_number]
+            model_results_series = model_results_df.loc[model_scenario_number].copy()
 
             if ParameterRanges.parallel_model_runs is False:
 
