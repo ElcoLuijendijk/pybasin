@@ -52,7 +52,7 @@ class ModelParameters:
     # figure options
     ################
     # option to generate 1 figure for each model run:
-    make_model_data_fig = False
+    make_model_data_fig = True
 
     # variable to show color contours for in burial history panel
     # choose either 'temperature' or 'salinity'
