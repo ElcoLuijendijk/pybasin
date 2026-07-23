@@ -1124,8 +1124,6 @@ def model_vs_data_figure(model_run_data,
 
     if AHe_data is not None and simulated_AHe_data is not None:
 
-        (ahe_age_nodes, ahe_age_nodes_min, ahe_age_nodes_max,
-                     ahe_node_times_burial, ahe_node_zs) = simulated_AHe_data
         _, n_grain_radius, n_prov_scenarios = np.array(ahe_age_nodes).shape
 
         ahe_age_min_grains = np.array(ahe_age_nodes_min)[active_nodes[-1]]

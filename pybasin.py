@@ -1685,7 +1685,7 @@ def update_model_params_and_run_model_new(model_scenario_number,
     if log_screen_output is True:
         log_output_dir = os.path.join(output_dir, 'log')
         if os.path.exists(log_output_dir) is False:
-            os.mkdir(log_output_dir)
+            os.makedirs(log_output_dir)
 
         log_fn = 'log_well_%s_model_scen_%i_PID_%s.out' % (well, model_scenario_number, str(os.getpid()))
         log_path = os.path.join(log_output_dir, log_fn)
@@ -2363,18 +2363,18 @@ def main():
     csv_output_dir = datafile_output_dir
 
     if os.path.exists(output_dir) is False:
-        os.mkdir(output_dir)
+        os.makedirs(output_dir)
 
     # pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
     if (Parameters.save_model_run_data is True
             and os.path.exists(datafile_output_dir) is False):
         logger.info('creating directory %s to store model result datafiles' % datafile_output_dir)
-        os.mkdir(datafile_output_dir)
+        os.makedirs(datafile_output_dir)
 
     fig_output_dir = output_dir
     if os.path.exists(fig_output_dir) is False:
         logger.info('creating directory %s to store model-data comparison figures' % fig_output_dir)
-        os.mkdir(fig_output_dir)
+        os.makedirs(fig_output_dir)
 
     today = datetime.datetime.now()
     today_str = '%i-%i-%i' % (today.day, today.month, today.year)

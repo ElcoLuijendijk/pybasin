@@ -2573,7 +2573,7 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
     ahe_age_nodes_max_all = []
 
     if log_tT_paths is True and os.path.exists(tT_path_filename) is False:
-        os.mkdir(tT_path_filename)
+        os.makedirs(tT_path_filename)
 
     logger.debug('calculating He ages for %i nodes' % n_nodes)
 
