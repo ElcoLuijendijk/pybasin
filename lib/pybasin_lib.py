@@ -2740,6 +2740,354 @@ def simulate_ahe(resample_t, nt_prov, n_nodes, time_array_bp, z_nodes, T_nodes, 
             ahe_node_times_burial, ahe_node_zs)
 
 
+def assemble_data_and_simulate_aft(resample_t, nt_prov,
+                                   n_nodes, time_array_bp,
+                                   z_nodes, T_nodes, active_nodes,
+                                   prov_start_nodes, prov_end_nodes,
+                                   annealing_kinetics_values,
+                                   annealing_kinetic_param,
+                                   surface_temp,
+                                   aft_data_well,
+                                   calculate_thermochron_for_all_nodes=False,
+                                   annealing_eq='FC',
+                                   C0=0.39528, C1=0.01073,
+                                   C2=-65.12969, C3=-7.91715,
+                                   alpha=0.04672,
+                                   provenance_start_temp=120.0,
+                                   location_has_AFT=True,
+                                   vectorize_thermochron=False,
+                                   show_progress=True):
+
+    """
+    Use modeled temperature history and provneance history to model apatite fission track ages and length distributions
+    """
+
+    # resample_t = pybasin_params.resample_timesteps
+    # nt_prov = pybasin_params.provenance_time_nt
+    # pybasin_params.annealing_kinetics_values,
+    # pybasin_params.annealing_kinetic_param,
+
+    # pybasin_params.make_model_data_fig is True:
+
+    if calculate_thermochron_for_all_nodes is True:
+        logger.info('calculating AFT ages and lengths for all n=%i nodes' % n_nodes)
+        # simulate AFT all nodes
+        simulated_AFT_data =\
+            simulate_aft(
+                resample_t, nt_prov, n_nodes, time_array_bp,
+                z_nodes, T_nodes, active_nodes,
+                prov_start_nodes, prov_end_nodes,
+                annealing_kinetics_values,
+                annealing_kinetic_param,
+                surface_temp,
+                annealing_eq=annealing_eq,
+                C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+                provenance_start_temp=provenance_start_temp,
+                vectorize_thermochron=vectorize_thermochron,
+                show_progress=show_progress)
+
+        (aft_age_nodes, aft_age_nodes_min, aft_age_nodes_max,
+         aft_ln_mean_nodes, aft_ln_std_nodes,
+         aft_node_times_burial, aft_node_zs,
+         aft_node_times, aft_node_temps) = \
+            simulated_AFT_data
+
+    else:
+        simulated_AFT_data = None
+
+    nt = T_nodes.shape[0]
+    n_aft_samples = len(aft_data_well)
+
+    if n_aft_samples == 0:
+        return (None, None, None, None, None, None, None, None, None,
+                simulated_AFT_data, None, None)
+
+    # get T history for samples only
+    T_samples = np.zeros((nt, n_aft_samples))
+    for h in range(nt):
+        T_samples[h, :] = \
+            np.interp(aft_data_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      T_nodes[h, active_nodes[-1]])
+
+    # get burial history of samples
+    z_aft_samples = np.zeros((nt, n_aft_samples))
+    for h in range(nt):
+        z_aft_samples[h, :] = \
+            np.interp(aft_data_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      z_nodes[h, active_nodes[-1]])
+
+    # get provenance history for samples only
+    n_prov = prov_start_nodes.shape[1]
+    prov_start_samples = np.zeros((n_aft_samples, n_prov))
+    prov_end_samples = np.zeros((n_aft_samples, n_prov))
+    for h in range(n_prov):
+        prov_start_samples[:, h] = \
+            np.interp(aft_data_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      prov_start_nodes[active_nodes[-1], h])
+        prov_end_samples[:, h] = \
+            np.interp(aft_data_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      prov_end_nodes[active_nodes[-1], h])
+
+    # get active node array for samples only
+    active_nodes_aft_samples = np.zeros((nt, n_aft_samples),
+                                        dtype=bool)
+    for h in range(nt):
+        active_nodes_aft_samples[h, :] = \
+            np.interp(aft_data_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      active_nodes[h, active_nodes[-1]])
+
+    # select prov. history for samples:
+    logger.info('calculating AFT ages and lengths for n=%i samples' % n_aft_samples)
+    simulated_aft_data_samples =\
+        simulate_aft(
+            resample_t, nt_prov, n_aft_samples, time_array_bp,
+            z_aft_samples, T_samples, active_nodes_aft_samples,
+            prov_start_samples, prov_end_samples,
+            annealing_kinetics_values,
+            annealing_kinetic_param,
+            surface_temp,
+            annealing_eq=annealing_eq,
+            C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha,
+            provenance_start_temp=provenance_start_temp,
+            vectorize_thermochron=vectorize_thermochron,
+            show_progress=show_progress)
+
+    (modeled_aft_age_samples, modeled_aft_age_samples_min,
+     modeled_aft_age_samples_max,
+     aft_ln_mean_samples, aft_ln_std_samples,
+     aft_sample_times_burial, aft_sample_zs,
+     aft_sample_times, aft_sample_temps) = simulated_aft_data_samples
+
+    return (modeled_aft_age_samples,
+            modeled_aft_age_samples_min,
+            modeled_aft_age_samples_max,
+            aft_ln_mean_samples,
+            aft_ln_std_samples,
+            aft_sample_times_burial,
+            aft_sample_zs,
+            aft_sample_times,
+            aft_sample_temps,
+            simulated_AFT_data,
+            z_aft_samples,
+            T_samples)
+
+
+def assemble_data_and_simulate_he(he_samples_well,
+                                  he_data,
+                                   decay_constant_238U,
+                                   decay_constant_235U,
+                                   decay_constant_232Th,
+                                   n_nodes, resample_t, nt_prov,
+                                   time_array_bp,
+                                   z_nodes,
+                                   T_nodes,
+                                   active_nodes,
+                                   prov_start_nodes,
+                                   prov_end_nodes,
+                                   surface_temp,
+                                   calculate_thermochron_for_all_nodes=False,
+                                   U_default=50.0, Th_default=50.0,
+                                   radius_default=75.0,
+                                   ahe_method='RDAAM',
+                                   alpha=0.04672, C0=0.39528, C1=0.01073,
+                                   C2=-65.12969, C3=-7.91715,
+                                   provenance_start_temp=120.0,
+                                   default_he_mineral="apatite",
+                                   log_tT_paths=False, tT_path_filename="",
+                                   vectorize_thermochron=True,
+                                   show_progress=True):
+
+    """
+    Use modeled temperature history and provenance history to model apatite (U-Th)/He ages
+    """
+
+    if calculate_thermochron_for_all_nodes is True:
+
+        logger.info('calculating U-Th/He ages for all nodes')
+
+        minerals_nodes = [[default_he_mineral, default_he_mineral]] * n_nodes
+        he_grain_radius_nodes = np.zeros((n_nodes, 2))
+        U_nodes = np.zeros((n_nodes, 2))
+        Th_nodes = np.zeros((n_nodes, 2))
+
+        # fill with default values
+        # TODO: specify default values in input file
+        U_nodes[:, :] = U_default
+        Th_nodes[:, :] = Th_default
+        he_grain_radius_nodes[:, :] = radius_default
+
+        Ur0_max = 0
+        Ur0_min = 99999
+
+        # find min and max grain diameters and U and Th contents
+        # for this location
+        samples = he_samples_well['sample'].values
+        # he_grain_radius_samples = []
+        for he_sample_no, he_sample in enumerate(samples):
+            ind_sample = he_data['sample'] == he_sample
+            he_grain_radius_sample = \
+                he_data['grain_radius'][ind_sample].values * 1e-6
+
+            if True in ind_sample.values:
+                if (np.min(he_grain_radius_sample)
+                        < he_grain_radius_nodes[0, 0]) \
+                        or he_sample_no == 0:
+                    he_grain_radius_nodes[:, 0] = \
+                        np.min(he_grain_radius_sample)
+                if (np.max(he_grain_radius_sample)
+                        > he_grain_radius_nodes[0, 1]) \
+                        or he_sample_no == 0:
+                    he_grain_radius_nodes[:, 1] = \
+                        np.max(he_grain_radius_sample)
+
+                # calculate helium production and select min and
+                # max values of helium prodcution of all samples
+                U = he_data['U'][ind_sample].values * 1e-6
+                Th = he_data['Th'][ind_sample].values * 1e-6
+                U238 = (137.88 / 138.88) * U
+                U235 = (1.0 / 138.88) * U
+                Th232 = Th
+                Ur0 = (8 * U238 * decay_constant_238U
+                       + 7 * U235 * decay_constant_235U
+                       + 6 * Th232 * decay_constant_232Th)
+
+                if np.max(Ur0) > Ur0_max:
+                    U_nodes[:, 1] = U[np.argmax(Ur0)]
+                    Th_nodes[:, 1] = Th[np.argmax(Ur0)]
+                    Ur0_max = Ur0.max()
+                if np.max(Ur0) < Ur0_min:
+                    U_nodes[:, 0] = U[np.argmin(Ur0)]
+                    Th_nodes[:, 0] = Th[np.argmin(Ur0)]
+                    Ur0_min = Ur0.min()
+
+        # calculate helium ages for all nodes
+        logger.info('starting calculation of He ages for all nodes')
+
+        simulated_He_data =\
+            simulate_ahe(
+                resample_t, nt_prov, n_nodes, time_array_bp,
+                z_nodes, T_nodes, active_nodes,
+                prov_start_nodes, prov_end_nodes,
+                surface_temp,
+                minerals_nodes, he_grain_radius_nodes, U_nodes, Th_nodes,
+                ahe_method=ahe_method,
+                alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                provenance_start_temp=provenance_start_temp,
+                log_tT_paths=False, tT_path_filename=tT_path_filename,
+                vectorize_thermochron=vectorize_thermochron,
+                show_progress=show_progress)
+
+        (he_age_nodes, he_age_nodes_min, he_age_nodes_max,
+         he_node_times_burial, he_node_zs) = simulated_He_data
+    else:
+        simulated_He_data = None
+
+    nt = T_nodes.shape[0]
+    n_he_samples = len(he_samples_well)
+
+    if n_he_samples == 0:
+        return (None,
+                None,
+                None,
+                None,
+                None,
+                simulated_He_data)
+
+    # get T history for samples only
+    T_he_samples = np.zeros((nt, n_he_samples))
+    for h in range(nt):
+        T_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      T_nodes[h, active_nodes[-1]])
+
+    # get burial history of samples
+    z_he_samples = np.zeros((nt, n_he_samples))
+    for h in range(nt):
+        z_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      z_nodes[h, active_nodes[-1]])
+
+    # get provenance history for samples only
+    n_prov = prov_start_nodes.shape[1]
+    prov_start_he_samples = np.zeros((n_he_samples, n_prov))
+    prov_end_he_samples = np.zeros((n_he_samples, n_prov))
+    for h in range(n_prov):
+        prov_start_he_samples[:, h] = \
+            np.interp(he_samples_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      prov_start_nodes[active_nodes[-1], h])
+        prov_end_he_samples[:, h] = \
+            np.interp(he_samples_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      prov_end_nodes[active_nodes[-1], h])
+
+    # get active node array for samples only
+    active_nodes_he_samples = np.zeros((nt, n_he_samples),
+                                        dtype=bool)
+    for h in range(nt):
+        active_nodes_he_samples[h, :] = \
+            np.interp(he_samples_well['depth'],
+                      z_nodes[-1, active_nodes[-1]],
+                      active_nodes[h, active_nodes[-1]])
+
+    # assemble grain diameters, U and Th content of each sample
+    samples = he_samples_well['sample'].values
+    he_grain_radius_samples = []
+    minerals = []
+
+    U_samples = []
+    Th_samples = []
+
+    for he_sample in samples:
+        ind_sample = he_data['sample'] == he_sample
+        he_grain_radius_sample = he_data['grain_radius'][ind_sample].values * 1e-6
+        he_grain_radius_samples.append(he_grain_radius_sample)
+
+        U_sample = he_data['U'][ind_sample].values * 1e-6
+        U_samples.append(U_sample)
+        Th_sample = he_data['Th'][ind_sample].values * 1e-6
+        Th_samples.append(Th_sample)
+
+        mineral = he_data['mineral'][ind_sample].values
+        minerals.append(mineral)
+
+    logger.info('calculating He for %i samples' % n_he_samples)
+
+    #pdb.set_trace()
+
+    simulated_he_data_samples =\
+        simulate_ahe(
+            resample_t, nt_prov, n_he_samples, time_array_bp,
+            z_he_samples, T_he_samples, active_nodes_he_samples,
+            prov_start_he_samples, prov_end_he_samples,
+            surface_temp, minerals, he_grain_radius_samples,
+            U_samples, Th_samples,
+            ahe_method=ahe_method,
+            alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+            provenance_start_temp=provenance_start_temp,
+            log_tT_paths=log_tT_paths, tT_path_filename=tT_path_filename,
+            vectorize_thermochron=vectorize_thermochron,
+            show_progress=show_progress)
+
+    (modeled_he_age_samples, modeled_he_age_samples_min,
+     modeled_he_age_samples_max, he_node_times_burial,
+     he_node_zs) = simulated_he_data_samples
+
+    return (modeled_he_age_samples,
+            modeled_he_age_samples_min,
+            modeled_he_age_samples_max,
+            he_node_times_burial,
+            he_node_zs,
+            simulated_He_data)
+
+
 def calculate_viscosity_np(C, T):
     """
     taken from Batzle_Wang paper
