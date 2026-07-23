@@ -24,6 +24,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 import pybasin
+from . import model_input_io
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,14 +91,14 @@ def run_single_scenario(dataset_name, param_overrides=None, well=None):
                 raise AttributeError(msg)
             setattr(params, name, value)
 
-    pybasin.check_input_data_files(input_dir, params)
+    model_input_io.check_input_data_files(input_dir, params)
 
     (well_strats, strat_info_mod, salinity_bnd_df,
      T_data_df, vr_data_df,
      aft_samples, aft_ages,
      he_samples, he_data,
      salinity_data, surface_temp, litho_props,
-     pressure_data, porosity_data) = pybasin.read_model_input_data(
+     pressure_data, porosity_data) = model_input_io.read_model_input_data(
         input_dir, params)
 
     # deliberately ignore the dataset's own ParameterRanges "_s" scenario
@@ -111,11 +112,11 @@ def run_single_scenario(dataset_name, param_overrides=None, well=None):
         well = params.wells[0]
     well_number = params.wells.index(well)
 
-    well_strat, well_strat_orig = pybasin.select_well_strat(well, well_strats)
+    well_strat, well_strat_orig = model_input_io.select_well_strat(well, well_strats)
 
     surface_salinity_well = None
     if getattr(params, 'well_specific_surface_salinity_bnd', False) is True:
-        surface_salinity_well = pybasin.select_well_salinity_bnd(
+        surface_salinity_well = model_input_io.select_well_salinity_bnd(
             well, salinity_bnd_df)
 
     # pre-allocate a one-row results dataframe, mirrors what main() does

@@ -49,6 +49,7 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 
 import pybasin  # noqa: E402  (import after sys.path / matplotlib setup)
+import lib.model_input_io as model_input_io  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ def _run_single_scenario(dataset_name):
     params.save_model_run_data = False
 
     # Validate that all required input CSVs are present.
-    pybasin.check_input_data_files(input_dir, params)
+    model_input_io.check_input_data_files(input_dir, params)
 
     # Read all input data.
     (well_strats, strat_info_mod, salinity_bnd_df,
@@ -117,7 +118,7 @@ def _run_single_scenario(dataset_name):
      aft_samples, aft_ages,
      he_samples, he_data,
      salinity_data, surface_temp, litho_props,
-     pressure_data, porosity_data) = pybasin.read_model_input_data(
+     pressure_data, porosity_data) = model_input_io.read_model_input_data(
         input_dir, params
     )
 
@@ -134,7 +135,7 @@ def _run_single_scenario(dataset_name):
     well = params.wells[0]
     well_number = 0
 
-    well_strat, well_strat_orig = pybasin.select_well_strat(well, well_strats)
+    well_strat, well_strat_orig = model_input_io.select_well_strat(well, well_strats)
 
     # Neither example dataset uses salinity simulation.
     surface_salinity_well = None
