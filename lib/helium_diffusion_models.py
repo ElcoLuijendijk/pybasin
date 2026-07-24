@@ -380,13 +380,14 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
-        #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(dts, temperature_midpoint, rmr0, kappa,
-        #                                                    alpha, C0, C1, C2, C3, nsteps)
+        # annealing_eq_f90=2 selects the fanning curvilinear model
+        # (Ketcham et al., 2007), matching the pure-python branch below
+        # and the fanning curvilinear model RDAAM is calibrated against
+        annealing_eq_f90 = 2
         rcf = calculate_reduced_AFT_lengths.reduced_ln(
-            dts, temperature_midpoint, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
+            dts, temperature_midpoint, rmr0, kappa, annealing_eq_f90,
+            alpha, C0, C1, C2, C3, nsteps)
         rmf = AFT.caxis_project_reduced_lengths(rcf)
-        #rmf, rcf = calculate_reduced_AFT_lengths.reduced_ln(
-        #    dts, temperature, rmr0, kappa, alpha, C0, C1, C2, C3, nsteps)
 
         # correct 0 length tracks:
         rmf[rmf < 0] = 0.0
@@ -400,7 +401,7 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         # check against fortran function
 
         # python reduced track length function:
-        r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature, 
+        r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature_midpoint,
                                                      C0=C0, C1=C1, C2=C2, C3=C3,
                                                      alpha=alpha)
         rcp = AFT.kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)

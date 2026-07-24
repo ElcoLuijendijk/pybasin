@@ -454,6 +454,70 @@ def calculate_reduced_track_lengths(dts, temperatures,
 
 
 @jit(nopython=True)
+def calculate_reduced_track_lengths_matrix(dts, temperatures,
+                                           alpha=0.04672,
+                                           C0=0.39528, C1=0.01073,
+                                           C2=-65.12969, C3=-7.91715):
+
+    """
+    Same recurrence as calculate_reduced_track_lengths, but keeps the
+    reduced length reached at every intermediate timestep i for a
+    track formed at timestep j, instead of only the value reached at
+    the last timestep.
+
+    Only needed to support all_timesteps=True in
+    simulate_AFT_annealing, memory cost is O(nsteps**2) instead of
+    O(nsteps).
+
+    input parameters:
+        dts                     array of duration of each timestep (sec)
+        temperatures            array of temperature during each timestep(K)
+        alfa = 0.04672          emperically fitted annealing parameter,
+                                see Ketcham et al. (2007) Am. Min.
+        C0 = 0.39528            annealing parameter, see Ketcham(2007)
+        C1 = 0.01073            annealing parameter, see Ketcham(2007)
+        C2 = -65.12969          annealing parameter, see Ketcham(2007)
+        C3 = -7.91715           annealing parameter, see Ketcham(2007)
+
+    returns:
+        rc_matrix   nsteps by nsteps array, rc_matrix[j, i] is the
+                    reduced length of a track formed at timestep j,
+                    evaluated using the sub history from j through i
+                    (i >= j), nan for i < j
+    """
+
+    nsteps = len(dts)
+    g = np.zeros(nsteps)
+    dteq = np.zeros(nsteps)
+    rc_matrix = np.zeros((nsteps, nsteps))
+    rc_matrix[:] = np.nan
+
+    for j in range(nsteps):
+
+        g[:] = 0
+        dteq[:] = 0
+
+        for i in range(j, nsteps):
+
+            dt = dts[i]
+            T = temperatures[i]
+
+            if i == j:
+                dteq[i] = 0
+            else:
+                dteq[i] = math.exp(((g[i - 1] - C0) / C1 *
+                                   (math.log(1.0 / T) - C3)) + C2)
+
+            g[i] = (C0 + C1 * ((np.log(dt + dteq[i]) - C2) /
+                              (np.log(1.0 / T) - C3)))
+
+            f = g[i] ** (1.0 / alpha)
+            rc_matrix[j, i] = 1.0 / (f + 1.0)
+
+    return rc_matrix
+
+
+@jit(nopython=True)
 def calculate_reduced_track_lengths_ketcham1999(dts, temperatures,
                                                 alpha=-0.12327,
                                                 beta=-11.988,
@@ -538,10 +602,78 @@ def calculate_reduced_track_lengths_ketcham1999(dts, temperatures,
     return rc
 
 
+@jit(nopython=True)
+def calculate_reduced_track_lengths_ketcham1999_matrix(dts, temperatures,
+                                                        alpha=-0.12327,
+                                                        beta=-11.988,
+                                                        C0=-19.844, C1=0.38951,
+                                                        C2=-51.253, C3=-7.6423):
+
+    """
+    Same recurrence as calculate_reduced_track_lengths_ketcham1999, but
+    keeps the reduced length reached at every intermediate timestep i
+    for a track formed at timestep j, instead of only the value
+    reached at the last timestep. See that function for the guards
+    against invalid, fractional powers of a negative number.
+
+    Only needed to support all_timesteps=True in
+    simulate_AFT_annealing, memory cost is O(nsteps**2) instead of
+    O(nsteps).
+
+    returns:
+        rc_matrix   nsteps by nsteps array, rc_matrix[j, i] is the
+                    reduced length of a track formed at timestep j,
+                    evaluated using the sub history from j through i
+                    (i >= j), nan for i < j
+    """
+
+    nsteps = len(dts)
+    rc_matrix = np.zeros((nsteps, nsteps))
+    rc_matrix[:] = np.nan
+
+    for j in range(nsteps):
+
+        r = 0.0
+
+        for i in range(j, nsteps):
+
+            dt = dts[i]
+            T = temperatures[i]
+
+            if i == j:
+                # track formed at this timestep, no prior annealing state
+                dteq = 0.0
+            elif r < 0.0007:
+                # already fully annealed, stays there permanently
+                r = 0.0
+                rc_matrix[j, i] = r
+                continue
+            else:
+                g_prev = (((1.0 - r ** beta) / beta) ** alpha - 1.0) / alpha
+                dteq = math.exp(((g_prev - C0) / C1 *
+                                 (math.log(1.0 / T) - C3)) + C2)
+
+            f = (C0 + C1 * ((math.log(dt + dteq) - C2) /
+                           (math.log(1.0 / T) - C3)))
+
+            inner_base = alpha * f + 1.0
+            if inner_base < 0.00002:
+                r = 0.0
+            else:
+                inner_root = inner_base ** (1.0 / alpha)
+                outer_base = 1.0 - beta * inner_root
+                r = outer_base ** (1.0 / beta)
+
+            rc_matrix[j, i] = r
+
+    return rc_matrix
+
+
 def calculate_reduced_track_lengths_vectorized(dts, temperatures,
                                                alpha=0.04672,
                                                C0=0.39528, C1=0.01073,
-                                               C2=-65.12969, C3=-7.91715):
+                                               C2=-65.12969, C3=-7.91715,
+                                               return_matrix=False):
     """
     Vectorized equivalent of calculate_reduced_track_lengths.
 
@@ -562,11 +694,22 @@ def calculate_reduced_track_lengths_vectorized(dts, temperatures,
         Temperature during each timestep (Kelvin).
     alpha, C0, C1, C2, C3 : float
         Ketcham 2007 annealing parameters.
+    return_matrix : bool
+        if True, return the reduced length reached at every
+        intermediate timestep i for a track formed at timestep j
+        (nsteps by nsteps array, nan for i < j), instead of only the
+        value reached at the last timestep. Needed to support
+        all_timesteps=True in simulate_AFT_annealing_vectorized, the
+        g matrix this is derived from is already computed by the loop
+        below regardless of this option, so requesting it costs no
+        extra loop iterations, only the final elementwise conversion
+        of the full matrix instead of its last column.
 
     Returns
     -------
     rc : numpy array
-        Modeled reduced c-axis projected track length for each timestep.
+        Modeled reduced c-axis projected track length for each timestep,
+        or the full rc_matrix described above if return_matrix is True.
     """
     nsteps = len(dts)
 
@@ -607,6 +750,13 @@ def calculate_reduced_track_lengths_vectorized(dts, temperatures,
         g[active, i] = C0 + C1 * ((np.log(dts[i] + dteq_active) - C2)
                                    / (log_inv_T[i] - C3))
 
+    if return_matrix is True:
+        f_matrix = g ** (1.0 / alpha)
+        rc_matrix = 1.0 / (f_matrix + 1.0)
+        invalid = np.tril(np.ones((nsteps, nsteps), dtype=bool), k=-1)
+        rc_matrix[invalid] = np.nan
+        return rc_matrix
+
     # rc[j] is derived from g[j, nsteps-1] — the final annealing state
     g_final = g[:, nsteps - 1]
     f = g_final ** (1.0 / alpha)
@@ -619,7 +769,8 @@ def calculate_reduced_track_lengths_ketcham1999_vectorized(dts, temperatures,
                                                             alpha=-0.12327,
                                                             beta=-11.988,
                                                             C0=-19.844, C1=0.38951,
-                                                            C2=-51.253, C3=-7.6423):
+                                                            C2=-51.253, C3=-7.6423,
+                                                            return_matrix=False):
     """
     Vectorized equivalent of calculate_reduced_track_lengths_ketcham1999.
 
@@ -639,11 +790,21 @@ def calculate_reduced_track_lengths_ketcham1999_vectorized(dts, temperatures,
         Temperature during each timestep (Kelvin).
     alpha, beta, C0, C1, C2, C3 : float
         Ketcham et al. (1999) fanning curvilinear annealing parameters.
+    return_matrix : bool
+        if True, return the reduced length reached at every
+        intermediate timestep i for a track formed at timestep j
+        (nsteps by nsteps array, nan for i < j), instead of only the
+        value reached at the last timestep. Needed to support
+        all_timesteps=True in simulate_AFT_annealing_vectorized, the r
+        matrix this returns is already computed by the loop below
+        regardless of this option, so requesting it costs no extra
+        loop iterations.
 
     Returns
     -------
     rc : numpy array
-        Modeled reduced c-axis projected track length for each timestep.
+        Modeled reduced c-axis projected track length for each timestep,
+        or the full r matrix described above if return_matrix is True.
     """
     nsteps = len(dts)
 
@@ -697,6 +858,11 @@ def calculate_reduced_track_lengths_ketcham1999_vectorized(dts, temperatures,
 
         r[:n_active, i] = r_new
 
+    if return_matrix is True:
+        invalid = np.tril(np.ones((nsteps, nsteps), dtype=bool), k=-1)
+        r[invalid] = np.nan
+        return r
+
     rc = r[:, nsteps - 1]
 
     return rc
@@ -747,6 +913,69 @@ def kinetic_modifier_reduced_lengths_inverse(rc_mod, rmr0, kappa):
     rc = rc_mod ** (1.0/kappa) * (1.0 - rmr0) + rmr0
 
     return rc
+
+
+def calculate_age_evolution(rc_matrix, dts, timesteps, rmr0, kappa,
+                            rho_s=0.893):
+
+    """
+    Reconstruct the apatite fission track age the model would report
+    if the thermal history had stopped, and the sample had been
+    collected, right after each timestep, from the full rc_matrix
+    computed by calculate_reduced_track_lengths_matrix or
+    calculate_reduced_track_lengths_ketcham1999_matrix.
+
+    A plain running sum of the age density calculated over the full
+    thermal history is not equivalent to this quantity, and gives
+    wrong, in some cases zero, ages for thermal histories that involve
+    reheating. This is because the reduced length of a track formed at
+    timestep j depends on the entire sub history from j through the
+    last timestep of the run, so a track's contribution to the age
+    density changes depending on how far the history is followed.
+    Recomputing the uranium decay weighting factor relative to each
+    intermediate timestep, from the matching column of rc_matrix,
+    gives the same age that a full rerun truncated at that timestep
+    would produce.
+
+    input parameters:
+        rc_matrix       nsteps by nsteps array from
+                        calculate_reduced_track_lengths_matrix or the
+                        Ketcham1999 equivalent
+        dts             array of duration of each timestep (sec)
+        timesteps       array of time values (My), length nsteps + 1
+        rmr0, kappa     kinetic parameters, see
+                        calculate_kinetic_parameters
+        rho_s = 0.893   standard track density
+
+    returns:
+        aft_ages_myr    array of length nsteps, aft_ages_myr[k - 1] is
+                        the AFT age (My) using only the first k
+                        timesteps of the thermal history,
+                        aft_ages_myr[-1] equals the age from the full
+                        history
+    """
+
+    Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
+    nsteps = len(dts)
+    aft_ages_myr = np.zeros(nsteps)
+
+    for k in range(1, nsteps + 1):
+
+        rc = kinetic_modifier_reduced_lengths(rc_matrix[:k, k - 1], rmr0, kappa)
+        rc = np.where(rc < 0, 0.0, rc)
+
+        rc_mid = rc.copy()
+        rc_mid[1:] = (rc[1:] + rc[:-1]) * 0.5
+
+        time_bp = timesteps[k] - timesteps[:k + 1]
+        w = correct_for_uranium_decay(time_bp)
+
+        rho_age = calculate_normalized_density(rc_mid) * w
+
+        aft_age_uncorrected = np.sum(dts[:k] * rho_age)
+        aft_ages_myr[k - 1] = aft_age_uncorrected / rho_s / Myr
+
+    return aft_ages_myr
 
 
 #@jit(nopython=True)
@@ -820,6 +1049,7 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            C1=None,
                            C2=None,
                            C3=None,
+                           all_timesteps=False,
                            verbose=False):
 
 
@@ -899,6 +1129,22 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         Use a separate Fortran function to calculate reduced
         fission track lengths.
         results in much shorter runtimes.
+    all_timesteps=False:
+        option to also return the AFT age evaluated at every
+        intermediate timestep, i.e. the age the model would report if
+        the thermal history had stopped, and the sample had been
+        collected, at that point, rather than only the age for the
+        full input history. When True, an additional array is
+        appended to the return values, see aft_ages_myr below. Needs
+        the pure Python annealing function: use
+        use_fortran_algorithm=False, or method='Ketcham2000', which
+        always uses the pure Python function. Raises ValueError if
+        combined with use_fortran_algorithm=True and
+        method='Ketcham2007'. The extra bookkeeping needed for this
+        option is O(nsteps**2) in both runtime and memory, instead of
+        the O(nsteps) cost of the default single final age, so leave
+        this at its default value of False unless the age evolution is
+        actually needed.
 
     Returns
     -------
@@ -915,9 +1161,12 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     rc:
         c-axis corrected reduced track length (um)
     rho_age:
-        
+
     dt:
         time steps durations (sec)
+    aft_ages_myr:
+        only returned if all_timesteps=True: array of AFT ages (My),
+        one for every timestep, see all_timesteps above
 
 
     References
@@ -1140,8 +1389,31 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     if verbose is True:
         logger.info('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
 
+    ####################################################################
+    # optionally also compute the AFT age at every intermediate timestep
+    ####################################################################
+    aft_ages_myr = None
+    if all_timesteps is True:
+
+        if method == 'Ketcham2000':
+            rc_matrix = calculate_reduced_track_lengths_ketcham1999_matrix(
+                dts, temperature, alpha=alpha, beta=beta,
+                C0=C0, C1=C1, C2=C2, C3=C3)
+        elif use_fortran_algorithm is True:
+            msg = ('all_timesteps=True needs the reduced length reached at '
+                   'every intermediate timestep, which the compiled '
+                   'Fortran algorithm does not return; use '
+                   'use_fortran_algorithm=False or method=\'Ketcham2000\'')
+            raise ValueError(msg)
+        else:
+            rc_matrix = calculate_reduced_track_lengths_matrix(
+                dts, temperature, alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3)
+
+        aft_ages_myr = calculate_age_evolution(
+            rc_matrix, dts, timesteps, rmr0, kappa)
+
     ##########################################################
-    # calculate weighting factor to correct for uranium decay 
+    # calculate weighting factor to correct for uranium decay
     # (eq. 6 in Ketcham,  2000)
     ##########################################################
     time_Ma = timesteps.max() - timesteps
@@ -1271,6 +1543,10 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         l_mean = 0
         l_mean_std = 0
 
+    if all_timesteps is True:
+        return (track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc,
+                rho_age, dt, aft_ages_myr)
+
     return track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc, rho_age, dt
 
 
@@ -1293,6 +1569,7 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
                                       C1=None,
                                       C2=None,
                                       C3=None,
+                                      all_timesteps=False,
                                       verbose=False):
     """
     Vectorized equivalent of simulate_AFT_annealing.
@@ -1310,7 +1587,12 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
        - l_mean and l_mean_std computed with np.dot instead of scalar loops
 
     All other logic, parameters, and return values are identical to the
-    original function.
+    original function, including all_timesteps: see
+    simulate_AFT_annealing for details. The reduced length matrix
+    needed for all_timesteps=True is computed with
+    return_matrix=True on the vectorized helper functions, which costs
+    no extra loop iterations there, unlike the scalar version where a
+    separate matrix-returning function has to be called.
     """
 
     Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
@@ -1485,6 +1767,30 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     if verbose is True:
         logger.info('final reduced lengths rm = %0.3f, rc = %0.3f' % (rm[-1], rc[-1]))
 
+    ####################################################################
+    # optionally also compute the AFT age at every intermediate timestep
+    ####################################################################
+    aft_ages_myr = None
+    if all_timesteps is True:
+
+        if method == 'Ketcham2000':
+            rc_matrix = calculate_reduced_track_lengths_ketcham1999_vectorized(
+                dts, temperature, alpha=alpha, beta=beta,
+                C0=C0, C1=C1, C2=C2, C3=C3, return_matrix=True)
+        elif use_fortran_algorithm is True:
+            msg = ('all_timesteps=True needs the reduced length reached at '
+                   'every intermediate timestep, which the compiled '
+                   'Fortran algorithm does not return; use '
+                   'use_fortran_algorithm=False or method=\'Ketcham2000\'')
+            raise ValueError(msg)
+        else:
+            rc_matrix = calculate_reduced_track_lengths_vectorized(
+                dts, temperature, alpha=alpha, C0=C0, C1=C1, C2=C2, C3=C3,
+                return_matrix=True)
+
+        aft_ages_myr = calculate_age_evolution(
+            rc_matrix, dts, timesteps, rmr0, kappa)
+
     ##########################################################
     # calculate weighting factor to correct for uranium decay
     ##########################################################
@@ -1605,5 +1911,9 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
         track_length_pdf[:] = 0
         l_mean = 0
         l_mean_std = 0
+
+    if all_timesteps is True:
+        return (track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc,
+                rho_age, dt, aft_ages_myr)
 
     return track_length_pdf, aft_age_myr, l_mean, l_mean_std, rm, rc, rho_age, dt
