@@ -500,25 +500,26 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          C2=-65.12969,
                                          C3=-7.91715,
                                          use_fortran_algorithm=True,
-                                         n_eigenmodes=15):
+                                         n_eigenmodes=15,
+                                         wolf1996_kinetics='hefty'):
 
     """
 
-    parameters Wolf et al. (1996, 1998), Durango apatite:
+    parameters Wolf et al. (1996, 1998), Durango apatite, Table 7:
     D0_div_a2 = 10**7.7
     Ea = 36.2*4184
 
     parameters Farley (2000), Durango apatite:
     D0_div_a2 = np.exp(13.4)
     Ea = 32.9 * 4184 kJ/mol
-    
+
     Parameters:
     -----------
     t : numpy array
         time in sec
     T : numpy array
         temperature in Kelvin
-    
+
 
 
     :param t:
@@ -531,6 +532,12 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     :param R:
     :param decay_constant_238U:
     :param decay_constant_232Th:
+    :param wolf1996_kinetics:
+        selects the Durango diffusion kinetics used when method is
+        "Wolf1996". "hefty" (default) uses the revised values given in
+        HeFTy 1.8.3, log10(D0/a2) = 7.82 (1/sec), Ea = 36.3 kcal/mol.
+        "original" uses the values given in Table 7 of Wolf et al.
+        (1996) itself, log10(D0/a2) = 7.7 (1/sec), Ea = 36.2 kcal/mol.
     :return:
     """
 
@@ -564,15 +571,26 @@ def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
     elif method == 'Wolf1996':
         #print 'using Wolf et al. (1996) diffusion parameters'
 
-        # diffusivity params Wolf et al (1996), table 7, Durango
-        # tested, values are really given in log10 instead of ln
+        # diffusivity params Durango apatite, values are really given
+        # in log10 instead of ln
         # big difference with D0 values in Flowers (2009), not sure why
-        #log_D0_div_a2 = 7.7 #(1/sec)
-        log_D0_div_a2 = 7.82 #(1/sec) , value given in HeFTy 1.8.3
+        if wolf1996_kinetics == 'hefty':
+            # revised values given in HeFTy 1.8.3
+            log_D0_div_a2 = 7.82  # (1/sec)
+            Ea_kcal = 36.3
+        elif wolf1996_kinetics == 'original':
+            # values given in Wolf et al. (1996), table 7
+            log_D0_div_a2 = 7.7  # (1/sec)
+            Ea_kcal = 36.2
+        else:
+            msg = 'cannot determine wolf1996_kinetics, choose ' \
+                  '"hefty" or "original", current value = %s' \
+                  % wolf1996_kinetics
+            raise ValueError(msg)
 
         D0_div_a2 = 10**log_D0_div_a2
         #D0_div_a2 = np.exp(log_D0_div_a2)
-        Ea = 36.3 * 4184
+        Ea = Ea_kcal * 4184
         D0 = D0_div_a2 * radius ** 2
         D = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
@@ -610,13 +628,21 @@ def calculate_he_age_meesters_dunai_2002_vectorized(t, T, radius, U, Th,
                                          C2=-65.12969,
                                          C3=-7.91715,
                                          use_fortran_algorithm=True,
-                                         n_eigenmodes=15):
+                                         n_eigenmodes=15,
+                                         wolf1996_kinetics='hefty'):
 
     """
     Vectorized version of calculate_he_age_meesters_dunai_2002.
 
     Identical to calculate_he_age_meesters_dunai_2002 except uses the
     vectorized He diffusion solver He_diffusion_Meesters_and_Dunai_2002_vectorized.
+
+    :param wolf1996_kinetics:
+        selects the Durango diffusion kinetics used when method is
+        "Wolf1996". "hefty" (default) uses the revised values given in
+        HeFTy 1.8.3, log10(D0/a2) = 7.82 (1/sec), Ea = 36.3 kcal/mol.
+        "original" uses the values given in Table 7 of Wolf et al.
+        (1996) itself, log10(D0/a2) = 7.7 (1/sec), Ea = 36.2 kcal/mol.
     """
 
     # calculate He production:
@@ -641,9 +667,22 @@ def calculate_he_age_meesters_dunai_2002_vectorized(t, T, radius, U, Th,
                                          use_fortran_algorithm)
 
     elif method == 'Wolf1996':
-        log_D0_div_a2 = 7.82  # (1/sec), value given in HeFTy 1.8.3
+        if wolf1996_kinetics == 'hefty':
+            # revised values given in HeFTy 1.8.3
+            log_D0_div_a2 = 7.82  # (1/sec)
+            Ea_kcal = 36.3
+        elif wolf1996_kinetics == 'original':
+            # values given in Wolf et al. (1996), table 7
+            log_D0_div_a2 = 7.7  # (1/sec)
+            Ea_kcal = 36.2
+        else:
+            msg = 'cannot determine wolf1996_kinetics, choose ' \
+                  '"hefty" or "original", current value = %s' \
+                  % wolf1996_kinetics
+            raise ValueError(msg)
+
         D0_div_a2 = 10**log_D0_div_a2
-        Ea = 36.3 * 4184
+        Ea = Ea_kcal * 4184
         D0 = D0_div_a2 * radius ** 2
         D = (D0 / radius**2 * np.exp(-Ea / (R*T))) * radius**2
 
