@@ -16,6 +16,20 @@ column with zero permeability, excess pressure should match the buoyant
 weight of the solid grains scaled by the undrained loading efficiency,
 which approaches the classic Gibson (1958) result as the elastic
 specific storage becomes small compared with the compaction storage.
+Both of these use run_growing_column() above, in which each node is
+loaded once, at its own creation step; this gives the correct answer in
+the zero-permeability limit these two tests use, because that limit is
+path-independent (only the final buoyant stress matters, not the
+loading history), but it is not a valid driver for a finite-permeability
+transient test, where the loading history does matter.
+test_gibson_transient_solution instead uses run_growing_column_gradual(),
+in which every existing node is buried by one grid spacing at every
+step, giving every node the continuous, constant loading rate Gibson's
+equation assumes, and compares the finite-permeability transient
+solution against Gibson's (1958) exact solution (his Eq. 2, for a layer
+growing at a constant rate on an impervious base), evaluated by
+numerical quadrature. This is the transient, finite-permeability
+regime that the other two tests do not exercise.
 test_compaction_storage_irreversibility is a direct unit test of
 compaction_storage(): it checks that the returned specific storage is
 the elastic form beta_matrix + porosity * beta_water in both loading
@@ -35,6 +49,7 @@ import os
 import sys
 
 import numpy as np
+from scipy.integrate import quad
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -224,6 +239,147 @@ def test_gibson_undrained_limit():
 
     assert abs(slope / expected_slope - 1.0) < 0.01
     assert r_squared > 0.999
+
+
+def run_growing_column_gradual(n_layers, dz, dt, phi_o, permeability,
+                               viscosity, rho_grain, rho_f,
+                               compressibility_stress):
+    """
+    Simulate a sediment column that grows by depositing one node at the
+    surface every timestep dt, burying every previously deposited node by
+    one grid spacing dz. Unlike run_growing_column() above, this gives
+    every active node a constant, continuous loading rate as the column
+    grows, matching the assumption behind Gibson's (1958) equation. It is
+    needed for a finite-permeability transient benchmark, where the
+    loading history matters and run_growing_column()'s single, one-off
+    load applied at each node's own creation step is not a valid driver.
+
+    The elastic skeleton and pore water compressibilities are fixed at
+    zero, so that compaction_storage() returns a purely compaction-driven
+    storage term, ie. the single linear compressibility Gibson's theory
+    assumes. Leaving them at nonzero production-like values would instead
+    give an undrained loading efficiency below 1 (see
+    test_gibson_undrained_limit above), which departs from Gibson's
+    linear solution.
+
+    Returns the depth below the current surface and the excess pressure
+    of every node, in the same (arbitrary) order.
+    """
+    alpha_skeleton = 0.0
+    beta_water = 0.0
+
+    depths = np.array([0.0])
+    P_ex = np.array([0.0])
+    sigma_buoyant_prev = np.array([0.0])
+    sigma_eff_max_prev = np.array([0.0])
+
+    for _ in range(n_layers):
+
+        depths = np.concatenate(([0.0], depths + dz))
+        P_ex = np.concatenate(([0.0], P_ex))
+        sigma_buoyant_prev = np.concatenate(([0.0], sigma_buoyant_prev))
+        sigma_eff_max_prev = np.concatenate(([0.0], sigma_eff_max_prev))
+
+        phi = np.full_like(depths, phi_o)
+        rho_bulk = rho_grain * (1.0 - phi) + rho_f * phi
+
+        sigma_buoyant = pybasin_lib.cumulative_buoyant_stress(
+            depths, rho_bulk, rho_f)
+        loading_rate = (sigma_buoyant - sigma_buoyant_prev) / dt
+
+        sigma_eff = np.clip(sigma_buoyant - P_ex, 0.0, None)
+
+        storage_elastic, is_virgin = pybasin_lib.compaction_storage(
+            phi, sigma_eff, sigma_eff_max_prev, alpha_skeleton, beta_water)
+
+        c_sigma = np.full_like(phi, compressibility_stress)
+        dphi_dsigma_eff = np.where(is_virgin, -c_sigma * phi, 0.0)
+
+        Q = -dphi_dsigma_eff * loading_rate
+        storage = storage_elastic - dphi_dsigma_eff
+
+        K_hydraulic = np.full(len(depths) - 1, permeability / viscosity)
+
+        P_ex, _ = pybasin_lib.solve_1D_pore_pressure(
+            P_ex, depths, dt, K_hydraulic, storage, Q,
+            None, 0.0, 0.0, None)
+
+        sigma_buoyant_prev = sigma_buoyant
+        sigma_eff_post = np.clip(sigma_buoyant - P_ex, 0.0, None)
+        sigma_eff_max_prev = np.maximum(sigma_eff_post, sigma_eff_max_prev)
+
+    return depths, P_ex
+
+
+def gibson_excess_pressure(z, t, m, cv, gamma_prime, xi_limit_factor=40.0):
+    """
+    Gibson's (1958) exact excess pore pressure solution for a layer
+    growing at a constant rate m on an impervious base, with a pervious
+    top, at elevation z above the base and time t. Evaluated by numerical
+    quadrature over the free variable xi, using the image-source identity
+
+        exp(-z^2/4cvt) cosh(z xi/2cvt) exp(-xi^2/4cvt)
+            = 0.5 * [exp(-(z - xi)^2/4cvt) + exp(-(z + xi)^2/4cvt)]
+
+    which keeps the integrand bounded (the literal cosh term overflows
+    for large xi) and folds the leading exp(-z^2/4cvt) prefactor into the
+    integral.
+    """
+    xi_limit = (xi_limit_factor * np.sqrt(4.0 * cv * t)
+               + 20.0 * cv / m)
+
+    def integrand(xi):
+        tanh_term = np.tanh(m * xi / (2.0 * cv))
+        image_pair = 0.5 * (np.exp(-(z - xi) ** 2 / (4.0 * cv * t))
+                            + np.exp(-(z + xi) ** 2 / (4.0 * cv * t)))
+        return xi * tanh_term * image_pair
+
+    integral, _ = quad(integrand, 0.0, xi_limit, limit=400)
+    prefactor = gamma_prime * (np.pi * cv * t) ** -0.5
+
+    return gamma_prime * m * t - prefactor * integral
+
+
+def test_gibson_transient_solution():
+
+    n_layers = 60
+    total_depth = 1000.0
+    dz = total_depth / n_layers
+    total_time = 10.0e6 * YEAR
+    dt = total_time / n_layers
+    m = dz / dt
+    phi_o = 0.4
+    rho_grain = 2650.0
+    rho_f = 1000.0
+    compressibility_stress = 1.0e-3
+    viscosity = 1.0e-3
+
+    gamma_prime = (1.0 - phi_o) * (rho_grain - rho_f) * pybasin_lib.G_ACCEL
+    specific_storage = compressibility_stress * phi_o
+
+    # permeability chosen so the consolidation time factor cv * t / H^2
+    # is of order 1, ie. an intermediate regime where neither drainage
+    # nor storage dominates, unlike the zero-permeability limit used by
+    # test_gibson_undrained_limit above
+    time_factor = 1.0
+    cv = time_factor * total_depth ** 2 / total_time
+    permeability = cv * specific_storage * viscosity
+
+    depths, P_ex = run_growing_column_gradual(
+        n_layers, dz, dt, phi_o, permeability, viscosity,
+        rho_grain, rho_f, compressibility_stress)
+
+    # Gibson's z is elevation above the impervious base; depths is depth
+    # below the pervious surface, so z = total_depth - depth
+    z_gibson = total_depth - depths
+    P_ex_gibson = np.array([
+        gibson_excess_pressure(z, total_time, m, cv, gamma_prime)
+        for z in z_gibson])
+
+    max_error = np.max(np.abs(P_ex - P_ex_gibson))
+    max_relative_error = max_error / np.max(np.abs(P_ex_gibson))
+
+    assert max_relative_error < 0.03
 
 
 def test_compaction_storage_irreversibility():
