@@ -175,6 +175,33 @@ class TestCalculateReducedTrackLengths:
         assert np.allclose(rc_orig, rc_vec), (
             f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}")
 
+    def test_ketcham1999_identical_results(self):
+        """
+        Vectorized and scalar Ketcham (1999) free beta implementations
+        produce identical rc arrays, including a history hot enough to
+        fully anneal the earliest formed tracks.
+        """
+        dts, temperatures = make_thermal_history(n=80, seed=11)
+
+        rc_orig = AFTannealingLib.calculate_reduced_track_lengths_ketcham1999(
+            dts, temperatures)
+        rc_vec = AFTannealingLib.calculate_reduced_track_lengths_ketcham1999_vectorized(
+            dts, temperatures)
+
+        assert np.allclose(rc_orig, rc_vec), (
+            f"Max abs diff: {np.abs(rc_orig - rc_vec).max():.3e}")
+
+        dts_hot = np.full(40, 2.325e6 * 365.2422 * 24 * 3600)
+        temperatures_hot = np.linspace(190.1, 20.0, 40) + 273.15
+
+        rc_orig_hot = AFTannealingLib.calculate_reduced_track_lengths_ketcham1999(
+            dts_hot, temperatures_hot)
+        rc_vec_hot = AFTannealingLib.calculate_reduced_track_lengths_ketcham1999_vectorized(
+            dts_hot, temperatures_hot)
+
+        assert np.allclose(rc_orig_hot, rc_vec_hot), (
+            f"Max abs diff: {np.abs(rc_orig_hot - rc_vec_hot).max():.3e}")
+
 
 # ---------------------------------------------------------------------------
 # Test 2: simulate_AFT_annealing vs _vectorized
@@ -231,6 +258,29 @@ class TestSimulateAFTAnnealing:
         timesteps, T, kv = make_simulate_aft_inputs(n=60, seed=22)
         self._compare(timesteps, T, kv,
                       kinetic_parameter='Clwt', apply_c_axis_correction=True)
+
+    def test_fully_annealed_no_nan(self):
+        """
+        Regression test: a history hot enough to fully anneal the earliest
+        tracks (below the kinetic resistance threshold rmr0) used to return
+        NaN from the pure Python path (kinetic_modifier_reduced_lengths
+        raised a negative base to a fractional power). The compiled Fortran
+        path clips this case to zero, and the pure Python path should now
+        match it exactly.
+        """
+        timesteps = np.linspace(0.0, 93.0, 200)
+        T = np.linspace(190.1, 20.0, 200)
+
+        result_fortran = AFTannealingLib.simulate_AFT_annealing(
+            timesteps, T, 1.75, kinetic_parameter='Dpar',
+            use_fortran_algorithm=True)
+        result_python = AFTannealingLib.simulate_AFT_annealing(
+            timesteps, T, 1.75, kinetic_parameter='Dpar',
+            use_fortran_algorithm=False)
+
+        age_fortran, age_python = result_fortran[1], result_python[1]
+        assert not np.isnan(age_python)
+        assert np.isclose(age_fortran, age_python)
 
 
 # ---------------------------------------------------------------------------
