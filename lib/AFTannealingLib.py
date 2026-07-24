@@ -229,43 +229,86 @@ def get_initial_track_length(kinetic_parameter, kinetic_value,
                 initial_track_length = 16.187
             else:
                 initial_track_length = 15.936
-            
+
+    elif method == 'Ketcham2000':
+
+        # the Ketcham et al. (1999, 2000) model predates the c-axis
+        # projection technique introduced in Ketcham (2007),  so there is
+        # no separate uncorrected calibration,  the same formula is used
+        # regardless of apply_c_axis_correction
+
+        if kinetic_parameter == 'Dpar':
+            Dpar = kinetic_value
+            # value used in HeFTy for the Ketcham (1999) model
+            initial_track_length = 0.35 * Dpar + 15.72
+
+        # no kinetic model specific to Cl content or rmr0 is available
+        # for the Ketcham (1999, 2000) case,  the fixed intercept of the
+        # Dpar based formula above is reused here as an approximation
+        elif kinetic_parameter == 'Clwt':
+            initial_track_length = 15.72
+
+        elif kinetic_parameter == 'rmr0':
+            initial_track_length = 15.72
+
     return initial_track_length
 
 
 @jit(nopython=True)
-def calculate_kinetic_parameters(kinetic_parameter, kinetic_value):
-    
+def calculate_kinetic_parameters(kinetic_parameter, kinetic_value,
+                                 method='Ketcham2007'):
+
     """
-    set kinetic fission track annealling parameters
-    according to Ketcham (2007)
+    set kinetic fission track annealling parameters,  following either
+    Ketcham (2007) or Ketcham et al. (1999, 2000)
 
     input
     -----
-    
+
         kinetic_parameter        'Dpar' or 'Clwt'
         kinetic_value            value of kinetic parameter
-    
+        method                  'Ketcham2007' (default) or 'Ketcham2000'
+
     returns
     -------
         rmr0                    ...
         kappa                   ...
-        
+
     """
 
-    if kinetic_parameter == 'Clwt':
-        # convert Chloride weight percentage to apfu:
-        Cl_apfu = Cl_wt_fraction_to_APFU(kinetic_value)
-        Clx = np.abs(Cl_apfu - 1.0)
-        rmr0 = 0.83 * (((Clx - 0.13) / 0.87) ** 0.23)
+    if method == 'Ketcham2000':
 
-    # calculate kinetic parameters (Dpar in um,  Cl in apfu):
-    elif kinetic_parameter == 'Dpar':
-        Dpar = kinetic_value
-        rmr0 = 0.84 * (((4.58 - Dpar) / 2.98) ** 0.21)
-        
-    kappa = 1.04 - rmr0
-    
+        if kinetic_parameter == 'Dpar':
+            # Ketcham et al. (1999), eq. 9a
+            Dpar = kinetic_value
+            rmr0 = 1.0 - np.exp(0.647 * (Dpar - 1.75) - 1.834)
+
+        # no kinetic model specific to Cl content is available for
+        # the Ketcham (1999, 2000) case,  the Ketcham (2007) conversion
+        # is reused here as an approximation
+        elif kinetic_parameter == 'Clwt':
+            Cl_apfu = Cl_wt_fraction_to_APFU(kinetic_value)
+            Clx = np.abs(Cl_apfu - 1.0)
+            rmr0 = 0.83 * (((Clx - 0.13) / 0.87) ** 0.23)
+
+        # Ketcham et al. (1999), eq. 8:  kappa = 1 - rmr0
+        kappa = 1.0 - rmr0
+
+    else:
+
+        if kinetic_parameter == 'Clwt':
+            # convert Chloride weight percentage to apfu:
+            Cl_apfu = Cl_wt_fraction_to_APFU(kinetic_value)
+            Clx = np.abs(Cl_apfu - 1.0)
+            rmr0 = 0.83 * (((Clx - 0.13) / 0.87) ** 0.23)
+
+        # calculate kinetic parameters (Dpar in um,  Cl in apfu):
+        elif kinetic_parameter == 'Dpar':
+            Dpar = kinetic_value
+            rmr0 = 0.84 * (((4.58 - Dpar) / 2.98) ** 0.21)
+
+        kappa = 1.04 - rmr0
+
     return rmr0, kappa
 
 
@@ -406,7 +449,92 @@ def calculate_reduced_track_lengths(dts, temperatures,
         #rc[j] = (1.0 - ((g[-1] * alpha +1.0)**(1.0/alpha)) * beta) **(1.0/beta)
         
     #pdb.set_trace()
-        
+
+    return rc
+
+
+@jit(nopython=True)
+def calculate_reduced_track_lengths_ketcham1999(dts, temperatures,
+                                                alpha=-0.12327,
+                                                beta=-11.988,
+                                                C0=-19.844, C1=0.38951,
+                                                C2=-51.253, C3=-7.6423):
+
+    """
+    Ketcham et al. (1999) fanning curvilinear annealing model,  as
+    implemented in the AFTSolve program of Ketcham et al. (2000)
+
+    Unlike calculate_reduced_track_lengths,  which follows Ketcham et al.
+    (2007) with the equation shape parameter beta fixed at -1,  this
+    model keeps beta as a free,  separately fitted parameter. Because of
+    this,  the reduced length reached at the end of the previous timestep
+    has to be converted back through the general length transform g(r)
+    before it can be used to find the equivalent time at a new
+    temperature,  rather than carrying a single transformed value forward
+    as calculate_reduced_track_lengths does.
+
+    Two guards against invalid,  fractional powers of a negative number
+    are needed,  following Ketcham (1999, 2005) and matching the
+    behaviour of HeFTy: a track already annealed below a reduced length
+    of 0.0007 is treated as fully annealed and stays at a reduced length
+    of 0 for all following timesteps; a new reduced length is only
+    computed from the general formula while the intermediate term
+    (alpha * f + 1) stays at or above 0.00002,  otherwise the track is
+    also treated as fully annealed at the current timestep.
+
+    input parameters:
+        dts                     array of duration of each timestep (sec)
+        temperatures            array of temperature during each timestep (K)
+        alpha                   emperically fitted annealing parameter,
+                                see Ketcham et al. (1999) Am. Min.
+        beta                    annealing parameter,  see Ketcham et al. (1999)
+        C0 = -19.844            annealing parameter,  see Ketcham et al. (1999)
+        C1 = 0.38951            annealing parameter,  see Ketcham et al. (1999)
+        C2 = -51.253            annealing parameter,  see Ketcham et al. (1999)
+        C3 = -7.6423            annealing parameter,  see Ketcham et al. (1999)
+
+    returns:
+        rc                  modeled reduced c-axis projected track length
+    """
+
+    nsteps = len(dts)
+    rc = np.zeros(nsteps)
+
+    for j in range(nsteps):
+
+        r = 0.0
+
+        for ic in range(len(dts[j:])):
+
+            i = ic + j
+            dt = dts[i]
+            T = temperatures[i]
+
+            if i == j:
+                # track formed at this timestep,  no prior annealing state
+                dteq = 0.0
+            elif r < 0.0007:
+                # already fully annealed,  stays there permanently
+                r = 0.0
+                continue
+            else:
+                g_prev = (((1.0 - r ** beta) / beta) ** alpha - 1.0) / alpha
+                dteq = math.exp(((g_prev - C0) / C1 *
+                                 (math.log(1.0 / T) - C3)) + C2)
+
+            f = (C0 + C1 * ((math.log(dt + dteq) - C2) /
+                           (math.log(1.0 / T) - C3)))
+
+            inner_base = alpha * f + 1.0
+            if inner_base < 0.00002:
+                r = 0.0
+            else:
+                inner_root = inner_base ** (1.0 / alpha)
+                outer_base = 1.0 - beta * inner_root
+                r = outer_base ** (1.0 / beta)
+
+        rc[j] = r
+
     return rc
 
 
@@ -487,6 +615,93 @@ def calculate_reduced_track_lengths_vectorized(dts, temperatures,
     return rc
 
 
+def calculate_reduced_track_lengths_ketcham1999_vectorized(dts, temperatures,
+                                                            alpha=-0.12327,
+                                                            beta=-11.988,
+                                                            C0=-19.844, C1=0.38951,
+                                                            C2=-51.253, C3=-7.6423):
+    """
+    Vectorized equivalent of calculate_reduced_track_lengths_ketcham1999.
+
+    Produces numerically identical results to the scalar version by
+    processing all starting-track indices j simultaneously as a batch at
+    each inner timestep, rather than sequentially. Unlike
+    calculate_reduced_track_lengths_vectorized (the Ketcham 2007 case),
+    the reduced length r itself has to be carried forward and converted
+    back through the general length transform g(r) at every timestep,
+    since beta is a free parameter here rather than fixed at -1.
+
+    Parameters
+    ----------
+    dts : array_like
+        Duration of each timestep (seconds).
+    temperatures : array_like
+        Temperature during each timestep (Kelvin).
+    alpha, beta, C0, C1, C2, C3 : float
+        Ketcham et al. (1999) fanning curvilinear annealing parameters.
+
+    Returns
+    -------
+    rc : numpy array
+        Modeled reduced c-axis projected track length for each timestep.
+    """
+    nsteps = len(dts)
+
+    log_inv_T = np.log(1.0 / temperatures)
+
+    # r[j, i] = reduced length of track formed at step j, evaluated at step i
+    r = np.zeros((nsteps, nsteps))
+
+    for i in range(nsteps):
+
+        # tracks j = 0 .. i are active at this timestep
+        n_active = i + 1
+
+        if i == 0:
+            # first step: only the freshly formed track j=0 exists,
+            # no prior annealing state
+            dteq_active = np.zeros(1)
+        else:
+            r_prev = r[:i, i - 1]
+
+            # tracks already below the fully annealed threshold stay there
+            not_annealed = r_prev >= 0.0007
+
+            dteq_active = np.zeros(n_active)
+            g_prev = np.zeros(i)
+            g_prev[not_annealed] = (((1.0 - r_prev[not_annealed] ** beta) / beta)
+                                    ** alpha - 1.0) / alpha
+            dteq_active[:i][not_annealed] = np.exp(
+                ((g_prev[not_annealed] - C0) / C1 * (log_inv_T[i] - C3)) + C2)
+            # dteq_active[i] stays 0 (track formed at this timestep)
+            # dteq_active[:i][~not_annealed] stays 0 too, those tracks are
+            # forced back to a fully annealed state below regardless
+
+        f = C0 + C1 * ((np.log(dts[i] + dteq_active) - C2) / (log_inv_T[i] - C3))
+
+        inner_base = alpha * f + 1.0
+        fully_annealed_now = inner_base < 0.00002
+
+        inner_root = np.zeros(n_active)
+        inner_root[~fully_annealed_now] = (
+            inner_base[~fully_annealed_now] ** (1.0 / alpha))
+        outer_base = 1.0 - beta * inner_root
+
+        r_new = np.zeros(n_active)
+        r_new[~fully_annealed_now] = outer_base[~fully_annealed_now] ** (1.0 / beta)
+
+        if i > 0:
+            # tracks already fully annealed coming into this step stay at
+            # exactly zero, regardless of the computation above
+            r_new[:i][~not_annealed] = 0.0
+
+        r[:n_active, i] = r_new
+
+    rc = r[:, nsteps - 1]
+
+    return rc
+
+
 @jit(nopython=True)
 def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
 
@@ -502,7 +717,14 @@ def kinetic_modifier_reduced_lengths(rc, rmr0, kappa):
     rc_corrected        corrected reduced track length
     """
 
-    rc_mod = ((rc - rmr0) / (1.0-rmr0)) ** kappa
+    base = (rc - rmr0) / (1.0 - rmr0)
+
+    # tracks annealed below the kinetic resistance threshold rmr0 are
+    # fully annealed, clip to zero to avoid raising a negative base to
+    # a fractional power (kappa is not an integer in general)
+    base = np.where(base < 0.0, 0.0, base)
+
+    rc_mod = base ** kappa
 
     return rc_mod
 
@@ -592,19 +814,20 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
                            surpress_resampling=False,
                            use_fortran_algorithm=True,
                            annealing_eq='FC',
-                           alpha=0.04672,
-                           C0=0.39528,
-                           C1=0.01073,
-                           C2=-65.12969,
-                           C3=-7.91715,
+                           alpha=None,
+                           beta=None,
+                           C0=None,
+                           C1=None,
+                           C2=None,
+                           C3=None,
                            verbose=False):
-    
-    
+
+
     """
-    Forward modeling of apatite fission track ages and 
+    Forward modeling of apatite fission track ages and
     track length distributions
-    
-    based on algorithms published by Ketcham et al (2000) and
+
+    based on algorithms published by Ketcham et al (1999, 2000) and
     Ketcham (2005, 2007), see references below.
     
     Parameters
@@ -617,9 +840,23 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         value of the kinetic parameter, the kinetic parameter is
         defined by optional argument *kinetic_parameter, see below
     method='Ketcham2007':
-        'Ketcham2007' for Ketcham 2007 annealing algorithm 
-        (default in HeFTy), 'Ketcham2000' for Ketcham (2000)
-        algorithm (default in AFTsolve)
+        'Ketcham2007' for the Ketcham et al. (2007) fanning
+        curvilinear annealing algorithm (default in HeFTy), with the
+        equation shape parameter beta fixed at -1.
+        'Ketcham2000' for the Ketcham et al. (1999) fanning
+        curvilinear algorithm as implemented in the AFTSolve program
+        of Ketcham et al. (2000), with beta as a free, separately
+        fitted parameter. This option always uses the pure Python
+        annealing function, use_fortran_algorithm is ignored, since
+        no compiled Fortran implementation of this model exists.
+    alpha, beta, C0, C1, C2, C3 = None:
+        annealing model parameters, defaults depend on method: the
+        Ketcham (2007) values (alpha=0.04672, beta=-1, C0=0.39528,
+        C1=0.01073, C2=-65.12969, C3=-7.91715) for method='Ketcham2007',
+        or the Ketcham (1999) values (alpha=-0.12327, beta=-11.988,
+        C0=-19.844, C1=0.38951, C2=-51.253, C3=-7.6423) for
+        method='Ketcham2000'. Passing an explicit value overrides only
+        that parameter, the rest keep their method-specific default.
     kinetic_parameter='Clwt':
         parameter to use for calculation of initial track length
         and annealing kinetics.
@@ -627,6 +864,13 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         'Dpar': use the Dpar parameter as a measure of the
                 annealing properties of apatite
         'rmr0': use rmr0
+    apply_c_axis_correction=False:
+        option to use c-axis corrected initial track lengths and
+        length standard deviations for method='Ketcham2007'. Ignored
+        for method='Ketcham2000': that model's reduced length is
+        already c-axis projected, ages and mean lengths come out
+        identical regardless of this option, only the length standard
+        deviation formula still differs between True and False.
     initial_track_length = -99999:
         use this parameter to speicify an initial track length
         the default value of -99999 the initial track length is
@@ -679,12 +923,18 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     References
     ----------
     
-    Ketcham, R. A., R. A. Donelick, and M. B. Donelick. 2000. 
+    Ketcham, R. A., R. A. Donelick, and W. D. Carlson. 1999.
+        Variability of apatite fission-track annealing kinetics: III.
+        Extrapolation to geological time scales.
+        American Mineralogist 84, no. 9: 1235-1255.
+        doi:10.2138/am-1999-0903.
+
+    Ketcham, R. A., R. A. Donelick, and M. B. Donelick. 2000.
         AFTSolve: A program for multi-kinetic modeling of apatite fission-track data.
         Geological Materials Research 2, no. 1 (May): 1-32.
         http://ammin.geoscienceworld.org/cgi/content/abstract/88/5-6/929.
-        
-    Ketcham, Richard A. 2005. 
+
+    Ketcham, Richard A. 2005.
         Forward and Inverse Modeling of Low-Temperature Thermochronometry Data.
         Reviews in Mineralogy and Geochemistry 58, no. 1: 275314.
         doi:10.2138/rmg.2005.58.11.
@@ -697,13 +947,42 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
     """
 
     Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
-    
+
+    # fill in method specific annealing model defaults for any
+    # parameter the caller did not explicitly override
+    if method == 'Ketcham2000':
+        if alpha is None:
+            alpha = -0.12327
+        if beta is None:
+            beta = -11.988
+        if C0 is None:
+            C0 = -19.844
+        if C1 is None:
+            C1 = 0.38951
+        if C2 is None:
+            C2 = -51.253
+        if C3 is None:
+            C3 = -7.6423
+    else:
+        if alpha is None:
+            alpha = 0.04672
+        if beta is None:
+            beta = -1.0
+        if C0 is None:
+            C0 = 0.39528
+        if C1 is None:
+            C1 = 0.01073
+        if C2 is None:
+            C2 = -65.12969
+        if C3 is None:
+            C3 = -7.91715
+
     ####################################################################
     if verbose is True:
         logger.info('-' * 20)
         logger.info('T-t path:')
         logger.info('duration = %0.1f My; mean,  min,  max T = %.0f, %.0f, %.0f' % (timesteps.max(), temperature_input.mean(), temperature_input.min(), temperature_input.max()))
-    
+
     # convert temperature units from degr. C to Kelvin:
     temperature = temperature_input + 273.15
 
@@ -752,16 +1031,21 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         logger.info('taking midpoint values of temperature input array')
     temperature = (temperature[1:] + temperature[:-1]) / 2.0
     
+    # kappa fallback constant is model specific: 1.0 - rmr0 for the
+    # Ketcham (1999, 2000) model,  1.04 - rmr0 for Ketcham (2007)
+    kappa_offset = 1.0 if method == 'Ketcham2000' else 1.04
+
     # get annealing kinetics:
     if kinetic_parameter != 'rmr0':
         rmr0, kappa = \
-            calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
+            calculate_kinetic_parameters(kinetic_parameter, kinetic_value,
+                                         method=method)
     else:
         if verbose is True:
             logger.info('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         if kappa is None:
-            kappa = 1.04 - rmr0
+            kappa = kappa_offset - rmr0
 
     if verbose is True:
         logger.info('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
@@ -771,14 +1055,35 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
         logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
         logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
-        kappa = 1.04 - rmr0
+        kappa = kappa_offset - rmr0
     elif rmr0 > rmr0_max:
         logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
         logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
-        kappa = 1.04 - rmr0
-        
-    if use_fortran_algorithm is True:
+        kappa = kappa_offset - rmr0
+
+    if method == 'Ketcham2000':
+
+        # no compiled Fortran implementation of the free beta,
+        # Ketcham (1999, 2000) model exists, use_fortran_algorithm is
+        # ignored and the pure Python function is always used
+        if verbose is True:
+            logger.info('method=Ketcham2000: using pure Python annealing '
+                       'function, use_fortran_algorithm is ignored')
+        r_cmod = calculate_reduced_track_lengths_ketcham1999(
+            dts, temperature, alpha=alpha, beta=beta,
+            C0=C0, C1=C1, C2=C2, C3=C3)
+        rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+
+        # unlike the Ketcham (2007) model, the Ketcham (1999, 2000)
+        # reduced length as calibrated here is already the c-axis
+        # projected quantity, caxis_project_reduced_lengths is not
+        # applied
+        rcp[rcp < 0] = 0.0
+        rm = rcp
+        rc = rcp
+
+    elif use_fortran_algorithm is True:
 
         # fortran module for reduced track lengths:
         # call fortran module to calculate reduced fission track lengths
@@ -982,11 +1287,12 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
                                       surpress_resampling=False,
                                       use_fortran_algorithm=True,
                                       annealing_eq='FC',
-                                      alpha=0.04672,
-                                      C0=0.39528,
-                                      C1=0.01073,
-                                      C2=-65.12969,
-                                      C3=-7.91715,
+                                      alpha=None,
+                                      beta=None,
+                                      C0=None,
+                                      C1=None,
+                                      C2=None,
+                                      C3=None,
                                       verbose=False):
     """
     Vectorized equivalent of simulate_AFT_annealing.
@@ -1008,6 +1314,35 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
     """
 
     Myr = (1.0e6 * 365.0 * 24.0 * 60.0 * 60.0)
+
+    # fill in method specific annealing model defaults for any
+    # parameter the caller did not explicitly override
+    if method == 'Ketcham2000':
+        if alpha is None:
+            alpha = -0.12327
+        if beta is None:
+            beta = -11.988
+        if C0 is None:
+            C0 = -19.844
+        if C1 is None:
+            C1 = 0.38951
+        if C2 is None:
+            C2 = -51.253
+        if C3 is None:
+            C3 = -7.6423
+    else:
+        if alpha is None:
+            alpha = 0.04672
+        if beta is None:
+            beta = -1.0
+        if C0 is None:
+            C0 = 0.39528
+        if C1 is None:
+            C1 = 0.01073
+        if C2 is None:
+            C2 = -65.12969
+        if C3 is None:
+            C3 = -7.91715
 
     if verbose is True:
         logger.info('-' * 20)
@@ -1053,16 +1388,21 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
         logger.info('taking midpoint values of temperature input array')
     temperature = (temperature[1:] + temperature[:-1]) / 2.0
 
+    # kappa fallback constant is model specific: 1.0 - rmr0 for the
+    # Ketcham (1999, 2000) model,  1.04 - rmr0 for Ketcham (2007)
+    kappa_offset = 1.0 if method == 'Ketcham2000' else 1.04
+
     # get annealing kinetics:
     if kinetic_parameter != 'rmr0':
         rmr0, kappa = \
-            calculate_kinetic_parameters(kinetic_parameter, kinetic_value)
+            calculate_kinetic_parameters(kinetic_parameter, kinetic_value,
+                                         method=method)
     else:
         if verbose is True:
             logger.info('using rmr0 as kinetic parameter')
         rmr0 = kinetic_value
         if kappa is None:
-            kappa = 1.04 - rmr0
+            kappa = kappa_offset - rmr0
 
     if verbose is True:
         logger.info('rmr0 = %0.3f, kappa = %0.3f' % (rmr0, kappa))
@@ -1072,14 +1412,35 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
         logger.info('!! %s = %0.3f' % (kinetic_parameter, kinetic_value))
         logger.info('!! setting rmr0 to %0.3f' % rmr0_min)
         rmr0 = rmr0_min
-        kappa = 1.04 - rmr0
+        kappa = kappa_offset - rmr0
     elif rmr0 > rmr0_max:
         logger.warning('!! warning, rmr0 value exceeds most resistant apatite in Carlson (1999) dataset')
         logger.info('!! adjusting rmr0 from %0.3f to %0.3f' % (rmr0, rmr0_max))
         rmr0 = rmr0_max
-        kappa = 1.04 - rmr0
+        kappa = kappa_offset - rmr0
 
-    if use_fortran_algorithm is True:
+    if method == 'Ketcham2000':
+
+        # no compiled Fortran implementation of the free beta,
+        # Ketcham (1999, 2000) model exists, use_fortran_algorithm is
+        # ignored and the vectorized pure Python function is always used
+        if verbose is True:
+            logger.info('method=Ketcham2000: using vectorized pure Python '
+                       'annealing function, use_fortran_algorithm is ignored')
+        r_cmod = calculate_reduced_track_lengths_ketcham1999_vectorized(
+            dts, temperature, alpha=alpha, beta=beta,
+            C0=C0, C1=C1, C2=C2, C3=C3)
+        rcp = kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+
+        # unlike the Ketcham (2007) model, the Ketcham (1999, 2000)
+        # reduced length as calibrated here is already the c-axis
+        # projected quantity, caxis_project_reduced_lengths is not
+        # applied
+        rcp[rcp < 0] = 0.0
+        rm = rcp
+        rc = rcp
+
+    elif use_fortran_algorithm is True:
         if annealing_eq == 'FA':
             annealing_eq_f90 = 1
         elif annealing_eq == 'FC':
