@@ -483,6 +483,77 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
     return D_final
 
 
+def farley1996_alpha_correction(radius, U, Th,
+                                stopping_distance_238U=18.81e-6,
+                                stopping_distance_235U=21.80e-6,
+                                stopping_distance_232Th=22.25e-6,
+                                decay_constant_238U=4.916e-18,
+                                decay_constant_232Th=1.57e-18,
+                                decay_constant_235U=3.12e-17):
+
+    """
+    alpha ejection correction factor (FT) of Farley et al. (1996), for a
+    spherical grain with uniformly distributed U and Th
+
+    follows eqs. 27-30 of Ketcham (2005), which reduce to the closed
+    form fraction retained of Farley et al. (1996) for a sphere when
+    production is spatially uniform:
+
+    FT = 1 - (3 S) / (4 R) + S^3 / (16 R^3)
+
+    evaluated separately for the stopping distance S of each parent
+    isotope, then combined as a weighted average using the same
+    per-isotope production weights (8/7/6 alpha particles per decay,
+    times decay constant, times isotope abundance) as the age equation
+    in Ketcham (2005), eq. 17
+
+    a raw, ejection affected age (eg. calculate_he_age_meesters_dunai_2002
+    with alpha_ejection=True) divided by this factor gives the
+    alpha corrected age reported by Farley et al. (1996) and, following
+    them, by HeFTy and Ketcham (2005) Figure 10
+
+    default stopping distances are the Ketcham et al. (2011) values for
+    apatite, in metres
+
+    Parameters:
+    -----------
+    radius : float
+        grain radius (m)
+    U : float
+        uranium concentration (weight fraction)
+    Th : float
+        thorium concentration (weight fraction)
+    stopping_distance_238U, stopping_distance_235U, stopping_distance_232Th : float
+        alpha stopping distances for each parent isotope (m)
+    decay_constant_238U, decay_constant_232Th, decay_constant_235U : float
+        decay constants (1/sec)
+
+    Returns:
+    --------
+    FT : float
+        alpha ejection correction factor, 0 < FT <= 1
+    """
+
+    U238 = (137.88 / 138.88) * U
+    U235 = (1.0 / 138.88) * U
+    Th232 = Th
+
+    def fraction_retained_sphere(stopping_distance):
+        return (1.0 - (3.0 * stopping_distance) / (4.0 * radius)
+               + (stopping_distance ** 3) / (16.0 * radius ** 3))
+
+    weight_238U = 8.0 * U238 * decay_constant_238U
+    weight_235U = 7.0 * U235 * decay_constant_235U
+    weight_232Th = 6.0 * Th232 * decay_constant_232Th
+
+    FT = ((weight_238U * fraction_retained_sphere(stopping_distance_238U)
+          + weight_235U * fraction_retained_sphere(stopping_distance_235U)
+          + weight_232Th * fraction_retained_sphere(stopping_distance_232Th))
+          / (weight_238U + weight_235U + weight_232Th))
+
+    return FT
+
+
 #@jit(nopython=True)
 def calculate_he_age_meesters_dunai_2002(t, T, radius, U, Th,
                                          D0_div_a2=np.exp(13.4),
