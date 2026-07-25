@@ -384,16 +384,29 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
         # (Ketcham et al., 2007), matching the pure-python branch below
         # and the fanning curvilinear model RDAAM is calibrated against
         annealing_eq_f90 = 2
-        rcf = calculate_reduced_AFT_lengths.reduced_ln(
-            dts, temperature_midpoint, rmr0, kappa, annealing_eq_f90,
-            alpha, C0, C1, C2, C3, nsteps)
-        rmf = AFT.caxis_project_reduced_lengths(rcf)
 
-        # correct 0 length tracks:
-        rmf[rmf < 0] = 0.0
+        try:
+            rcf = calculate_reduced_AFT_lengths.reduced_ln(
+                dts, temperature_midpoint, rmr0, kappa, annealing_eq_f90,
+                alpha, C0, C1, C2, C3, nsteps)
+            rmf = AFT.caxis_project_reduced_lengths(rcf)
 
-        rm = rmf
-        rc = rcf
+            # correct 0 length tracks:
+            rmf[rmf < 0] = 0.0
+
+            rm = rmf
+            rc = rcf
+
+        except NameError:
+            logger.info('fortran annealing module not found, use python '
+                       'reduced track length function instead')
+            r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature_midpoint,
+                                                         C0=C0, C1=C1, C2=C2, C3=C3,
+                                                         alpha=alpha)
+            rcp = AFT.kinetic_modifier_reduced_lengths(r_cmod, rmr0, kappa)
+            rmp = AFT.caxis_project_reduced_lengths(rcp)
+            rm = rmp
+            rc = rcp
 
     else:
         logger.info('use python reduced track ln function:')
