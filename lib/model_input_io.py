@@ -86,6 +86,51 @@ def read_model_input_data(input_dir, pybasin_params):
     # well stratigraphy
     well_strats = pd.read_csv(os.path.join(input_dir, 'well_stratigraphy.csv'), skip_blank_lines=True)
 
+    # sanity check: none of the exhumation phases defined in pybasin_params.py
+    # should overlap with the depositional age of a stratigraphic unit that
+    # is present in a well but not itself listed as (partly) eroded during
+    # that phase. such an overlap means the model would be asked to erode
+    # material while, according to the same input files, deposition of
+    # another unit was still ongoing at that well at the same time, which
+    # otherwise only surfaces later as a confusing error deep inside the
+    # burial history calculation
+    exhumation_period_starts = getattr(pybasin_params, 'exhumation_period_starts', [])
+    exhumation_period_ends = getattr(pybasin_params, 'exhumation_period_ends', [])
+    exhumed_strat_units = getattr(pybasin_params, 'exhumed_strat_units', [])
+
+    for i, (exh_start, exh_end) in enumerate(
+            zip(exhumation_period_starts, exhumation_period_ends)):
+
+        if exh_start <= exh_end:
+            msg = ("error in exhumation_period_starts / exhumation_period_ends "
+                  "in pybasin_params.py: exhumation phase %i has a start age "
+                  "(%s Ma) that is not older than its end age (%s Ma)"
+                  % (i + 1, exh_start, exh_end))
+            raise ValueError(msg)
+
+        eroded_units = exhumed_strat_units[i] if i < len(exhumed_strat_units) else []
+
+        for well, well_strat_i in well_strats.groupby('well'):
+            overlapping_units = [
+                unit for unit in well_strat_i['strat_unit']
+                if unit not in eroded_units and unit in strat_info.index
+                and strat_info.loc[unit, 'age_top'] < exh_start
+                and strat_info.loc[unit, 'age_bottom'] > exh_end]
+
+            if overlapping_units:
+                msg = ("error in stratigraphy_info.csv / well_stratigraphy.csv / "
+                      "pybasin_params.py: exhumation phase %i (%s - %s Ma) "
+                      "overlaps with the depositional age of stratigraphic "
+                      "unit(s) %s in well %s. These units are not listed as "
+                      "(partly) eroded during this phase in "
+                      "exhumed_strat_units, so the model would need to erode "
+                      "and deposit material at the same time. Either correct "
+                      "exhumation_period_starts / exhumation_period_ends in "
+                      "pybasin_params.py, or add the affected unit(s) to "
+                      "exhumed_strat_units for this phase."
+                      % (i + 1, exh_start, exh_end, overlapping_units, well))
+                raise ValueError(msg)
+
     # surface temperature history
     surface_temp = pd.read_csv(os.path.join(input_dir, 'surface_temperature.csv'), skip_blank_lines=True)
 
