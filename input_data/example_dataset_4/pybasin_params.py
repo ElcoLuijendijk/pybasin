@@ -18,6 +18,8 @@ class ModelParameters:
     output_dir = 'model_output/example_dataset_4'
 
     # names of wells or surface outcrops to include in a single set of model runs
+    # set wells = "all" or wells = ["all"] to run every well found in
+    # well_stratigraphy.csv instead of listing them individually
     # note: NPD well name is 2/1-3, renamed to 2_1-3 here because pybasin uses
     # the well name directly in output filenames and "/" is not a valid
     # filename character

@@ -1150,6 +1150,15 @@ def main():
     else:
         wells = Parameters.wells
 
+    # allow wells = "all" or wells = ["all"] (in pybasin_params.py, or via -w)
+    # to run every well found in well_stratigraphy.csv
+    if isinstance(wells, str):
+        wells = [wells]
+
+    if len(wells) == 1 and wells[0].lower() == 'all':
+        wells = well_strats['well'].unique().tolist()
+        logger.info(f"wells set to 'all', found {len(wells)} wells in well_stratigraphy.csv")
+
     logger.info(f"running the following wells:  {wells}")
 
     n_scenarios = len(wells) * len(model_scenario_param_list)

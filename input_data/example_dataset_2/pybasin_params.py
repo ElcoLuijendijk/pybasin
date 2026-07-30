@@ -17,6 +17,8 @@ class ModelParameters:
     output_dir = 'model_output/example_dataset_2'
  
     # list of wells to include in model runs
+    # set wells = "all" or wells = ["all"] to run every well found in
+    # well_stratigraphy.csv instead of listing them individually
     wells = ['E40']
 
     # option to calculate apatite fission track data
