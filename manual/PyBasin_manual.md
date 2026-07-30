@@ -127,7 +127,9 @@ There are two options for running multiple model runs. The default is a sensitiv
 
 ## Using multiple processors
 
-PyBasin includes an option to distribute model runs over multiple processors. To enable parallel processing, change parameter ``parallel_model_runs = False`` to ``parallel_model_runs = True`` in the ``ParameterRanges`` class in the ``pybasin_params.py`` file. You can specify how many processes you want to use simultaneously using the parameter ``max_number_of_processes``. PyBasin will generate one process for each individual model run. Using multiple processes can signficantly speed up multiple model runs. Note that by default if multiple processes is enabled the extensive screen output that is generated during model runs is redirected to a log file that is saved in a subdirectory of the model output directory. 
+PyBasin includes an option to distribute model runs over multiple processors. To enable parallel processing, change parameter ``parallel_model_runs = False`` to ``parallel_model_runs = True`` in the ``ParameterRanges`` class in the ``pybasin_params.py`` file. You can specify how many processes you want to use simultaneously using the parameter ``max_number_of_processes``. PyBasin will generate one process for each individual model run. Using multiple processes can signficantly speed up multiple model runs. Note that by default if multiple processes is enabled the extensive screen output that is generated during model runs is redirected to a log file that is saved in a subdirectory of the model output directory.
+
+PyBasin automatically checks how many processors are available on the machine it is running on. If ``max_number_of_processes`` is set higher than the number of available processors, PyBasin will show a warning and limit the number of simultaneous processes to the number of available processors instead.
 
 
 # Model output
