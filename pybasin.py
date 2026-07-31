@@ -1329,7 +1329,8 @@ def main():
                     csv_output_dir,
                     output_dir,
                     log_screen_output,
-                    pressure_data=pressure_data)
+                    pressure_data=pressure_data,
+                    save_burial_csv_files=Parameters.save_model_run_data)
 
                 well_number_store, well_store, model_scenario_number_store = well_number, well, model_scenario_number
 
@@ -1365,6 +1366,7 @@ def main():
                                       output_dir,
                                       log_screen_output),
                                      {'pressure_data': pressure_data,
+                                      'save_burial_csv_files': Parameters.save_model_run_data,
                                       'show_progress': False})
 
                 processes.append(p)
