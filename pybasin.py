@@ -1110,8 +1110,12 @@ def main():
         os.makedirs(output_dir)
 
     # pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
-    if (Parameters.save_model_run_data is True
-            and os.path.exists(datafile_output_dir) is False):
+    # the datafile output dir is used for the pickled model run data
+    # (only if save_model_run_data is True), but also for the burial
+    # history csv files and the tT path log files, which are saved
+    # regardless of save_model_run_data. Always create it so those
+    # writes do not fail with a missing directory error.
+    if os.path.exists(datafile_output_dir) is False:
         logger.info('creating directory %s to store model result datafiles' % datafile_output_dir)
         os.makedirs(datafile_output_dir)
 
