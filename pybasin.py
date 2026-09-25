@@ -1110,8 +1110,12 @@ def main():
         os.makedirs(output_dir)
 
     # pck_output_dir = os.path.join(output_dir, 'model_run_data_files')
-    if (Parameters.save_model_run_data is True
-            and os.path.exists(datafile_output_dir) is False):
+    # the datafile output dir is used for the pickled model run data
+    # (only if save_model_run_data is True), but also for the burial
+    # history csv files and the tT path log files, which are saved
+    # regardless of save_model_run_data. Always create it so those
+    # writes do not fail with a missing directory error.
+    if os.path.exists(datafile_output_dir) is False:
         logger.info('creating directory %s to store model result datafiles' % datafile_output_dir)
         os.makedirs(datafile_output_dir)
 
@@ -1150,6 +1154,15 @@ def main():
     else:
         wells = Parameters.wells
 
+    # allow wells = "all" or wells = ["all"] (in pybasin_params.py, or via -w)
+    # to run every well found in well_stratigraphy.csv
+    if isinstance(wells, str):
+        wells = [wells]
+
+    if len(wells) == 1 and wells[0].lower() == 'all':
+        wells = well_strats['well'].unique().tolist()
+        logger.info(f"wells set to 'all', found {len(wells)} wells in well_stratigraphy.csv")
+
     logger.info(f"running the following wells:  {wells}")
 
     n_scenarios = len(wells) * len(model_scenario_param_list)
@@ -1178,8 +1191,22 @@ def main():
     model_scenario_number = 0
 
     if ParameterRanges.parallel_model_runs is True:
-        pool = Pool(processes=ParameterRanges.max_number_of_processes)
-        logger.info('initialized parallel model runs with max %i simultaneous processes' % ParameterRanges.max_number_of_processes)
+
+        # check the number of processors available on this machine, and cap
+        # max_number_of_processes to that number if it is set too high in
+        # pybasin_params.py / ParameterRanges
+        n_cpu_available = os.cpu_count()
+        n_processes = ParameterRanges.max_number_of_processes
+
+        if n_cpu_available is not None and n_processes > n_cpu_available:
+            logger.warning('max_number_of_processes (%i) is higher than the number '
+                          'of processors available on this machine (%i), '
+                          'limiting the number of simultaneous processes to %i'
+                          % (n_processes, n_cpu_available, n_cpu_available))
+            n_processes = n_cpu_available
+
+        pool = Pool(processes=n_processes)
+        logger.info('initialized parallel model runs with max %i simultaneous processes' % n_processes)
 
         processes = []
         done_processing = []
@@ -1302,7 +1329,8 @@ def main():
                     csv_output_dir,
                     output_dir,
                     log_screen_output,
-                    pressure_data=pressure_data)
+                    pressure_data=pressure_data,
+                    save_burial_csv_files=Parameters.save_model_run_data)
 
                 well_number_store, well_store, model_scenario_number_store = well_number, well, model_scenario_number
 
@@ -1338,6 +1366,7 @@ def main():
                                       output_dir,
                                       log_screen_output),
                                      {'pressure_data': pressure_data,
+                                      'save_burial_csv_files': Parameters.save_model_run_data,
                                       'show_progress': False})
 
                 processes.append(p)
@@ -1728,7 +1757,7 @@ def main():
                     # n_open_processes = len(processes) - np.sum(np.array([p.ready() for p in processes]))
                     n_open_processes = len(processes) - np.sum(done_processing)
                     last_model_scenario = model_scenario_number >= (n_scenarios - 1)
-                    if n_open_processes >= ParameterRanges.max_number_of_processes or last_model_scenario is True:
+                    if n_open_processes >= n_processes or last_model_scenario is True:
                         keep_on_processing = True
                     else:
                         keep_on_processing = False

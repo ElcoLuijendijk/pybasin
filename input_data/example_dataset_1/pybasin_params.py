@@ -18,6 +18,8 @@ class ModelParameters:
     output_dir = 'model_output/example_dataset_1'
     
     # names of wells or surface outcrops to include in a single set of model runs:
+    # set wells = "all" or wells = ["all"] to run every well found in
+    # well_stratigraphy.csv instead of listing them individually
     wells = ['NDW-01']
 
     # option to calculate apatite fission track data

@@ -398,8 +398,9 @@ def calculate_RDAAM_diffusivity(temperature, time, U238, U235, Th232, radius,
             rc = rcf
 
         except NameError:
-            logger.info('fortran annealing module not found, use python '
-                       'reduced track length function instead')
+            AFT._warn_fortran_fallback_once(
+                'fortran annealing module not found, using python reduced '
+                'track length function instead')
             r_cmod = AFT.calculate_reduced_track_lengths(dts, temperature_midpoint,
                                                          C0=C0, C1=C1, C2=C2, C3=C3,
                                                          alpha=alpha)

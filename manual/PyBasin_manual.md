@@ -64,7 +64,7 @@ The command for running pybasin models is:
 python pybasin.py input_directory -w well1,well2,well3
 ````
 
-``input_directory`` is the directory that contains all input files. For one of the example datasets this should be ``example_dataset_1`` or ``example_dataset_2``. With the optional command line option -w you can specify which wells to run. This can either be a single well or a list of wells separated by a comma. If you do not specify an input directory, PyBasin will use the default input directory defined in the file ``default_input_folder.txt``. If you do not specify which well to run at the command line PyBasin will look for a list of wells in the file ``pybasin_params.py`` in your input directory.
+``input_directory`` is the directory that contains all input files. For one of the example datasets this should be ``example_dataset_1`` or ``example_dataset_2``. With the optional command line option -w you can specify which wells to run. This can either be a single well or a list of wells separated by a comma, or ``all`` to run every well found in ``well_stratigraphy.csv``. If you do not specify an input directory, PyBasin will use the default input directory defined in the file ``default_input_folder.txt``. If you do not specify which well to run at the command line PyBasin will look for a list of wells in the file ``pybasin_params.py`` in your input directory.
 
 
 # Model input 
@@ -127,7 +127,9 @@ There are two options for running multiple model runs. The default is a sensitiv
 
 ## Using multiple processors
 
-PyBasin includes an option to distribute model runs over multiple processors. To enable parallel processing, change parameter ``parallel_model_runs = False`` to ``parallel_model_runs = True`` in the ``ParameterRanges`` class in the ``pybasin_params.py`` file. You can specify how many processes you want to use simultaneously using the parameter ``max_number_of_processes``. PyBasin will generate one process for each individual model run. Using multiple processes can signficantly speed up multiple model runs. Note that by default if multiple processes is enabled the extensive screen output that is generated during model runs is redirected to a log file that is saved in a subdirectory of the model output directory. 
+PyBasin includes an option to distribute model runs over multiple processors. To enable parallel processing, change parameter ``parallel_model_runs = False`` to ``parallel_model_runs = True`` in the ``ParameterRanges`` class in the ``pybasin_params.py`` file. You can specify how many processes you want to use simultaneously using the parameter ``max_number_of_processes``. PyBasin will generate one process for each individual model run. Using multiple processes can signficantly speed up multiple model runs. Note that by default if multiple processes is enabled the extensive screen output that is generated during model runs is redirected to a log file that is saved in a subdirectory of the model output directory.
+
+PyBasin automatically checks how many processors are available on the machine it is running on. If ``max_number_of_processes`` is set higher than the number of available processors, PyBasin will show a warning and limit the number of simultaneous processes to the number of available processors instead.
 
 
 # Model output
@@ -379,7 +381,7 @@ The parameters can be several python data types:
 
 * ``output_dir`` = *string*. Directory to save the model results to.
 * ``datafile_output_dir``  = *string*. Directory to save the detailed model output datafiles to, ie. a series of csv files that contain the burial and temperature history of each model node.
-* ``wells`` = *list of strings*. Names of wells or surface outcrops to include in a single set of model runs.
+* ``wells`` = *list of strings*. Names of wells or surface outcrops to include in a single set of model runs. Set ``wells = "all"`` or ``wells = ["all"]`` to run every well found in ``well_stratigraphy.csv`` instead of listing them individually.
 * ``simulate_AFT`` = *boolean*. Option to model apatite fission track ages and length distributions.
 * ``simulate_AHe`` = *boolean*. Option to model apatite (U-Th)/He ages.
 * ``simulate_VR`` = *boolean*. Option to model vitrinite reflectance.

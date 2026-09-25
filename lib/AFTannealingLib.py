@@ -21,6 +21,20 @@ from numba import jit
 
 logger = logging.getLogger(__name__)
 
+_fortran_fallback_warned = False
+
+
+def _warn_fortran_fallback_once(message: str) -> None:
+    """Log the fortran-to-python fallback message only once per run.
+
+    Args:
+        message: Message to log the first time this is called.
+    """
+    global _fortran_fallback_warned
+    if _fortran_fallback_warned is False:
+        logger.info(message)
+        _fortran_fallback_warned = True
+
 
 # import fortran module
 try:
@@ -1360,8 +1374,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             rc = rcf
 
         except NameError:
-            if verbose is True:
-                logger.info('use python reduced track length function instead of fortran')
+            _warn_fortran_fallback_once(
+                'fortran annealing module not found, using python reduced '
+                'track length function instead')
             r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                      C0=C0, C1=C1, C2=C2, C3=C3,
                                                      alpha=alpha)
@@ -1373,8 +1388,9 @@ def simulate_AFT_annealing(timesteps, temperature_input, kinetic_value,
             rc = rcp
 
     else:
-        if verbose is True:
-            logger.info('use python reduced track length function instead of fortran')
+        _warn_fortran_fallback_once(
+            'fortran annealing module not found, using python reduced '
+            'track length function instead')
         # python reduced track length function:
         r_cmod = calculate_reduced_track_lengths(dts, temperature,
                                                  C0=C0, C1=C1, C2=C2, C3=C3,
@@ -1741,8 +1757,9 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
             rc = rcf
 
         except NameError:
-            if verbose is True:
-                logger.info('use vectorized python reduced track length function')
+            _warn_fortran_fallback_once(
+                'fortran annealing module not found, using vectorized '
+                'python reduced track length function instead')
             # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
             r_cmod = calculate_reduced_track_lengths_vectorized(
                 dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
@@ -1753,8 +1770,9 @@ def simulate_AFT_annealing_vectorized(timesteps, temperature_input, kinetic_valu
             rc = rcp
 
     else:
-        if verbose is True:
-            logger.info('use vectorized python reduced track length function')
+        _warn_fortran_fallback_once(
+            'fortran annealing module not found, using vectorized python '
+            'reduced track length function instead')
         # --- Item 1: use vectorized fallback instead of scalar O(n²) loop ---
         r_cmod = calculate_reduced_track_lengths_vectorized(
             dts, temperature, C0=C0, C1=C1, C2=C2, C3=C3, alpha=alpha)
