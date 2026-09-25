@@ -144,7 +144,7 @@ class ModelParameters:
     heatflow_history = np.array([65.0, 65.0, 100.0, 100.0]) * 1e-3
 
     # max size of heatflow timestep (in yrs)
-    max_hf_timestep = 10000.0
+    max_hf_timestep = 2000.0
 
     ##########################################
     # lithosphere scale heat flow parameters
