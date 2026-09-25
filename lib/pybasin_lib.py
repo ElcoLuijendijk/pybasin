@@ -3673,6 +3673,11 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
         time_all += nt_heatflow * dt_hf
         timestep += nt_heatflow
 
+    # length of each heat flow timestep (yr). this varies slightly between
+    # stratigraphic intervals, since each interval is divided into a whole
+    # number of timesteps
+    dt_hf_array = np.repeat(dt_hfs, nt_heatflows)
+
     # calculate time in yr bp
     time_array_bp = time_array.max() - time_array
 
@@ -3852,6 +3857,8 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                          disable=None if show_progress else True)
 
     for timestep in timestep_pbar:
+
+        dt_hf = dt_hf_array[timestep]
 
         active_cells_i = active_cells[timestep]
         active_nodes_i = active_nodes[timestep]

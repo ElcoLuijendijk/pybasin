@@ -225,15 +225,15 @@ def _run_single_scenario(dataset_name):
 REFERENCE_METRICS = {
     "example_dataset_1": {
         "T_gof": 1.0,
-        "vr_mae": 0.09553769192011514,
-        "aft_age_error": 103.35923645636582,
+        "vr_mae": 0.0955423516090059,
+        "aft_age_error": 103.36044815355692,
         "he_age_error": np.nan,
     },
     "example_dataset_2": {
         "T_gof": np.nan,
         "vr_mae": np.nan,
         "aft_age_error": np.nan,
-        "he_age_error": 6.85405497468589,
+        "he_age_error": 6.854073546327678,
     },
 }
 
