@@ -656,14 +656,22 @@ def model_vs_data_figure(model_run_data,
                      "edgecolor": 'black',
                      "zorder": 10}
 
+    # error bars and marker edges are dark gray instead of black, to keep
+    # the observed data distinct from the black modeled lines. note that
+    # dimgray is darker than the matplotlib color named darkgray
     erb_props = {"marker": "o",
                  "ms": 4,
                  "linestyle": "None",
-                 "color": 'black',
-                 "mec": 'black',
+                 "color": 'dimgray',
+                 "mec": 'dimgray',
                  "mfc": 'gray',
                  "lw": 0.75,
                  "zorder": 10}
+
+    # colors and markers used for continuous temperature logs, chosen to
+    # stand out from the black line used for the modeled temperatures
+    log_colors = ['tab:blue', 'tab:orange', 'tab:purple']
+    log_markers = ['s', 'v', 'D']
 
     textprops = {"fontsize": 'small',
                  'ha': 'center',
@@ -977,18 +985,53 @@ def model_vs_data_figure(model_run_data,
                 ax_strat.text(0.03, z_pos, strat_name, fontsize=strat_fontsize)
 
     if show_temp_panel and T_data is not None and len(T_data) > 0:
-        ind = T_data_type == 'BHT'
-        nind = T_data_type != 'BHT'
+        data_types = np.array([str(dt) for dt in T_data_type])
 
-        ind = ind.values
-        nind = nind.values
+        # continuous logs, ie any data type mentioning log, are shown as a
+        # line, all other temperature data as symbols with error bars
+        log_ind = np.array(['log' in dt.lower() for dt in data_types])
+        bht_ind = data_types == 'BHT'
+        other_ind = np.invert(bht_ind) & np.invert(log_ind)
 
-        if 'BHT' in T_data_type.values:
-            xerr = np.array([np.zeros_like(T_obs_sigma)[ind], T_obs_sigma[ind] * 2])
-            leg_data = ax_temp.errorbar(T_obs[ind], T_depth[ind], xerr=xerr, **erb_props)
+        # uncorrected BHTs are minimum estimates of the true temperature,
+        # which is why they get their own marker, a one sided error bar
+        # and a separate legend entry
+        if bht_ind.any():
+            bht_props = dict(erb_props)
+            bht_props['marker'] = '>'
+            xerr = np.array([np.zeros_like(T_obs_sigma)[bht_ind],
+                             T_obs_sigma[bht_ind] * 2])
+            leg_bht = ax_temp.errorbar(T_obs[bht_ind], T_depth[bht_ind],
+                                       xerr=xerr, **bht_props)
+            leg_data_ext.append(leg_bht)
+            data_ext_label.append('uncorrected BHT temperature')
 
-        leg_data = ax_temp.errorbar(T_obs[nind], T_depth[nind], xerr=T_obs_sigma[nind] * 2, **erb_props)
-        data_label.append('temperature')
+        if other_ind.any():
+            leg_data = ax_temp.errorbar(T_obs[other_ind], T_depth[other_ind],
+                                        xerr=T_obs_sigma[other_ind] * 2,
+                                        **erb_props)
+            data_label.append('temperature')
+
+        log_depths = np.asarray(T_depth, dtype=float)
+        log_temps = np.asarray(T_obs, dtype=float)
+
+        # each separate log dataset gets its own color and marker
+        log_types = list(dict.fromkeys(data_types[log_ind]))
+
+        for log_no, log_type in enumerate(log_types):
+            sel = data_types == log_type
+            order = np.argsort(log_depths[sel])
+            depth_sel = log_depths[sel][order]
+            temp_sel = log_temps[sel][order]
+            log_color = log_colors[log_no % len(log_colors)]
+            log_marker = log_markers[log_no % len(log_markers)]
+            # show a limited number of markers to keep the line readable
+            marker_int = max(1, int(len(depth_sel) / 20))
+            leg_log, = ax_temp.plot(temp_sel, depth_sel, color=log_color,
+                                    lw=1.0, marker="none", ms=3,
+                                    markevery=marker_int, zorder=9)
+            leg_data_ext.append(leg_log)
+            data_ext_label.append(log_type)
 
     # plot modeled salinity
     if C_data is not None and C_nodes is not None:
