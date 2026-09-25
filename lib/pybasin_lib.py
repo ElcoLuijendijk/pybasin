@@ -1814,7 +1814,12 @@ def get_geo_history(well_strat, strat_info_mod,
     # reconstruct burial history
     ############################
     # deposition code, 1 = burial, -1 = exhumation, 0 = no changes
-    well_strat['deposition_code'] = 1
+    # float, not int: matches the dtype used for this column everywhere
+    # else it is built (exhumation_df, hiatus_df below). an int64 column
+    # here makes hiatus_df's astype(geohist_df.dtypes) raise
+    # "cannot convert float NaN to integer" for any well with a hiatus
+    # and no exhumation phase
+    well_strat['deposition_code'] = 1.0
 
     # get present day thickness
     well_strat['present-day_thickness'] = \
