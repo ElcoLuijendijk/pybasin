@@ -1420,6 +1420,158 @@ def solve_1D_heat_flow(T, z, dt, K, rho, c, Q,
     return T_new, A
 
 
+def solve_1D_steady_state_heat_flow(z, K, Q, fixed_upper_temperature,
+                                    fixed_lower_temperature):
+    """
+    solve the steady-state 1D heat flow equation with variable node spacing,
+    thermal conductivity and heat production and fixed temperatures at the
+    top and bottom nodes
+
+    :param z: depth of nodes (m)
+    :param K: thermal conductivity of the grid cells between nodes
+        (W m^-1 K^-1)
+    :param Q: heat production at nodes (W m^-3)
+    :return: temperature at nodes
+    """
+
+    nz = len(z)
+    dz = np.diff(z)
+
+    A = np.zeros((nz, nz))
+    b = -np.asarray(Q, dtype=float).copy()
+
+    i = np.arange(1, nz - 1)
+    s = 2.0 / (z[2:] - z[:-2])
+    t = K[1:] / dz[1:]
+    u = K[:-1] / dz[:-1]
+
+    A[i, i - 1] = s * u
+    A[i, i] = -s * (t + u)
+    A[i, i + 1] = s * t
+
+    A[0, 0] = 1.0
+    b[0] = fixed_upper_temperature
+    A[-1, -1] = 1.0
+    b[-1] = fixed_lower_temperature
+
+    return np.linalg.solve(A, b)
+
+
+def create_lithosphere_column(pybasin_params, sediment_thickness):
+    """
+    set up the grid and thermal parameters of the crystalline crust and
+    lithospheric mantle below the modelled sedimentary column
+
+    the basement column is attached to the base of the sedimentary column
+    and keeps a constant thickness over time, so each basement node always
+    represents the same piece of rock and moves down together with the
+    base of the sediment column during burial. layer boundaries are given
+    as present-day depths below the surface in pybasin_params and are
+    converted to depths below the present-day base of the sediment column.
+
+    crustal heat production is either assigned using an exponential decrease
+    with depth below the top of the basement, A = A0 * exp(-z / hr), or
+    using a constant value for the upper and the lower crust. the
+    lithospheric mantle has a constant heat production.
+
+    :param pybasin_params: model parameter class
+    :param sediment_thickness: present-day thickness of the modelled
+        sedimentary column (m)
+    :return: dict with the depth of each basement node below the base of the
+        sediment column (dz), the thermal conductivity of the grid cell
+        above each basement node (K), and density (rho), heat capacity (c),
+        heat production (Q) and layer name (layer) of each basement node
+    """
+
+    upper_crust_base = (pybasin_params.upper_crust_base_depth
+                        - sediment_thickness)
+    moho = pybasin_params.moho_depth - sediment_thickness
+    lab = pybasin_params.lithosphere_thickness - sediment_thickness
+
+    if not 0 < upper_crust_base < moho < lab:
+        msg = ('the lithosphere layer depths in pybasin_params.py should be '
+               'ordered as present-day sediment thickness (%0.0f m) < '
+               'upper_crust_base_depth (%0.0f m) < moho_depth (%0.0f m) < '
+               'lithosphere_thickness (%0.0f m)'
+               % (sediment_thickness, pybasin_params.upper_crust_base_depth,
+                  pybasin_params.moho_depth,
+                  pybasin_params.lithosphere_thickness))
+        raise ValueError(msg)
+
+    # node spacing starts small below the sediment column, to resolve the
+    # basal heat flow, and increases geometrically with depth
+    dz_top = getattr(pybasin_params, 'lithosphere_grid_dz_top', 100.0)
+    dz_max = getattr(pybasin_params, 'lithosphere_grid_dz_max', 2500.0)
+    growth = getattr(pybasin_params, 'lithosphere_grid_growth_factor', 1.1)
+
+    spacing = []
+    total = 0.0
+    while total < lab:
+        dz_i = min(dz_top * growth ** len(spacing), dz_max)
+        spacing.append(dz_i)
+        total += dz_i
+
+    dz = np.cumsum(spacing)
+
+    # add nodes at each layer boundary and at the base of the lithosphere
+    dz = np.unique(np.concatenate([dz[dz < lab],
+                                   [upper_crust_base, moho, lab]]))
+
+    # remove nodes that are very close to a layer boundary
+    boundaries = np.array([upper_crust_base, moho, lab])
+    too_close = np.array([np.min(np.abs(boundaries - dzi)) < 0.25 * dz_top
+                          and dzi not in boundaries for dzi in dz])
+    dz = dz[~too_close]
+
+    layer = np.where(dz <= upper_crust_base, 'upper_crust',
+                     np.where(dz <= moho, 'lower_crust', 'mantle'))
+
+    # use the layer at the midpoint of each cell for thermal conductivity
+    dz_mid = (np.concatenate([[0.0], dz[:-1]]) + dz) / 2.0
+    K = np.where(dz_mid <= upper_crust_base,
+                 pybasin_params.thermal_conductivity_upper_crust,
+                 np.where(dz_mid <= moho,
+                          pybasin_params.thermal_conductivity_lower_crust,
+                          pybasin_params.thermal_conductivity_mantle))
+
+    rho = np.where(layer == 'upper_crust', pybasin_params.density_upper_crust,
+                   np.where(layer == 'lower_crust',
+                            pybasin_params.density_lower_crust,
+                            pybasin_params.density_mantle))
+
+    c = np.where(layer == 'mantle', pybasin_params.heat_capacity_mantle,
+                 pybasin_params.heat_capacity_crust)
+
+    hp_model = pybasin_params.crustal_heat_production_model
+
+    if hp_model == 'exponential':
+        Q_crust = (pybasin_params.heat_production_top_basement
+                   * np.exp(-dz / pybasin_params.heat_production_decay_depth))
+    elif hp_model == 'layered':
+        Q_crust = np.where(layer == 'upper_crust',
+                           pybasin_params.heat_production_upper_crust,
+                           pybasin_params.heat_production_lower_crust)
+    else:
+        msg = ("crustal_heat_production_model in pybasin_params.py should be "
+               "either 'exponential' or 'layered', not '%s'" % hp_model)
+        raise ValueError(msg)
+
+    Q = np.where(layer == 'mantle', pybasin_params.heat_production_mantle,
+                 Q_crust)
+
+    lithosphere_column = {'dz': dz, 'K': K, 'rho': rho, 'c': c, 'Q': Q,
+                          'layer': layer}
+
+    crust = layer != 'mantle'
+    crustal_hp = np.sum(0.5 * (Q[crust][1:] + Q[crust][:-1])
+                        * np.diff(dz[crust]))
+    logger.info('added %i nodes for the crust and lithospheric mantle below '
+                'the sediment column, total crustal heat production = '
+                '%0.1f mW/m2' % (len(dz), crustal_hp * 1e3))
+
+    return lithosphere_column
+
+
 def solve_1D_diffusion(C, z, dt, Ks, phi, Q,
                        upper_bnd_flux,
                        lower_bnd_flux,
@@ -3692,11 +3844,61 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
     for ni in range(nt_total):
         T_nodes[ni, :] = surface_temp_array[ni]
 
-    # interpolate basal heat flow
-    logger.info('interpolate basal heat flow')
-    basal_hf_array = np.interp(time_array_bp,
-                               pybasin_params.heatflow_ages * 1.0e6,
-                               pybasin_params.heatflow_history)
+    simulate_lithosphere = getattr(pybasin_params, 'simulate_lithosphere',
+                                   False)
+
+    if simulate_lithosphere is True:
+        # the lower boundary is a fixed temperature at the base of the
+        # lithosphere, the heat flow at the base of the sediment column is
+        # calculated by the model and stored in basal_hf_array
+        logger.info('simulating the entire lithosphere, with a fixed '
+                    'temperature of %0.1f degr. C at the base of the '
+                    'lithosphere. heatflow_history is not used'
+                    % pybasin_params.lithosphere_base_temperature)
+        basal_hf_array = np.zeros(nt_total)
+
+        sediment_thickness = z_nodes[-1, active_nodes[-1]].max()
+        lithosphere_column = create_lithosphere_column(pybasin_params,
+                                                       sediment_thickness)
+        n_litho = len(lithosphere_column['dz'])
+        T_litho = np.zeros((nt_total, n_litho))
+        T_base_litho = pybasin_params.lithosphere_base_temperature
+
+        def extend_to_lithosphere(ti):
+            """
+            add the crust and lithospheric mantle nodes to the sediment
+            column at timestep ti
+            """
+            z_sed = z_nodes[ti, active_nodes[ti]]
+            z_ext = np.concatenate([z_sed,
+                                    z_sed[-1] + lithosphere_column['dz']])
+            K_ext = np.concatenate([k_nodes[ti, active_cells[ti]],
+                                    lithosphere_column['K']])
+            rho_ext = np.concatenate([rho_nodes[ti, active_nodes[ti]],
+                                      lithosphere_column['rho']])
+            c_ext = np.concatenate([c_nodes[ti, active_nodes[ti]],
+                                    lithosphere_column['c']])
+            Q_ext = np.concatenate([hp_nodes[ti, active_nodes[ti]],
+                                    lithosphere_column['Q']])
+            return z_ext, K_ext, rho_ext, c_ext, Q_ext
+
+        # start with a steady-state geotherm, since the thermal
+        # equilibration time of the lithosphere is much longer than the
+        # duration of most burial histories
+        z_ext, K_ext, rho_ext, c_ext, Q_ext = extend_to_lithosphere(0)
+        T_ss = solve_1D_steady_state_heat_flow(
+            z_ext, K_ext, Q_ext, surface_temp_array[0], T_base_litho)
+
+        n_sed_0 = active_nodes[0].sum()
+        T_nodes[0, active_nodes[0]] = T_ss[:n_sed_0]
+        T_litho_prev = T_ss[n_sed_0:]
+
+    else:
+        # interpolate basal heat flow
+        logger.info('interpolate basal heat flow')
+        basal_hf_array = np.interp(time_array_bp,
+                                   pybasin_params.heatflow_ages * 1.0e6,
+                                   pybasin_params.heatflow_history)
 
     if pybasin_params.simulate_salinity is True:
         # construct surface salinity curve from stratigraphy and
@@ -3874,19 +4076,45 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
             raise ValueError(msg)
 
         # calculate temperature
-        T_nodes[timestep, active_nodes_i], A = \
-            solve_1D_heat_flow(
-                T_init,
-                z_nodes[timestep, active_nodes_i],
+        if simulate_lithosphere is True:
+            z_ext, K_ext, rho_ext, c_ext, Q_ext = \
+                extend_to_lithosphere(timestep)
+            T_ext, A = solve_1D_heat_flow(
+                np.concatenate([T_init, T_litho_prev]),
+                z_ext,
                 dt_hf * year,
-                k_nodes[timestep, active_cells_i],
-                rho_nodes[timestep, active_nodes_i],
-                c_nodes[timestep, active_nodes_i],
-                hp_nodes[timestep, active_nodes_i],
+                K_ext,
+                rho_ext,
+                c_ext,
+                Q_ext,
                 None,
-                basal_hf_array[timestep],
+                None,
                 surface_temp_array[timestep],
-                None)
+                T_base_litho)
+
+            n_sed = len(T_init)
+            T_nodes[timestep, active_nodes_i] = T_ext[:n_sed]
+            T_litho[timestep] = T_ext[n_sed:]
+            T_litho_prev = T_litho[timestep]
+
+            # heat flow at the base of the sediment column
+            basal_hf_array[timestep] = (
+                K_ext[n_sed - 1] * (T_ext[n_sed] - T_ext[n_sed - 1])
+                / (z_ext[n_sed] - z_ext[n_sed - 1]))
+        else:
+            T_nodes[timestep, active_nodes_i], A = \
+                solve_1D_heat_flow(
+                    T_init,
+                    z_nodes[timestep, active_nodes_i],
+                    dt_hf * year,
+                    k_nodes[timestep, active_cells_i],
+                    rho_nodes[timestep, active_nodes_i],
+                    c_nodes[timestep, active_nodes_i],
+                    hp_nodes[timestep, active_nodes_i],
+                    None,
+                    basal_hf_array[timestep],
+                    surface_temp_array[timestep],
+                    None)
 
         if pybasin_params.simulate_salinity is True:
 
@@ -4160,6 +4388,31 @@ def run_burial_hist_model(well_number, well, well_strat, strat_info_mod,
                          'present_day_pressure_well_%s_ms%i.csv'
                          % (well, model_scenario_number)),
             index=False)
+
+    if simulate_lithosphere is True and save_csv_files is True:
+        # save the present-day temperature profile of the sediment column,
+        # crust and lithospheric mantle
+        z_sed = z_nodes[-1, active_nodes[-1]]
+        lithosphere_df = pd.DataFrame({
+            'depth': np.concatenate([z_sed,
+                                     z_sed[-1] + lithosphere_column['dz']]),
+            'layer': np.concatenate([np.array(node_strat)[active_nodes[-1]],
+                                     lithosphere_column['layer']]),
+            'temperature': np.concatenate([T_nodes[-1, active_nodes[-1]],
+                                           T_litho[-1]]),
+            'heat_production': np.concatenate([hp_nodes[-1, active_nodes[-1]],
+                                               lithosphere_column['Q']])})
+        lithosphere_df.to_csv(
+            os.path.join(output_dir,
+                         'present_day_lithosphere_temperature_well_%s_ms%i.csv'
+                         % (well, model_scenario_number)),
+            index=False)
+        logger.info('present-day heat flow at the base of the sediment '
+                    'column = %0.1f mW/m2, Moho temperature = %0.1f degr. C'
+                    % (basal_hf_array[-1] * 1e3,
+                       np.interp(pybasin_params.moho_depth,
+                                 lithosphere_df['depth'],
+                                 lithosphere_df['temperature'])))
 
     return_params = [geohist_df, time_array, time_array_bp,
                      surface_temp_array, basal_hf_array,

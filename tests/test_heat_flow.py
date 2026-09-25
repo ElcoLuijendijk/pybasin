@@ -21,6 +21,8 @@ comparison into an automated regression guard on the model's central
 conductive solver, analogous to how test_gibson_undrained_limit guards
 the compaction solver.
 
+test_lithosphere_steady_state_vs_analytical checks the crust and mantle column made by create_lithosphere_column and the steady-state solver solve_1D_steady_state_heat_flow against the analytical geotherm for a layer with fixed top and base temperatures and heat production that decreases exponentially with depth.
+
 Run with:
     pytest tests/test_heat_flow.py
 """
@@ -120,3 +122,54 @@ def test_conduction_step_change_vs_analytical():
         max_error = max(max_error, np.max(np.abs(numerical - analytical)))
 
     assert max_error < 0.5
+
+
+class LithosphereParams:
+
+    upper_crust_base_depth = 15000.0
+    moho_depth = 30000.0
+    lithosphere_thickness = 100000.0
+    thermal_conductivity_upper_crust = 3.0
+    thermal_conductivity_lower_crust = 3.0
+    thermal_conductivity_mantle = 3.0
+    density_upper_crust = 2750.0
+    density_lower_crust = 2900.0
+    density_mantle = 3300.0
+    heat_capacity_crust = 1000.0
+    heat_capacity_mantle = 1200.0
+    crustal_heat_production_model = 'exponential'
+    heat_production_top_basement = 2.5e-6
+    heat_production_decay_depth = 2000.0
+    heat_production_mantle = 0.0
+
+
+def test_lithosphere_steady_state_vs_analytical():
+
+    """
+    compare the steady-state geotherm of the lithosphere column made by
+    create_lithosphere_column with the analytical solution for a layer with
+    uniform thermal conductivity, fixed temperatures at the top and base and
+    heat production that decreases exponentially with depth. the decay depth
+    is small, so that heat production in the mantle is negligible
+    """
+
+    params = LithosphereParams()
+    T0 = 10.0
+    TL = 1330.0
+
+    litho = pybasin_lib.create_lithosphere_column(params, 0.0)
+
+    z = np.concatenate([[0.0], litho['dz']])
+    Q = np.concatenate([[params.heat_production_top_basement], litho['Q']])
+
+    T = pybasin_lib.solve_1D_steady_state_heat_flow(z, litho['K'], Q, T0, TL)
+
+    K = params.thermal_conductivity_upper_crust
+    A0 = params.heat_production_top_basement
+    hr = params.heat_production_decay_depth
+    L = params.lithosphere_thickness
+    b = A0 * hr ** 2 / K
+    a = (TL - T0 - b * (1.0 - np.exp(-L / hr))) / L
+    analytical = T0 + a * z + b * (1.0 - np.exp(-z / hr))
+
+    assert np.max(np.abs(T - analytical)) < 0.05

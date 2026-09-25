@@ -56,13 +56,14 @@ PyBasin contains four example datasets:
 2. [input_data/example_dataset_2](input_data/example_dataset_2): Apatite fission track and (U-Th)/He data from surface outcrops in the Molasse Basin in Switzerland ([von Hagke et al. 2012, Tectonics](http://doi.wiley.com/10.1029/2011TC003078)).
 3. [input_data/example_dataset_3](input_data/example_dataset_3): Pore-water salinity data from a well in the Roer Valley Graben, demonstrating the solute diffusion model.
 4. [input_data/example_dataset_4](input_data/example_dataset_4): Subsurface temperature and drill stem test pressure data from a well in the Gyda field, Norwegian Central Graben, demonstrating the compaction-driven fluid flow and excess pore pressure model.
+5. [input_data/example_dataset_5](input_data/example_dataset_5): Bottom hole temperatures from well AST-02 in the Roer Valley Graben, demonstrating the lithosphere scale heat flow model, with a fixed temperature at the base of the lithosphere and user defined heat production in the crust and mantle instead of a specified basal heat flow.
 
 You can run these example models using:
 
 ````sh
 python pybasin.py input_data/example_dataset_1
 ````
-and similarly for `example_dataset_2`, `example_dataset_3` or `example_dataset_4`.
+and similarly for `example_dataset_2`, `example_dataset_3`, `example_dataset_4` or `example_dataset_5`.
 
 The model runs will automatically generate figures of the modelled burial and thermal history and vitrinite reflectance, apatite fission track, apatite (U-Th)/He, salinity and/or pore pressure data, which can be found in the directory ``model_output/example_dataset_x``. The model result figure for the first example dataset should look like the figure below:
 
