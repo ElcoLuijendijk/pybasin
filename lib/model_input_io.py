@@ -342,12 +342,63 @@ def read_model_input_data(input_dir, pybasin_params):
     numeric_litho_props = [col for col in litho_props.columns
                            if col not in non_blended_litho_props]
 
+    # method for combining the thermal conductivity of the different
+    # lithologies in a stratigraphic unit:
+    # 'harmonic': fraction weighted harmonic mean, the default. lithologies
+    #   within a unit are usually interbedded, and beds in series are what
+    #   vertical heat flow sees, so this is the appropriate average. it is
+    #   also the convention used in basin modelling, see Hantschel &
+    #   Kauerauf (2009) and Limberger et al. (2018)
+    # 'geometric': fraction weighted geometric mean, appropriate if the
+    #   lithologies are mixed at grain scale rather than interbedded
+    # 'arithmetic': fraction weighted arithmetic mean, the parallel bound,
+    #   which is what pybasin used before this option was added
+    # only thermal conductivity is affected. the other lithology properties
+    # are volume additive and always use the arithmetic mean.
+    # note that the harmonic and geometric means normalize the lithology
+    # fractions of a unit so that they sum to one, while the arithmetic mean
+    # uses them as given, so they differ slightly for a unit whose fractions
+    # do not add up to exactly one
+    lithology_mixing_model = getattr(pybasin_params, 'lithology_mixing_model',
+                                     'harmonic')
+
+    if lithology_mixing_model not in ('harmonic', 'geometric', 'arithmetic'):
+        msg = ("lithology_mixing_model in pybasin_params.py should be "
+               "'harmonic', 'geometric' or 'arithmetic', not '%s'"
+               % lithology_mixing_model)
+        raise ValueError(msg)
+
     # add new lithology properties columns to stratigraphy dataframe
     for litho_prop_name in numeric_litho_props:
         strat_info_mod[litho_prop_name] = 0
 
+    # sum of the lithology fractions of each unit, used to normalize the
+    # weights of the harmonic and geometric means
+    fraction_sum = sum(strat_info[col].astype(float) for col in litho_cols)
+
     # go through all litho properties
     for litho_prop_name in numeric_litho_props:
+
+        mix_conductivity = (litho_prop_name == 'thermal_conductivity'
+                            and lithology_mixing_model != 'arithmetic')
+
+        if mix_conductivity:
+            mixed = 0
+            for col in litho_cols:
+                weight = (strat_info[col].astype(float)
+                          / fraction_sum.replace(0, np.nan))
+                if lithology_mixing_model == 'harmonic':
+                    mixed = mixed + weight / litho_props[litho_prop_name][col]
+                else:
+                    mixed = mixed + weight * np.log(
+                        litho_props[litho_prop_name][col])
+
+            if lithology_mixing_model == 'harmonic':
+                strat_info_mod[litho_prop_name] = (1.0 / mixed).fillna(0.0)
+            else:
+                strat_info_mod[litho_prop_name] = np.exp(mixed).fillna(0.0)
+
+            continue
 
         # go through all lithology types present in strat unit
         for col in litho_cols:

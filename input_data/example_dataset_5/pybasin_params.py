@@ -158,9 +158,21 @@ class ModelParameters:
     lithosphere_base_temperature = 1330.0
 
     # present-day depth below the surface (m) of the base of the upper crust,
-    # the Moho and the base of the lithosphere. Crustal thickness in the Roer
-    # Valley Graben and Lower Rhine Embayment is approximately 28 to 30 km,
-    # lithosphere thickness approximately 90 to 110 km.
+    # the Moho and the base of the lithosphere.
+    # Crustal thickness: Remmelts & Duin (1991), cited by Luijendijk et al.
+    # (2011), give 28 km in the axis of the rift basin and 30 to 31 km at the
+    # flanks, consistent with the European crustal model EuCRUST-07 (Tesauro
+    # et al., 2008). 29 km is used here.
+    # Lithosphere thickness is contested for the Roer Valley Graben. Panza et
+    # al. (1980) and Cloetingh et al. (2005) infer a thin lithosphere of
+    # around 60 km, while Goes et al. (2000) infer a relatively uniform and
+    # thick lithosphere. Luijendijk et al. (2011) argue for the latter,
+    # because heat flow in the graben (53 to 63 mW/m2) is not elevated
+    # relative to the adjacent blocks and Cenozoic stretching was low
+    # (beta = 1.06 to 1.15). 100 km follows that conclusion. Note that a
+    # 60 km lithosphere raises the modelled temperature at the bottom of
+    # AST-02 by about 17 degr. C at the heat production set below, so this
+    # choice matters a lot.
     # Note that well AST-02 only reaches the Upper Cretaceous chalk (CKHM),
     # so the older sedimentary rocks below 1673 m are included in the upper
     # crust in this example.
@@ -171,7 +183,11 @@ class ModelParameters:
     moho_depth = 29000.0
     lithosphere_thickness = 100000.0
 
-    # thermal conductivity (W m^-1 K^-1)
+
+    # thermal conductivity (W m^-1 K^-1). these are the values commonly used
+    # in continental geotherm models: 2.6 to 3.0 for the upper crust, 2.1 to
+    # 2.6 for the lower crust and 3.0 to 3.4 for the lithospheric mantle
+    # (see for instance Jaupart & Mareschal, 2011; Hasterok & Chapman, 2011)
     thermal_conductivity_upper_crust = 3.0
     thermal_conductivity_lower_crust = 2.5
     thermal_conductivity_mantle = 3.3
@@ -191,8 +207,23 @@ class ModelParameters:
     # heat production of the sediments is set in lithology_properties.csv
     crustal_heat_production_model = 'exponential'
 
-    # parameters for the exponential model
-    heat_production_top_basement = 2.5e-6
+    # parameters for the exponential model.
+    # heat_production_top_basement was calibrated so that the modelled
+    # temperature matches the deepest continuous log temperature in AST-02,
+    # 62.7 degr. C at 1639.6 m, using the Weichselian surface temperature
+    # history in surface_temperature.csv. the fit over the whole log is
+    # good, RMSE 1.3 degr. C.
+    # the temperature data only constrain the ratio of heat flow to thermal
+    # conductivity: they require an equilibrium gradient of about
+    # 39 degr. C/km, which with the bulk conductivity of this column of
+    # about 2.1 W m^-1 K^-1 means a heat flow of about 80 mW/m2 at the base
+    # of the sediments. that is higher than the 53 to 63 mW/m2 reported by
+    # Luijendijk et al. (2011), whose lower value follows from the harmonic
+    # mean used there for bulk conductivity. the same 80 mW/m2 can be
+    # produced instead by a lithosphere about 68 km thick with a normal
+    # heat production of 2.5e-6, which the temperature data cannot
+    # distinguish from the high heat production used here
+    heat_production_top_basement = 4.41e-6
     heat_production_decay_depth = 10000.0
 
     # parameters for the layered model
